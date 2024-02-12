@@ -1,0 +1,13 @@
+package su.nsk.iae.reflex.expression.types;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class Int8TypeTest {
+    Int8Type test = new Int8Type();
+    @Test
+    void invertBorder() {
+        assertEquals("-1",test.invertBorder());
+    }
+}

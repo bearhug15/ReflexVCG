@@ -1,0 +1,105 @@
+program = " PROGR ", id , "{" , [ tact ], [{ const_or_enum_spec }] ,[{ function_decl }] , [{ register_spec }] , { process_spec },"}";
+tact = " TACT ", int_num , ";";
+const_or_enum_spec = const_spec | enumerator_spec ;
+
+enumerator_spec = " ENUM ", "{" , enumerator_list , "}";
+enumerator_list = enumerator | ( enumerator , " ," , enumerator_list ) ;
+enumerator = const_id | ( const_id , "=" , const_exp_body );
+
+const_spec = " CONST " , const_id , const_exp_body , ";";
+const_exp_body = const_pref_term | ( const_pref_term , { const_infix , const_pref_term }) ;
+const_pref_term = [ const_prefix ], const_term ;
+const_prefix = "~" | "!" | "+" | " -";
+const_infix = "+" | " -" | "*" | "/" | "%" | " < <" | " > >" | "&" | "^" | "|" | "&&" | "||";
+const_term = number | const_id | "(" , const_exp_body ,") " ;
+
+function_decl = c_type_spec , func_id , "(" , c_type_spec_list , ") ", ";";
+c_type_spec_list = c_type_spec | ( c_type_spec , " ," , c_type_spec_list );
+
+register_spec = (" INPUT " | " OUTPUT ") , reg_id , addr_1 , addr_2 ,register_size ;
+addr_1 = int_num ;
+addr_2 = int_num ;
+register_size = "8" | "16";
+
+process_spec = " PROC ", proc_id , "{" , [ var_list ] , { func_state } , "}";
+
+var_list = { var_spec | var_decl };
+var_spec = ( phys_var_spec | calc_var_spec ) , visibility_spec , ";";
+phys_var_spec = int_type_spec , var_id , "=" , "{" , reg_bits_spec_list , "}";
+reg_bits_spec_list = reg_bits_spec | ( reg_bits_spec , " ," , reg_bits_spec_list );
+reg_bits_spec = reg_id , "[" , int_num , "]";
+calc_var_spec = ( c_type_spec | " BOOL ") , var_id ;
+visibility_spec = " LOCAL " | (" FOR " , " ALL ") | (" FOR " , proc_id_list );
+proc_id_list = proc_id | ( proc_id , " ," , proc_id_list );
+var_decl = "FROM" , "PROC", proc_id , var_id_list , ";";
+func_state = "STATE", func_state_id , "{" ,([ func_state_body ] , timeout_react_spec ) | timeout_react_spec , "}";
+func_state_body = { react_spec };
+timeout_react_spec = "TIMEOUT", ( number | const_id | var_id ) , react_spec ;
+react_spec =
+    ";"
+    | ("{" , func_state_body , "}")
+    | switch_spec
+    | event_react_spec
+    | start_spec
+    | stop_spec
+    | error_spec
+    | loop_decl
+    | set_cur_sf_spec
+    | restart_cur_proc_spec
+    | reset_timer_spec
+    | var_equation ;
+switch_spec = "SWITCH", "(" , event , ")" , "{" , { case_spec }, "}";
+case_spec = "CASE" , int_num , ":" , func_state_body , ["BREAK", ";"];
+event_react_spec = event_react_body , [ rev_event_react_body ];
+event_react_body = "IF", "(" , event , ") ", react_spec ;
+rev_event_react_body = " ELSE ", react_spec ;
+start_spec = "START", proc_id , ";";
+stop_spec = "STOP" , [ proc_id ], ";";
+error_spec = "ERROR", [ proc_id ] , ";";
+loop_decl = "LOOP" , ";";
+set_cur_sf_spec = "SET" , ("STATE" , func_state_id ) | "NEXT", ";";
+restart_cur_proc_spec = "RESTART", ";";
+reset_timer_spec = "RESET" , "TIMEOUT", ";";
+var_equation = var_id , "=" , event , ";" ;
+function = func_id , "(" , func_param_list , ") ";
+func_param_list = event | ( event , {"," , event }) ;
+term = number | const_id | var_id | function | situation | "(" , event , ") ";
+event = var_pref_post_term | var_pref_post_term , { var_infix , var_pref_post_term };
+var_pref_post_term = var_prefix , term , [ var_postfix ];
+var_prefix = [("~" | "!" | "++" | "--" | "+" | "-" | "*" | "&") ], ["(" , c_type_spec ,") "];
+var_postfix = "++" | "--";
+var_infix = "+" | "-" | "*" | "/" | "%" | "<<" | ">>" | "&" | "^" | "|" | "&&" | "||" | "=" | "*=" | "/=" | "%=" | "+=" | "-=" | "<<=" , | ">>=" | "&=" | "^=" | "|=" | "<" | ">" | "<=" | ">=" | "==" | "!=";
+situation = " PROC ", proc_id , " IN ", " STATE ", ( func_state_id | " ACTIVE " | " PASSIVE ") ;
+func_id = id ;
+const_id = id ;
+reg_id = id ;
+proc_id = id ;
+func_state_id = id ;
+var_id_list = var_id | ( var_id , " ," , var_id_list ) ;
+var_id = id ;
+letter = ("A" ... "Z") | ("a" ... "z") | "_";
+id = letter , { letter | decimal_digit };
+
+c_type_spec = "VOID" | "FLOAT" | "DOUBLE" | (["SIGNED" | "UNSIGNED"] , ("SHORT" | "INT" | "LONG") ) ;
+int_type_spec = "BOOL" | "SHORT" | "INT" | "LONG";
+float_type_spec = "FLOAT" | "DOUBLE";
+number = int_num | float_num ;
+int_num = octal_num | decimal_num | hex_num ;
+octal_num = "0" , [{ octal_digit }] , ["U" | "u"] | ["L "| "l"];
+octal_digit = "0" ... "7";
+decimal_num = ( decimal_digit - "0") , [{ decimal_digit }] , ["U" | "u"] | ["L" | "l"];
+decimal_digit = octal_digit | "8" | "9";
+hex_num = hex_prefix , hex_sequence , ["U" | "u"] | ["L" | "l"];
+hex_digit = decimal_digit | ("A" ... "F") | ("a" ... "f") ;
+float_num = decimal_float_num | hex_float_num ;
+decimal_float_num = ( fractional_part , [ exponent_part ], [ float_suffix ]) | ( decimal_sequence , exponent_part , [ float_suffix ]) ;
+hex_float_num = hex_prefix , ( hex_fractional_part | hex_sequence ) , bin_exponent_part , [ float_suffix ];
+hex_prefix = "0x " | "0X ";
+fractional_part = ([ decimal_sequence ], "." , decimal_sequence ) | ( decimal_sequence , ".") ;
+exponent_part = (" e " | " E ") , [ sign ], decimal_sequence ;
+sign = "+" | " -";
+hex_fractional_part = ([ hex_sequence ], "." , hex_sequence ) | ( hex_sequence , ".") ;
+bin_exponent_part = (" p" | "P ") , [ sign ], decimal_sequence ;
+hex_sequence = { hex_digit };
+decimal_sequence = { decimal_digit };
+float_suffix = "f " | " F" | "l " | " L ";
