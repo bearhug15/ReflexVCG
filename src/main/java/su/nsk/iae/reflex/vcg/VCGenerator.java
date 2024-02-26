@@ -409,15 +409,14 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
             stateCount++;
             formula.addConjunct(new StateFormula(stateName(),newState));
         }
-        if(ctx.ifElseStat().else_!=null){
-            branchStack.push(new BranchPoint(
-                    formula.peekLastConjunct(),
-                    ctx,
-                    1,
-                    stateCount,
-                    currentProcess,
-                    currentState));
-        }
+        branchStack.push(new BranchPoint(
+                formula.peekLastConjunct(),
+                ctx,
+                1,
+                stateCount,
+                currentProcess,
+                currentState));
+
 
         formula.addConjunct(new EqualityFormula(stateIfName(),true, exp,new ConstantExpression("True",new BoolType())));
 
@@ -770,6 +769,9 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         else if(point.processCtx!=null){
             visitProcessMiss(point.processCtx,point.branch);
         }
+        else{
+            throw new RuntimeException("undefined branch point");
+        }
     }
 
     private void visitIfElseMiss(ReflexParser.IfElseStContext ctx, int i){
@@ -777,9 +779,10 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,stateName());
         ExprGenRes res = vis.visitExpression(e);
         SymbolicExpression exp = res.getExpr();
+        exp.actuate(stateName());
         if (i==1){
+            formula.addConjunct(new EqualityFormula(stateIfName(), true, exp, new RawExpression("False")));
             if (ctx.ifElseStat().else_!=null) {
-                formula.addConjunct(new EqualityFormula(stateIfName(), true, exp, new RawExpression("False")));
                 visitStatement(ctx.ifElseStat().else_);
             }
         }else{
@@ -793,6 +796,7 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,stateName());
         ExprGenRes res = vis.visitExpression(e);
         SymbolicExpression exp = res.getExpr();
+        exp.actuate(stateName());
         boolean breakDef=false;
         for(int j=0;j<i;j++){
             SymbolicExpression subExp = vis.visitExpression(ctx.switchStat().options.get(j).option).expr;
@@ -900,10 +904,7 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         return "_p_"+processName+"_v_"+variable;
     }
     private String stateName(){
-        return "s"+stateCount;
-    }
-    private String numberedStateName(int idx){
-        return "s"+idx;
+        return "st"+stateCount;
     }
     private String inv(String stateName){
         return "(inv " +stateName+")";
@@ -912,16 +913,16 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         return "(toEnv "+stateName+")";
     }
     private String stateIfName(){
-        return "s"+stateCount+"_if";
+        return "st"+stateCount+"_if";
     }
     private String stateBranchName(int branch){
-        return "s"+stateCount+"_branch"+branch;
+        return "st"+stateCount+"_branch"+branch;
     }
     private String stateTimeoutName(String stateName){
-        return "s"+stateCount+"_"+stateName+"_timeout";
+        return "st"+stateCount+"_"+stateName+"_timeout";
     }
     private String stateProcessStateName(String processName){
-        return "s"+stateCount+"_"+processName+"_state";
+        return "st"+stateCount+"_"+processName+"_state";
     }
     private String setPstate(String stateName,String processName,String processStateName){
         return "(setPstate "+stateName+" ''"+processName+"'' ''"+processStateName+"'')";

@@ -20,7 +20,9 @@ public class VCPrinter {
     int lemmasPrinted;
     ProgramMetaData programMetaData;
 
+    boolean isGlobalTheory;
     public VCPrinter(Path destination, String sourceName, ProgramMetaData programMetaData){
+        isGlobalTheory = false;
         lemmasPrinted=0;
         this.sourceName=sourceName;
         VC = new HashSet<>();
@@ -31,14 +33,10 @@ public class VCPrinter {
             throw new RuntimeException("Destination not directory");
         }
         this.programMetaData = programMetaData;
+
     }
 
-    public void printVC(ImplicationFormula formula){
-        printVCInDir(formula);
-        lemmasPrinted++;
-    }
-
-    public void printVCInDir(ImplicationFormula formula){
+    public void createGlobalTheory(){
         String dirName = destination.getFileName().toString();
         String fileName;
         if (sourceName==null) {
@@ -46,10 +44,8 @@ public class VCPrinter {
         }else{
             fileName = sourceName.split("\\.")[0];
         }
-        fileName = fileName+"_VC"+lemmasPrinted;
-        String lemma = toDetailedLemma(formula);
+        fileName = fileName+"Theory";
         StringBuilder builder = new StringBuilder();
-
         builder.append("theory ").append(fileName).append("\n");
         builder.append("imports Reflex\n");
         builder.append("begin\n\n");
@@ -64,7 +60,44 @@ public class VCPrinter {
                 "  (if p=p1 then 0 else ltime s p)\" \n" +
                 "| \"ltime (reset s p1) p =\n" +
                 "  (if p=p1 then 0 else ltime s p)\"");
-        builder.append("\n\n");
+        builder.append("\n\nend\n");
+        fileName = fileName+".thy";
+        try {
+            FileWriter writer = new FileWriter(new File(destination.toString() + "/" + fileName), StandardCharsets.UTF_8);
+            writer.write(builder.toString());
+            writer.close();
+        }catch(Exception e){
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    public void printVC(ImplicationFormula formula){
+        printVCInDir(formula);
+        lemmasPrinted++;
+    }
+
+    public void printVCInDir(ImplicationFormula formula){
+        if (!isGlobalTheory){
+            createGlobalTheory();
+            isGlobalTheory = true;
+        }
+        String dirName = destination.getFileName().toString();
+        String fileName;
+        if (sourceName==null) {
+            fileName = dirName.split("\\.")[0];
+        }else{
+            fileName = sourceName.split("\\.")[0];
+        }
+        String baseTheory = fileName+"Theory";
+        fileName = fileName+"_VC"+lemmasPrinted;
+        String lemma = toDetailedLemma(formula);
+        StringBuilder builder = new StringBuilder();
+
+        builder.append("theory ").append(fileName).append("\n");
+        builder.append("imports ");
+        builder.append(baseTheory);
+        builder.append("\nbegin\n\n");
         builder.append(lemma);
         builder.append("\n");
         builder.append("\nend\n");
