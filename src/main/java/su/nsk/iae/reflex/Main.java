@@ -15,7 +15,7 @@ import java.nio.file.Path;
 // then press Enter. You can now see whitespace characters in your code.
 public class Main {
     public static void main(String[] args) throws ParseException {
-        /*Options options = new Options();
+        Options options = new Options();
         options.addOption("s","source",true,"");
         options.addOption("o","output",true,"");
 
@@ -29,9 +29,9 @@ public class Main {
         if (destination==null) destination="./";
 
         VCGenerator generator = new VCGenerator();
-        generator.generateVC(Path.of(source),Path.of(destination));*/
+        generator.generateVC(Path.of(source),Path.of(destination));
 
-        VCGenerator generator = new VCGenerator();
-        generator.test();
+        /*VCGenerator generator = new VCGenerator();
+        generator.test();*/
     }
 }
