@@ -31,14 +31,14 @@ class ConjuctionFormulaTest {
         LinkedList<Formula> fs3 = new LinkedList<>();
         fs3.add(new RawFormula("f1","val1"));
         fs3.add(new MarkSetState());
-        fs3.add(new MarkReset());
+        fs3.add(new MarkRestart());
         test3.formulas = fs3;
 
         test4 = new ConjuctionFormula();
         LinkedList<Formula> fs4 = new LinkedList<>();
         fs4.add(new RawFormula("f1","val1"));
         fs4.add(new MarkSetState());
-        fs4.add(new MarkReset());
+        fs4.add(new MarkRestart());
         fs4.add(new UnmarkReset());
         test4.formulas = fs4;
     }

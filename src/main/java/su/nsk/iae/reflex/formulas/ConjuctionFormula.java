@@ -1,12 +1,7 @@
 package su.nsk.iae.reflex.formulas;
 
-import su.nsk.iae.reflex.antlr.ReflexParser;
-
-import java.nio.file.Path;
 import java.util.*;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class ConjuctionFormula implements Formula{
     String name;
@@ -104,7 +99,7 @@ public class ConjuctionFormula implements Formula{
         Iterator<Formula> iter = formulas.descendingIterator();
         while (iter.hasNext()){
             Formula formula = iter.next();
-            if (formula instanceof MarkReset){
+            if (formula instanceof MarkRestart){
                 return true;
             }
             if (formula instanceof UnmarkReset){

@@ -68,6 +68,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
     @Override
     public ExprGenRes visitBool(ReflexParser.BoolContext ctx) {
         String val = ctx.BOOL_VAL().getText();
+        val = val.substring(0, 1).toUpperCase() + val.substring(1);
         SymbolicExpression expr = new ConstantExpression(val,new BoolType());
         return new ExprGenRes(expr,state,new TrueFormula());
     }

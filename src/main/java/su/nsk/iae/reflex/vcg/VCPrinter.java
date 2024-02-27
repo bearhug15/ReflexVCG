@@ -2,11 +2,11 @@ package su.nsk.iae.reflex.vcg;
 
 import su.nsk.iae.reflex.formulas.ImplicationFormula;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.List;
 import java.util.StringJoiner;
@@ -14,7 +14,7 @@ import java.util.StringJoiner;
 public class VCPrinter {
     String sourceName;
 
-    Path destination;
+    Path destination=null;
 
     HashSet<String> VC;
     int lemmasPrinted;
@@ -33,9 +33,17 @@ public class VCPrinter {
             throw new RuntimeException("Destination not directory");
         }
         this.programMetaData = programMetaData;
-
+        copyReflexTheory();
     }
 
+    public void copyReflexTheory(){
+        try {
+            InputStream input = getClass().getClassLoader().getResourceAsStream("ReflexTheory/Reflex.thy");
+            Files.copy(input,Paths.get(destination.toString()+"/Reflex.thy"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
     public void createGlobalTheory(){
         String dirName = destination.getFileName().toString();
         String fileName;

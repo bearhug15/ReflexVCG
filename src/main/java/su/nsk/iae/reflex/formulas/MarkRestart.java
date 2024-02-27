@@ -2,7 +2,7 @@ package su.nsk.iae.reflex.formulas;
 
 import java.util.List;
 
-public class MarkReset implements Formula{
+public class MarkRestart implements Formula{
     @Override
     public List<String> toStrings() {
         return null;

@@ -307,10 +307,11 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
     public Void visitState(ReflexParser.StateContext ctx) {
         currentState = ctx.name.getText();
         visitStatementSeq(ctx.stateFunction);
-        formula.addConjunct(new UnmarkSetState());
+
         if (ctx.func !=null){
             visitTimeoutFunction( ctx.func);
         }
+        formula.addConjunct(new UnmarkSetState());
         return null;
     }
 
@@ -336,14 +337,18 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
             ExprType t;
             if (mapper.is_variable(currentProcess,id)){
                 t= mapper.variableType(currentProcess,id);
+                VariableExpression subExp = new VariableExpression(ctx.timeAmountOrRef().ref.getText(),t,true);
+                subExp.actuate(stateName());
+                exp = subExp;
             }else if (mapper.is_const(id)){
                 t= mapper.constantType(id);
+                exp = new ConstantExpression(mapper.constantValue(id),t);
             } else{
                 t = new IntType();
+                VariableExpression subExp = new VariableExpression(ctx.timeAmountOrRef().ref.getText(),t,true);
+                subExp.actuate(stateName());
+                exp = subExp;
             }
-            VariableExpression subExp = new VariableExpression(ctx.timeAmountOrRef().ref.getText(),t,true);
-            subExp.actuate(stateName());
-            exp = subExp;
         }
         formula.addConjunct(new GreaterFormula(
                 stateTimeoutName(currentState),
@@ -494,7 +499,7 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
     public Void visitStartProcStat(ReflexParser.StartProcStatContext ctx) {
         String id = ctx.processId.getText();
         if (id.equals(currentProcess)){
-            formula.addConjunct(new MarkReset());
+            formula.addConjunct(new MarkRestart());
         }else{
             String setP = setPstate(stateName(),id,metaData.startState(id));
             stateCount++;
@@ -535,13 +540,14 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
 
     @Override
     public Void visitRestartStat(ReflexParser.RestartStatContext ctx) {
-        formula.addConjunct(new MarkReset());
+        formula.addConjunct(new MarkRestart());
         return null;
     }
 
     @Override
     public Void visitResetStat(ReflexParser.ResetStatContext ctx) {
         String res = reset(stateName(),currentProcess);
+        formula.addConjunct(new MarkSetState());
         stateCount++;
         formula.addConjunct(new StateFormula(stateName(),res));
         return null;
@@ -628,9 +634,6 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         }
         if (ctx instanceof ReflexParser.TimeoutFunctionContext){
             visitRest(ctx.parent,(ReflexParser.TimeoutFunctionContext)ctx);
-        }
-        if (ctx instanceof ReflexParser.StateContext){
-            visitStateRest((ReflexParser.StateContext)ctx,childCtx);
         }
         if (ctx instanceof ReflexParser.StateContext){
             visitStateRest((ReflexParser.StateContext)ctx,childCtx);
@@ -725,10 +728,14 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
     }
 
     private void visitTimeoutRest(ReflexParser.TimeoutFunctionContext ctx, ParserRuleContext childCtx){
-        visitRest(ctx.parent,ctx);
+        visitTimeoutFunction(ctx);
+        visitRest(ctx.parent.parent,ctx);
     }
 
     private void visitStateRest(ReflexParser.StateContext ctx, ParserRuleContext childCtx){
+        if (ctx.timeoutFunction()!=null){
+            visitTimeoutRest(ctx.timeoutFunction(),null);
+        }
         formula.addConjunct(new UnmarkSetState());
         visitProcessRest((ReflexParser.ProcessContext)ctx.parent,ctx);
     }
@@ -819,7 +826,7 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
     }
     private void visitTimeoutMiss(ReflexParser.TimeoutFunctionContext ctx, int i){
         if (formula.isMarkedReset() || formula.isMarkedSetState()){
-            visitRest(ctx.parent,ctx);
+            visitRest(ctx.parent.parent,ctx);
         }
         SymbolicExpression exp;
         if(ctx.timeAmountOrRef().time!=null){
@@ -831,14 +838,18 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
             ExprType t;
             if (mapper.is_variable(currentProcess,id)){
                 t= mapper.variableType(currentProcess,id);
+                VariableExpression subExp = new VariableExpression(ctx.timeAmountOrRef().ref.getText(),t,true);
+                subExp.actuate(stateName());
+                exp = subExp;
             }else if (mapper.is_const(id)){
                 t= mapper.constantType(id);
+                exp = new ConstantExpression(mapper.constantValue(id),t);
             } else{
                 t = new IntType();
+                VariableExpression subExp = new VariableExpression(ctx.timeAmountOrRef().ref.getText(),t,true);
+                subExp.actuate(stateName());
+                exp = subExp;
             }
-            VariableExpression subExp = new VariableExpression(ctx.timeAmountOrRef().ref.getText(),t,true);
-            subExp.actuate(stateName());
-            exp = subExp;
         }
 
         if (i==0){
@@ -857,7 +868,7 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
                     ltime(stateName(),currentProcess)
             ));
         }
-        visitRest(ctx.parent,ctx);
+        visitRest(ctx.parent.parent,ctx);
     }
     private void visitProcessMiss(ReflexParser.ProcessContext ctx, int i){
         String processName = ctx.name.getText();
