@@ -3,6 +3,7 @@ package su.nsk.iae.reflex.vcg;
 
 
 import org.antlr.v4.runtime.misc.Pair;
+import su.nsk.iae.reflex.expression.types.ExprType;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -13,6 +14,8 @@ public class ProgramMetaData {
     List<Pair<String,List<String>>> processes;
     Map<String,Pair<String,String>> initializer;
     String clockValue;
+
+    Map<String, ExprType> inputVariablesNames;
     public String getClockValue() {
         return clockValue;
     }
@@ -25,6 +28,7 @@ public class ProgramMetaData {
     public ProgramMetaData(){
         processes = new ArrayList<>();
         initializer = new HashMap<>();
+        inputVariablesNames = new HashMap<>();
     }
 
     public String nextState(String processName, String stateName){
@@ -100,5 +104,12 @@ public class ProgramMetaData {
             return false;
         }
         return true;
+    }
+
+    public void addInputVariable(String name,ExprType type){
+        inputVariablesNames.put(name,type);
+    }
+    public Map<String,ExprType> getInputVariablesNames(){
+        return inputVariablesNames;
     }
 }

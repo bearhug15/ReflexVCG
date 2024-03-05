@@ -67,7 +67,14 @@ public class VCPrinter {
                 "| \"ltime (setPstate s p1 _) p =\n" +
                 "  (if p=p1 then 0 else ltime s p)\" \n" +
                 "| \"ltime (reset s p1) p =\n" +
-                "  (if p=p1 then 0 else ltime s p)\"");
+                "  (if p=p1 then 0 else ltime s p)\"\n\n" +
+                "lemma ltime_mod:\n"+
+                "assumes \"ltime s0 p < a*"+programMetaData.clockValue+"\"\n"+
+                "shows \"ltime s0 p \\<le> (a*"+programMetaData.clockValue+"-"+programMetaData.clockValue+")\"\n"+
+                "proof -\n"+
+                "have\"(ltime s0 p) mod "+programMetaData.clockValue+" = 0\" by (induction s0) (auto)\n"+
+                "thus ?thesis using assms by (induction a) (auto)\n"+
+                "qed");
         builder.append("\n\nend\n");
         fileName = fileName+".thy";
         try {

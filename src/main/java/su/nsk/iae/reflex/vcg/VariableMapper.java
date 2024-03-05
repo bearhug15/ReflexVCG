@@ -46,6 +46,10 @@ public class VariableMapper {
         return enums.containsKey(new Pair<>(process,variable));
     }
 
+    public boolean is_global(String process, String variable){
+        return !variables.containsKey(new Pair<>(process,variable)) && globalVariables.contains(variable);
+    }
+
     public String constantValue(String variable){
         return constants.get(variable).a;
     }

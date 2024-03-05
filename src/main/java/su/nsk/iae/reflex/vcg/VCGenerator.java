@@ -14,6 +14,7 @@ import su.nsk.iae.reflex.formulas.*;
 import java.io.FileInputStream;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Stack;
 
 public class VCGenerator extends ReflexBaseVisitor<Void> {
@@ -95,6 +96,7 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
             prepareVariableMapper(context);
             prepareMetaData(context);
 
+
             visitProgram(context);
             visitStack();
 
@@ -115,19 +117,31 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
                 ReflexParser.PhysicalVariableContext physVariable = variable.physicalVariable();
                 String name = physVariable.name.getText();
                 ReflexParser.PortMappingContext pmap = physVariable.mapping;
-                String qualName = pmap.portId.getText();
+                String portId = pmap.portId.getText();
+                String qualName = portId;
                 if (pmap.bit!=null){
                     qualName += "_"+pmap.bit.getText();
                 }else{
                     qualName+= "_0";
                 }
-                mapper.addGlobalVariable(name,"_"+qualName,TypeUtils.defineType(physVariable.varType.getText()));
+                for (ReflexParser.PortContext port:ctx.ports){
+                    if (port.name.getText().equals(portId) && port.varType.getText().equals("input")){
+                        metaData.addInputVariable(qualName,TypeUtils.defineType(physVariable.varType.getText()));
+                    }
+                }
+                mapper.addGlobalVariable(
+                        name,
+                        qualName,
+                        TypeUtils.defineType(physVariable.varType.getText()));
             }
         }
         for (ReflexParser.ConstContext con: ctx.consts){
             ExpressionVisitor vis = new ExpressionVisitor(mapper,"_",stateName());
             ExprGenRes res = vis.visitExpression(con.expression());
-            mapper.addConstant(con.name.getText(),res.expr.toString(),TypeUtils.defineType(con.varType.getText()));
+            mapper.addConstant(
+                    con.name.getText(),
+                    res.expr.toString(),
+                    TypeUtils.defineType(con.varType.getText()));
         }
 
         for (ReflexParser.ProcessContext process: ctx.processes){
@@ -136,18 +150,32 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
                 if(variable.programVariable()!=null){
                     ReflexParser.ProgramVariableContext progVariable = variable.programVariable();
                     String name = progVariable.name.getText();
-                    mapper.addVariable(processName,name,constructProcessVariableName(processName,name),TypeUtils.defineType(progVariable.varType.getText()));
+                    mapper.addVariable(
+                            processName,
+                            name,
+                            constructProcessVariableName(processName,name),
+                            TypeUtils.defineType(progVariable.varType.getText()));
                 }else{
                     ReflexParser.PhysicalVariableContext physVariable = variable.physicalVariable();
                     String name = physVariable.name.getText();
                     ReflexParser.PortMappingContext pmap = physVariable.mapping;
-                    String qualName = pmap.portId.getText();
+                    String portId = pmap.portId.getText();
+                    String qualName = portId;
                     if (pmap.bit!=null){
                         qualName += "_"+pmap.bit.getText();
                     }else{
                         qualName+= "_0";
                     }
-                    mapper.addVariable(processName,name,"_"+qualName,TypeUtils.defineType(physVariable.varType.getText()));
+                    for (ReflexParser.PortContext port:ctx.ports){
+                        if (port.name.getText().equals(portId) && port.varType.getText().equals("input")){
+                            metaData.addInputVariable(qualName,TypeUtils.defineType(physVariable.varType.getText()));
+                        }
+                    }
+                    mapper.addVariable(
+                            processName,
+                            name,
+                            qualName,
+                            TypeUtils.defineType(physVariable.varType.getText()));
                 }
             }
         }
@@ -161,7 +189,7 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
                     mapper.addVariable(
                             acceptorProcess,
                             name,
-                            constructProcessVariableName(providerProcess,name),
+                            mapper.mapVariable(providerProcess,name),
                             mapper.variableType(providerProcess,name));
                 }
             }
@@ -223,6 +251,15 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         }
         return state;
     }
+
+    private Void initializeInputVariables(){
+        for (Map.Entry<String,ExprType> variable: metaData.getInputVariablesNames().entrySet()){
+            String setter = StringUtils.constructSetter(variable.getValue(),stateName(),variable.getKey(),variable.getKey());
+            stateCount++;
+            formula.addConjunct(new StateFormula(stateName(),setter));
+        }
+        return null;
+    }
     @Override
     public Void visitProgram(ReflexParser.ProgramContext ctx) {
         List<String> processNames = metaData.processNames();
@@ -248,6 +285,7 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         stateCount=0;
         formula = new ConjuctionFormula();
         formula.addConjunct(new RawFormula("base_inv",inv(stateName())));
+        initializeInputVariables();
         for(ReflexParser.ProcessContext cont: ctx.processes){
             visitProcess(cont);
         }
