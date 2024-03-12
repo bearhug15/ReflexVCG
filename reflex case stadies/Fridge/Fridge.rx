@@ -1,0 +1,80 @@
+program Fridge{
+	clock 100;
+	input inp 0x00 0x00 8;
+	output out 0x00 0x01 8;
+	const bool OPEN = true;
+    const bool CLOSED = false;
+	const time OPEN_DOOR_TIME_LIMIT = 0t30s;
+	
+	bool fridgeTempGreaterMin = inp[1];
+	bool fridgeTempGreaterMax = inp[2];
+	bool freezerTempGreaterMin = inp[3];
+	bool freezerTempGreaterMax = inp[4];
+	bool fridgeDoor = inp[5];
+	
+	bool fridgeCompressor = out[1];
+	bool freezerCompressor = out[2];
+	bool lightning = out[3];
+	bool doorSignal = out[4];
+	
+	process Init{
+		state begin{
+			start FridgrDoorController;
+			start FridgeCompressorController;
+			start FreezerCompressorController;
+			stop;
+		}
+	}
+	
+	process FridgrDoorController{
+		state closed{
+			if (fridgeDoor){
+				lightning = true;
+				set next state;
+			}
+		}
+		
+		state open{
+			if (fridgeDoor == CLOSED){
+				lightning = false;
+				set state closed;
+			}
+			timeout OPEN_DOOR_TIME_LIMIT {
+				doorSignal = true;
+				set next state;
+			}
+		}
+		
+		state longOpen{
+			if (fridgeDoor == CLOSED){
+				lightning = false;
+				doorSignal = false;
+				set state closed;
+			}
+		}
+	}
+	
+	process FridgeCompressorController{
+		state checkTemp{
+			if (fridgeTempGreaterMax){
+				fridgeCompressor = true;
+			} else {
+				if (!fridgeTempGreaterMin){
+					fridgeCompressor = false;
+				}
+			}
+		}
+	}
+
+	process FreezerCompressorController{
+		state checkTemp{
+			if (freezerTempGreaterMax){
+				freezerCompressor = true;
+			} else {
+				if (!freezerTempGreaterMin){
+					freezerCompressor = false;
+				}
+			}
+		}
+	}
+}

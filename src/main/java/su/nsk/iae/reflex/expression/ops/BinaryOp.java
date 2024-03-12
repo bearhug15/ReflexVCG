@@ -32,7 +32,7 @@ public enum BinaryOp {
             case "<<":return BinaryOp.BitLShift;
             case "||":return BinaryOp.Or;
             case "&&":return BinaryOp.And;
-            case "=":return BinaryOp.Eq;
+            case "==":return BinaryOp.Eq;
             case "!=":return BinaryOp.NotEq;
             case ">":return BinaryOp.More;
             case "<":return BinaryOp.Less;
