@@ -7,7 +7,7 @@ lemma
  and s1:"(s1=(setPstate s0 ''Dryer'' ''Wait''))"
  and s2:"(s2=(toEnv s1))"
 shows "(inv1 s2)"
-  apply (simp add: assms inv1_def R1_def R1_sub1_def R1_sub1_prems_def extraInv_def)
+  including R1_defs apply (simp add: assms inv1_def  extraInv_def)
   done
 
 lemma

@@ -14,6 +14,11 @@ fun ltime:: "state \<Rightarrow> process \<Rightarrow> nat" where
 | "ltime (reset s p1) p =
   (if p=p1 then 0 else ltime s p)"
 
+lemma ltime_mult:
+"ltime s p mod 100 = 0"
+  by (induction s) (auto)
+
+
 lemma ltime_mod:
 assumes "ltime s0 p < a*100"
 shows "ltime s0 p \<le> (a*100-100)"
@@ -22,18 +27,43 @@ have"(ltime s0 p) mod 100 = 0" by (induction s0) (auto)
 thus ?thesis using assms by (induction a) (auto)
 qed
 
+lemma ltime_div_less:
+assumes "(ltime s0 p div 100)\<le> a"
+shows "(ltime s0 p -100) div 100 < a \<or> ltime s0 p = 0"
+proof -
+have"(ltime s0 p) mod 100 = 0" by (induction s0) (auto)
+thus ?thesis using assms by (induction a) (auto)
+qed
+
+lemma ltime_le_toEnvNum: 
+"ltime s p div 100 \<le> toEnvNum emptyState s"
+  apply(induction s)
+         apply(auto)
+  done
+
+lemma div_inverse:
+"(s0::nat) = s1 div a \<and> s1 mod a = 0 \<Longrightarrow> s0 * a = s1"
+  by auto
+
+find_theorems "(_ + _) * _"
+
 subsection "Requirement 1"
+
+definition R1_sub4_prems where
+"R1_sub4_prems s2 s3 s4 \<equiv>
+  toEnvP s3 \<and> 
+  substate s2 s3 \<and>
+  substate s3 s4 \<and> 
+  s3 \<noteq> s4"
 
 definition R1_sub3 where
 "R1_sub3 s2 s4 \<equiv>
 (\<forall> s3. 
-  toEnvP s3 \<and> 
-  substate s2 s3 \<and>
-  substate s3 s4 \<and> s3 \<noteq> s4 \<longrightarrow>
+  R1_sub4_prems s2 s3 s4 \<longrightarrow>
   getVarBool s3 ''inp_1'' = True)"
 
-definition R1_sub2_prems where
-"R1_sub2_prems s s2 s4 \<equiv>
+definition R1_sub3_prems where
+"R1_sub3_prems s s2 s4 \<equiv>
   toEnvP s4 \<and> 
   substate s2 s4 \<and> 
   substate s4 s \<and>
@@ -43,11 +73,11 @@ definition R1_sub2_prems where
 definition R1_sub2 where
 "R1_sub2 s s2 \<equiv>
 (\<exists>s4. 
-  R1_sub2_prems s s2 s4 \<and>
+  R1_sub3_prems s s2 s4 \<and>
   R1_sub3 s2 s4)"
 
-definition R1_sub1_prems where 
-"R1_sub1_prems s s1 s2 \<equiv>
+definition R1_sub2_prems where 
+"R1_sub2_prems s s1 s2 \<equiv>
   substate s1 s2 \<and>
   substate s2 s \<and> 
   toEnvP s1 \<and> 
@@ -60,7 +90,7 @@ definition R1_sub1_prems where
 definition R1_sub1 where
 "R1_sub1 s \<equiv> 
 (\<forall> s1 s2.
-  R1_sub1_prems s s1 s2 \<longrightarrow>
+  R1_sub2_prems s s1 s2 \<longrightarrow>
   R1_sub2 s s2)"
 
 definition R1 where
@@ -68,10 +98,21 @@ definition R1 where
 toEnvP s \<and>
 R1_sub1 s"
 
+bundle R1_defs
+begin
+declare R1_def [simp]
+declare R1_sub1_def [simp]
+declare R1_sub2_prems_def [simp]
+declare R1_sub2_def [simp]
+declare R1_sub3_prems_def [simp]
+declare R1_sub3_def [simp]
+declare R1_sub4_prems_def [simp]
+end
+
 subsection "Requirement 2"
 
-definition R2_sub1_prems where
-"R2_sub1_prems s s1 s2 \<equiv>
+definition R2_sub2_prems where
+"R2_sub2_prems s s1 s2 \<equiv>
   substate s1 s2 \<and>
   substate s2 s \<and> 
   toEnvP s1 \<and> 
@@ -82,7 +123,7 @@ definition R2_sub1_prems where
 
 definition R2_sub1 where
 "R2_sub1 s \<equiv> 
-(\<forall>s1 s2.  R2_sub1_prems s s1 s2 \<longrightarrow>
+(\<forall>s1 s2.  R2_sub2_prems s s1 s2 \<longrightarrow>
  getVarBool s2 ''out_1'' = False)"
 
 definition R2 where
@@ -90,17 +131,30 @@ definition R2 where
   toEnvP s \<and> 
   R2_sub1 s"
 
+bundle R2_defs
+begin
+declare R2_def [simp]
+declare R2_sub1_def [simp]
+declare R2_sub2_prems_def [simp]
+end
+
 subsection "Requirement 3"
+
+definition R3_sub4_prems where
+"R3_sub4_prems s2 s3 s4 \<equiv>
+  toEnvP s3 \<and> 
+  substate s2 s3 \<and>
+  substate s3 s4 \<and> 
+  s3 \<noteq> s4"
 
 definition R3_sub3 where
 "R3_sub3 s2 s4 \<equiv>
-(\<forall> s3. toEnvP s3 \<and> substate s2 s3 \<and>
-substate s3 s4 \<and> s3 \<noteq> s4 \<longrightarrow>
+(\<forall> s3. R3_sub4_prems s2 s3 s4 \<longrightarrow>
 getVarBool s3 ''out_1'' = True \<and>
 getVarBool s3 ''inp_1'' = False)"
 
-definition R3_sub2_prems where
-"R3_sub2_prems s s2 s4 \<equiv>
+definition R3_sub3_prems where
+"R3_sub3_prems s s2 s4 \<equiv>
   toEnvP s4 \<and> 
   substate s2 s4 \<and> 
   substate s4 s\<and>
@@ -110,11 +164,11 @@ definition R3_sub2_prems where
 
 definition R3_sub2 where
 "R3_sub2 s s2 \<equiv>
-(\<exists> s4. R3_sub2_prems s s2 s4 \<and>
+(\<exists> s4. R3_sub3_prems s s2 s4 \<and>
   R3_sub3 s2 s4)" 
 
-definition R3_sub1_prems where
-"R3_sub1_prems s s1 s2 \<equiv>
+definition R3_sub2_prems where
+"R3_sub2_prems s s1 s2 \<equiv>
   substate s1 s2 \<and>
   substate s2 s \<and> 
   toEnvP s1 \<and> 
@@ -127,7 +181,7 @@ definition R3_sub1_prems where
 
 definition R3_sub1 where 
 "R3_sub1 s \<equiv>
-(\<forall> s1 s2.  R3_sub1_prems s s1 s2 \<longrightarrow>
+(\<forall> s1 s2.  R3_sub2_prems s s1 s2 \<longrightarrow>
   R3_sub2 s s2)"
 
 definition R3 where
@@ -135,24 +189,46 @@ definition R3 where
 toEnvP s \<and>
 R3_sub1 s"
 
+bundle R3_defs
+begin
+declare R3_def [simp]
+declare R3_sub1_def [simp]
+declare R3_sub2_prems_def [simp]
+declare R3_sub2_def [simp]
+declare R3_sub3_prems_def [simp]
+declare R3_sub3_def [simp]
+declare R3_sub4_prems_def [simp]
+end
+
 subsection "Requirement 4"
 
-definition R4_sub1 where
-"R4_sub1 s \<equiv>
-(\<forall> s1 s2.  
+definition R4_sub2_prems where
+"R4_sub2_prems s s1 s2 \<equiv>
   substate s1 s2 \<and>
   substate s2 s \<and> 
   toEnvP s1 \<and> 
   toEnvP s2 \<and>
   toEnvNum s1 s2 = 1 \<and> 
   getVarBool s1 ''out_1'' = True \<and>
-  getVarBool s2 ''inp_1'' = True \<longrightarrow>
+  getVarBool s2 ''inp_1'' = True"
+
+definition R4_sub1 where
+"R4_sub1 s \<equiv>
+(\<forall> s1 s2.  
+  R4_sub2_prems s s1 s2 \<longrightarrow>
   getVarBool s2 ''out_1'' = True)"
 
 definition R4 where
 "R4 s \<equiv>
 toEnvP s \<and>
 R4_sub1 s"
+
+bundle R4_defs
+begin
+declare R4_def [simp]
+declare R4_sub1_def [simp]
+declare R4_sub2_prems_def [simp]
+end
 
 subsection "Requirement 5"
 
@@ -161,15 +237,15 @@ definition R5_sub2 where
 (\<exists> s2. substate s1 s2 \<and> substate s2 s3 \<and>
  getVarBool s2 ''out_1'' = False)"
 
-definition R5_sub1_prems where
-"R5_sub1_prems s s1 s3 \<equiv>
+definition R5_sub2_prems where
+"R5_sub2_prems s s1 s3 \<equiv>
   substate s1 s3 \<and> 
   substate s3 s \<and>
   toEnvNum s1 s3*100 > 3600000"
 
 definition R5_sub1 where
 "R5_sub1 s \<equiv>
-(\<forall> s1 s3. R5_sub1_prems s s1 s3 \<longrightarrow>
+(\<forall> s1 s3. R5_sub2_prems s s1 s3 \<longrightarrow>
 R5_sub2 s s1 s3)"
 
 definition R5 where
@@ -225,8 +301,8 @@ definition pred3_sub1 where
   toEnvP s3 \<and>
   substate s2 s3 \<and>
   substate s3 s5 \<and> s3 \<noteq> s5 \<longrightarrow>
-               getVarBool s3 ''out_1'' = True \<and>
-               getVarBool s3 ''inp_1'' = False)"
+  getVarBool s3 ''out_1'' = True \<and>
+  getVarBool s3 ''inp_1'' = False)"
 
 definition pred3_sub2_prems where
 "pred3_sub2_prems s s2 s4 s5 \<equiv>
