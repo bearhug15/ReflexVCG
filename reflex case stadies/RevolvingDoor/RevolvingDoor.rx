@@ -1,0 +1,55 @@
+program RevolvingDoor{
+	clock 100;
+    input inp 0x00 0x00 8;
+    output out 0x00 0x01 8;
+	const time SUSPENSION_TIME = 0t1s;
+	const time DELAY = 0t1s;
+	
+	process Controller{
+		bool user = inp[1];
+		bool pressure = inp[2];
+		bool rotation = out[1];
+		bool brake = out[2];
+		
+		state motionless{
+			if (user) {
+				if (pressure) {
+					brake = true;
+					set state suspended;
+				} else {
+					rotation = true;
+					set next state;
+				}
+			}
+		}
+		
+		state rotating {
+			if (pressure) {
+				rotation = false;
+				brake = true;
+				set next state;
+			} else{
+				if (user) {
+					reset timer;
+				}
+			}
+			
+			timeout (DELAY){
+				rotation = false;
+				set state motionless;
+			}
+		}
+		
+		state suspended {
+			if (pressure) {
+				reset timer;
+			}
+			
+			timeout (SUSPENSION_TIME) {
+				brake = false;
+				rotation = false;
+				set state rotating;
+			}
+		}
+	}
+}

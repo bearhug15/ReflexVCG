@@ -18,7 +18,6 @@ lemma ltime_mult:
 "ltime s p mod 100 = 0"
   by (induction s) (auto)
 
-
 lemma ltime_mod:
 assumes "ltime s0 p < a*100"
 shows "ltime s0 p \<le> (a*100-100)"
@@ -40,10 +39,6 @@ lemma ltime_le_toEnvNum:
   apply(induction s)
          apply(auto)
   done
-
-lemma div_inverse:
-"(s0::nat) = s1 div a \<and> s1 mod a = 0 \<Longrightarrow> s0 * a = s1"
-  by auto
 
 find_theorems "(_ + _) * _"
 

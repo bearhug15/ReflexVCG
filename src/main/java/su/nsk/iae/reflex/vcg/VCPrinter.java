@@ -45,6 +45,7 @@ public class VCPrinter {
         }
     }
     public void createGlobalTheory(){
+        String clock = programMetaData.clockValue;
         String dirName = destination.getFileName().toString();
         String fileName;
         if (sourceName==null) {
@@ -59,7 +60,7 @@ public class VCPrinter {
         builder.append("begin\n\n");
         builder.append("fun ltime:: \"state \\<Rightarrow> process \\<Rightarrow> nat\" where \n" +
                 "\"ltime emptyState _ = 0\" \n" +
-                "| \"ltime (toEnv s) p = (ltime s p) + "+programMetaData.clockValue+"\" \n" +
+                "| \"ltime (toEnv s) p = (ltime s p) + "+clock+"\" \n" +
                 "| \"ltime (setVarBool s _ _) p = ltime s p\" \n" +
                 "| \"ltime (setVarInt s _ _) p = ltime s p\"\n" +
                 "| \"ltime (setVarNat s _ _) p = ltime s p\"\n" +
@@ -69,13 +70,39 @@ public class VCPrinter {
                 "| \"ltime (reset s p1) p =\n" +
                 "  (if p=p1 then 0 else ltime s p)\"\n\n" +
                 "lemma ltime_mod:\n"+
-                "assumes \"ltime s0 p < a*"+programMetaData.clockValue+"\"\n"+
-                "shows \"ltime s0 p \\<le> (a*"+programMetaData.clockValue+"-"+programMetaData.clockValue+")\"\n"+
+                "assumes \"ltime s0 p < a*"+clock+"\"\n"+
+                "shows \"ltime s0 p \\<le> (a*"+clock+"-"+clock+")\"\n"+
                 "proof -\n"+
-                "have\"(ltime s0 p) mod "+programMetaData.clockValue+" = 0\" by (induction s0) (auto)\n"+
+                "have\"(ltime s0 p) mod "+clock+" = 0\" by (induction s0) (auto)\n"+
                 "thus ?thesis using assms by (induction a) (auto)\n"+
-                "qed");
-        builder.append("\n\nend\n");
+                "qed\n");
+
+        builder.append("lemma ltime_mult:\n" +
+                "\"ltime s p mod "+clock+" = 0\"\n" +
+                "  by (induction s) (auto)\n" +
+                "\n" +
+                "lemma ltime_mod:\n" +
+                "assumes \"ltime s0 p < a*"+clock+"\"\n" +
+                "shows \"ltime s0 p ≤ (a*"+clock+"-"+clock+")\"\n" +
+                "proof -\n" +
+                "have\"(ltime s0 p) mod "+clock+" = 0\" by (induction s0) (auto)\n" +
+                "thus ?thesis using assms by (induction a) (auto)\n" +
+                "qed\n" +
+                "\n" +
+                "lemma ltime_div_less:\n" +
+                "assumes \"(ltime s0 p div "+clock+")≤ a\"\n" +
+                "shows \"(ltime s0 p -"+clock+") div "+clock+" < a ∨ ltime s0 p = 0\"\n" +
+                "proof -\n" +
+                "have\"(ltime s0 p) mod "+clock+" = 0\" by (induction s0) (auto)\n" +
+                "thus ?thesis using assms by (induction a) (auto)\n" +
+                "qed\n" +
+                "\n" +
+                "lemma ltime_le_toEnvNum: \n" +
+                "\"ltime s p div "+clock+" ≤ toEnvNum emptyState s\"\n" +
+                "  apply(induction s)\n" +
+                "         apply(auto)\n" +
+                "  done\n");
+        builder.append("\nend\n");
         fileName = fileName+".thy";
         try {
             FileWriter writer = new FileWriter(new File(destination.toString() + "/" + fileName), StandardCharsets.UTF_8);

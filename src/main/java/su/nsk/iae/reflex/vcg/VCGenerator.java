@@ -13,9 +13,7 @@ import su.nsk.iae.reflex.formulas.*;
 
 import java.io.FileInputStream;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.Map;
-import java.util.Stack;
+import java.util.*;
 
 public class VCGenerator extends ReflexBaseVisitor<Void> {
 
@@ -29,12 +27,16 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
 
     Stack<BranchPoint> branchStack;
     VCPrinter printer;
+    ProcessStateTraces traces;
+    HashMap<String,Integer> ifCounter;
     public VCGenerator(){
         stateCount = 0;
         formula = new ConjuctionFormula();
         mapper = new VariableMapper();
         branchStack = new Stack<>();
         metaData= new ProgramMetaData();
+        traces = new ProcessStateTraces();
+        ifCounter = new HashMap<>();
     }
 
     public void test(){
@@ -96,6 +98,7 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
             prepareVariableMapper(context);
             prepareMetaData(context);
 
+            analyzeProgram(context);
 
             visitProgram(context);
             visitStack();
@@ -105,6 +108,11 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
             throw new RuntimeException(e);
         }
 
+    }
+
+    private void analyzeProgram(ReflexParser.ProgramContext ctx){
+        ProgramAnalyzer analyzer = new ProgramAnalyzer(traces,metaData);
+        analyzer.visitProgram(ctx);
     }
 
     private void prepareVariableMapper(ReflexParser.ProgramContext ctx){
@@ -302,30 +310,34 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
     public Void visitProcess(ReflexParser.ProcessContext ctx) {
         currentProcess = ctx.name.getText();
 
-        branchStack.push(new BranchPoint(
-                formula.peekLastConjunct(),
-                ctx,
-                -2,
-                stateCount,
-                currentProcess,
-                currentState));
-
-        branchStack.push(new BranchPoint(
-                formula.peekLastConjunct(),
-                ctx,
-                -1,
-                stateCount,
-                currentProcess,
-                currentState));
-
-        for(int i=ctx.states.size()-1;i>0;i--){
+        if (traces.isReachable(currentProcess,"error")) {
             branchStack.push(new BranchPoint(
                     formula.peekLastConjunct(),
                     ctx,
-                    i,
+                    -2,
                     stateCount,
                     currentProcess,
                     currentState));
+        }
+        if (traces.isReachable(currentProcess,"stop")) {
+            branchStack.push(new BranchPoint(
+                    formula.peekLastConjunct(),
+                    ctx,
+                    -1,
+                    stateCount,
+                    currentProcess,
+                    currentState));
+        }
+        for(int i=ctx.states.size()-1;i>0;i--){
+            if (traces.isReachable(currentProcess,ctx.state(i).name.getText())) {
+                branchStack.push(new BranchPoint(
+                        formula.peekLastConjunct(),
+                        ctx,
+                        i,
+                        stateCount,
+                        currentProcess,
+                        currentState));
+            }
         }
         formula.addConjunct(new EqualityFormula(
                 stateProcessStateName(currentProcess),
@@ -962,7 +974,11 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         return "(toEnv "+stateName+")";
     }
     private String stateIfName(){
-        return "st"+stateCount+"_if";
+        String name ="st"+stateCount+"_if";
+        Integer current = ifCounter.getOrDefault(name,0);
+        ifCounter.put(name,current+1);
+        name = name+current;
+        return name;
     }
     private String stateBranchName(int branch){
         return "st"+stateCount+"_branch"+branch;

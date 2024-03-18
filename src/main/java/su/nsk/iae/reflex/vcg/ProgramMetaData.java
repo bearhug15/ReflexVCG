@@ -14,8 +14,10 @@ public class ProgramMetaData {
     List<Pair<String,List<String>>> processes;
     Map<String,Pair<String,String>> initializer;
     String clockValue;
-
     Map<String, ExprType> inputVariablesNames;
+
+
+
     public String getClockValue() {
         return clockValue;
     }

@@ -584,7 +584,7 @@ toEnvNum emptyState s - n" by auto
 "toEnvNum emptyState (shiftEnv s (Suc n)) =
 toEnvNum emptyState s - (Suc n)" by auto
   with 2 show ?case ..  
-qed
+qed  
 
 lemma toEnvNum3: "substate s1 s2 \<and> substate s2 s3
  \<Longrightarrow> toEnvNum s1 s3 = toEnvNum s1 s2 + toEnvNum s2 s3"
@@ -740,6 +740,7 @@ lemma toEnvNum3: "substate s1 s2 \<and> substate s2 s3
       qed
     qed
   qed
+
 
 lemma emptyState_substate: "substate emptyState s"
   apply(induction s)
@@ -1057,5 +1058,9 @@ qed
 qed
 qed
 qed
+
+lemma div_inverse:
+"(s0::nat) = s1 div a \<and> s1 mod a = 0 \<Longrightarrow> s0 * a = s1"
+  by auto
 
 end

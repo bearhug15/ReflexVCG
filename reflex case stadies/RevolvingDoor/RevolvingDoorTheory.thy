@@ -1,4 +1,4 @@
-theory FridgeTheory
+theory RevolvingDoorTheory
 imports Reflex
 begin
 

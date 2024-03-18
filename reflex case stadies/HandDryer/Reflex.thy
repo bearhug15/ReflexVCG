@@ -1059,4 +1059,8 @@ qed
 qed
 qed
 
+lemma div_inverse:
+"(s0::nat) = s1 div a \<and> s1 mod a = 0 \<Longrightarrow> s0 * a = s1"
+  by auto
+
 end
