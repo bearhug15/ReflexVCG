@@ -74,7 +74,7 @@ infixOp: op=INFIX_POSTFIX_OP varId=ID;
 postfixOp: varId=ID op=INFIX_POSTFIX_OP;
 primaryExpression:
     ID                      #Id
-    | INTEGER               #Integer
+    | (INTEGER | UNSIGNED_INTEGER) #Integer
     | FLOAT                 #Float
     | BOOL_VAL              #Bool
     | TIME                  #Time

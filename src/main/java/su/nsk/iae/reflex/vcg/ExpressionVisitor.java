@@ -46,7 +46,12 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
     }
     @Override
     public ExprGenRes visitInteger(ReflexParser.IntegerContext ctx) {
-        String val = ctx.INTEGER().getText();
+        String val;
+        if (ctx.INTEGER()!=null){
+            val = ctx.INTEGER().getText();
+        } else {
+            val = ctx.UNSIGNED_INTEGER().getText();
+        }
         String value = StringUtils.parseInteger(val);
         SymbolicExpression expr;
         if (val.contains("u") || val.contains("U")){

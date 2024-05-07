@@ -282,13 +282,7 @@ definition inv4 where "inv4 s \<equiv> R4 s \<and> extraInv s"
 
 
 definition inv5 where "inv5 s \<equiv> R5 s \<and> extraInv s"
-(*
-definition pred3_sub1_prems where 
-"pred3_sub1_prems s2 s3 s5 \<equiv>
-  toEnvP s3 \<and>
-  substate s2 s3 \<and>
-  substate s3 s5 \<and> s3 \<noteq> s5"
-*)
+
 
 definition pred3_sub1 where
 "pred3_sub1 s2 s5 \<equiv>
@@ -323,7 +317,7 @@ definition pred3_sub2 where
       pred3_sub3 s4 s5)"
 
 (*Если для двух состояний s2 s5, для любого состояния s3 между ними сушилка включен, а рук нет, 
-то между s5 и s существует состояние s4 такое что находжится не далее чем в 20 циклах и в нем сушилка выключенна, а руки есть,
+то между s5 и s существует состояние s4 такое что нахожится не далее чем в 20 циклах и в нем сушилка выключенна, а руки есть,
 и для любого s3 между s5 и s4 сушилка работает и рук нет.*)
 definition pred3 where
 "pred3 s s2 s5 \<equiv>

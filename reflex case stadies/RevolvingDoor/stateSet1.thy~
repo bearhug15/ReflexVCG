@@ -1,0 +1,290 @@
+theory stateSet1
+  imports Reflex "HOL-Library.FSet"
+begin
+
+
+definition P1 :: "(state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
+"P1 Q s = (\<forall>x. toEnvP x \<and> substate x s \<longrightarrow> Q x)"
+
+lemma one_pos_cond:
+  fixes Q1 :: "state \<Rightarrow>bool"
+  assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
+  and "P1 Q1 s"
+  and "Q1 s'"
+shows "P1 Q1 s'"
+proof(simp add: P1_def; rule allI; rule impI)
+  fix x::state
+  assume prems:"toEnvP x \<and> substate x s'"
+  show "Q1 x"
+  proof (cases)
+    assume "x=s'"
+    thus ?thesis using assms by auto
+  next
+    assume 1:"x\<noteq>s'"
+    then have "substate x s \<or> (substate s x \<and> substate x s' \<and> x \<noteq> s \<and> x \<noteq> s')" using substate_trans substate_asym substate_eq_or_predEnv
+    using assms(1) prems by blast
+    then show ?thesis 
+    by (metis P1_def assms(1) assms(2) prems substate_eq_or_predEnv)
+  qed
+qed
+
+definition P2 :: "(state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
+"P2 Q s = (\<forall>x y. toEnvP y \<and> toEnvP x \<and> substate x y \<and> substate y s \<longrightarrow> Q y x)"
+
+lemma two_pos_cond1:
+  fixes Q2 :: "state\<Rightarrow>state\<Rightarrow>bool"
+  assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
+  and "P2 Q2 s"
+  and "Q1 = Q2 s'"
+  and "P1 Q1 s'"
+shows "P2 Q2 s'"
+proof(simp add: P2_def; intro allI; rule impI)
+  fix x y::state
+  assume prems:"toEnvP y \<and> toEnvP x \<and> substate x y \<and> substate y s'"
+  show "Q2 y x"
+  proof (cases)
+    assume "y=s'"
+    thus ?thesis using assms using P1_def prems by blast
+  next
+    assume 1:"y\<noteq>s'"
+    then have "substate y s \<or> (substate s y \<and> substate y s' \<and> y \<noteq> s \<and> y \<noteq> s')" using substate_trans substate_asym substate_eq_or_predEnv
+    using assms(1) prems by blast
+    then show ?thesis 
+    by (metis P2_def assms(1) assms(2) prems substate_eq_or_predEnv)
+  qed
+qed
+
+lemma two_pos_cond2:
+  fixes Q2 :: "state\<Rightarrow>state\<Rightarrow>bool"
+  assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
+  and "P2 Q2 s"
+  and "Q1 = Q2 s'"
+  (*and "P1 Q1 s"*)
+  and "Q1 s'"
+shows "P2 Q2 s'"
+proof -
+  have "(\<forall>x y. toEnvP y \<and> toEnvP x \<and> substate x y \<and> substate y s \<longrightarrow> Q2 y x)" using assms P2_def by auto
+  have "Q2 s' s'" using assms by auto
+  have "(\<forall>x. toEnvP x \<and> substate x s \<longrightarrow> Q2 s' x)" using assms by 
+  
+
+
+instantiation state :: ord
+begin
+definition less_eq_state : "a \<le> b \<equiv> substate a b"
+definition less_state : "a < b \<equiv> substate a b \<and> a\<noteq>b"
+
+instance ..
+end
+
+
+instance state :: preorder proof 
+  fix x y z :: state
+  show "x \<le> x" using less_eq_state substate_refl by auto
+  show "(x < y) = (x \<le> y \<and> \<not> y \<le> x)" using less_state less_eq_state substate_asym by auto
+  show "x \<le> y \<Longrightarrow> y \<le> z \<Longrightarrow> x \<le> z" using less_eq_state substate_trans by blast    
+qed 
+
+instance state ::order proof
+  fix x y :: state
+  show "x \<le> y \<Longrightarrow> y \<le> x \<Longrightarrow> x = y" using less_eq_state substate_asym by blast
+qed 
+
+primrec state_to_list :: "state \<Rightarrow> state list" where
+"state_to_list emptyState = [emptyState]"
+| "state_to_list (toEnv s) = (toEnv s)#(state_to_list s)"
+| "state_to_list (setVarBool s _ _) = (state_to_list s)"
+| "state_to_list (setVarNat s _ _) = (state_to_list s)"
+| "state_to_list (setVarInt s _ _) = (state_to_list s)"
+| "state_to_list (setVarReal s _ _) = (state_to_list s)"
+| "state_to_list (setPstate s _ _) = (state_to_list s)"
+| "state_to_list (reset s _) = (state_to_list s)"
+
+fun Ball_two_cons:: "state list \<Rightarrow> (state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow> bool" where
+"Ball_two_cons [] _ = False"
+| "Ball_two_cons (x#[]) _ = False"
+| "Ball_two_cons (x1#x2#[]) P = P x1 x2"
+| "Ball_two_cons (x1#x2#xs) P = (P x1 x2 \<and> Ball_two_cons (x2#xs) P)"
+
+lemma state_pred_extend:
+assumes "toEnvP s'"
+  and   "toEnvP s"
+  and   "Ball_two_cons (state_to_list s) P"
+  and   "P s' s"
+  and   "s = predEnv s'"
+shows "Ball_two_cons (s'#(state_to_list s)) P"
+  by (metis (no_types, lifting) Ball_two_cons.elims(2) Ball_two_cons.simps(4) assms(2) assms(3) assms(4) list.inject state_to_list.simps(2) toEnvP.elims(2))
+
+definition list_to_state : "list_to_state l = hd l"
+
+lemma state_to_state:
+  "toEnvP s \<Longrightarrow> list_to_state (state_to_list s) = s" 
+  using list_to_state state_to_list_def 
+  by (metis list.sel(1) state_to_list.simps(2) toEnvP.elims(2)) 
+
+lemma predEnv_size_change[simp]:
+  "size (predEnv s) < Suc (size s)"
+  apply (induction s)
+         apply auto
+  done
+
+
+
+
+fun state_to_set :: "state \<Rightarrow> (state set)" where
+"state_to_set emptyState = {emptyState}"
+| "state_to_set (toEnv s) = insert (toEnv s) (state_to_set (predEnv (toEnv s)))"
+ 
+
+definition Ball_one:: "state set \<Rightarrow> (state\<Rightarrow>bool) \<Rightarrow> bool" where
+"Ball_one s P = Ball s P"
+
+definition Ball_two:: "state set \<Rightarrow> (state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow> bool" where
+"Ball_two s P = (\<forall>x1 x2. x1\<in>s\<and>x2\<in>s \<longrightarrow> P x1 x2)"
+
+lemma self_set:
+  assumes "toEnvP s1"
+  shows "s1 \<in> state_to_set s1"
+  using state_to_set.simps assms toEnvP.elims(2) by fastforce
+
+lemma predEnv_set:
+assumes "toEnvP s1"
+shows "predEnv s1 \<in> state_to_set s1" 
+by (metis assms insertI1 insert_commute predEnvP_or_emptyState state_to_set.simps(1) state_to_set.simps(2) toEnvP.elims(2))
+
+
+
+(**)
+lemma substate_set:
+  assumes "toEnvP s"
+    and "x\<in>(state_to_set s)"
+  shows "substate x s" by sorry
+
+lemma state_to_set_wrap:
+"toEnvP s \<Longrightarrow> state_to_set s = state_to_set (predEnv (toEnv s))"
+  apply auto
+  done
+
+lemma state_to_set_state_sep:
+  assumes "toEnvP s"
+  shows "state_to_set s = insert s (state_to_set (predEnv s))"
+  by (metis assms state_to_set.simps(2) state_to_set_wrap toEnvP.elims(2))
+
+lemma state_to_set_subset:
+  assumes "toEnvP s"
+  and "toEnvP s'"
+  and "s = predEnv s'"
+shows "(state_to_set s) \<subseteq> (state_to_set s')"
+  using assms(2) assms(3) state_to_set_state_sep by auto
+
+lemma set_extend:
+  assumes "toEnvP s"
+  and "toEnvP s'"
+  and "s = predEnv s'"
+shows "state_to_set s' = insert s' (state_to_set s)"
+  by (metis assms(2) assms(3) state_to_set.simps(2) toEnvP.elims(2))
+
+lemma set_prop_extend1:
+  fixes P::"state\<Rightarrow>state\<Rightarrow>bool"
+  assumes "toEnvP s"
+  and "toEnvP s'"
+  and "Ball_one (state_to_set s) (P s)"
+  and "(P s' s')"
+  and "s = predEnv s'"
+shows "Ball_one (state_to_set s') (P s')"
+  apply (induction rule: state_to_set.induct)
+  using Ball_one_def Ball_def set_extend by 
+
+
+lemma set_prop_extend1:
+  fixes P::"state\<Rightarrow>state\<Rightarrow>state\<Rightarrow>bool"
+  assumes "toEnvP s"
+  and "toEnvP s'"
+  and "Ball_two (state_to_set s) (P s)"
+  and "Ball_one (state_to_set s') (P s' s')"
+  and "s = predEnv s'"
+shows "Ball_two (state_to_set s') (P s')"
+
+lemma "Ball_one (state_to_set s) (P s) \<Longrightarrow> 
+\<forall>x1. toEnvP x1 \<and> substate x1 s \<longrightarrow> (P x1 s)"
+
+"(_\<Longrightarrow>_\<Longrightarrow>_) \<Longrightarrow> (_\<and>_\<Longrightarrow>_)"
+lemma shiftEnv_in_set:
+  assumes "toEnvP s"
+  shows "shiftEnv s 1 \<in> state_to_set s"
+proof -
+  have 1:"shiftEnv s 1 = predEnv s" by simp
+  have 2:"predEnv s \<in> state_to_set s" using assms predEnv_set by simp
+  show ?thesis using 1 2 by auto
+qed
+
+lemma state_in_set:
+  assumes "toEnvP s"
+  shows "s \<in> state_to_set s" 
+  by (metis assms insertCI state_to_set.simps(2) toEnvP.elims(2))
+
+lemma predEnv_shiftEnv_swap:
+"predEnv (shiftEnv s n) = (shiftEnv (predEnv s) n)"
+  apply (induction n)
+   apply auto
+  done
+
+lemma emptyState_shiftEnv: "shiftEnv emptyState n = emptyState"
+  apply (induction n)
+   apply auto
+  done
+
+lemma shiftEnv_unwarp:
+"shiftEnv s (n+1) = shiftEnv (predEnv s) n"
+  apply (induction n)
+   apply auto
+  done
+
+(*
+lemma
+  assumes "toEnvP s"
+    and "toEnvP s'"
+    and "s \<le> s'"
+    and "s' \<in> state_to_set s'"
+  shows "s \<in> state_to_set s'" by 
+
+lemma 
+  assumes "toEnvP s"
+    and "shiftEnv s n \<in> state_to_set s"
+  shows "shiftEnv (predEnv s) n \<in> state_to_set (predEnv s)"
+*)
+
+lemma 
+  assumes "toEnvP s \<and> toEnvP s'"
+    and "substate s s'"
+  shows "\<exists>n. s = shiftEnv s' n"
+  by (metis assms(1) assms(2) shift_toEnvNum)
+
+
+lemma "predEnv s \<le> predEnv (toEnv s)"
+  using less_eq_state predEnv_substate by auto
+
+lemma
+  assumes "toEnvP s"
+  shows "shiftEnv s n \<in> state_to_set s"
+proof (induction n)
+  case 0
+  have "shiftEnv s 0 = s" by simp
+  then show ?case by (simp add: assms state_in_set)
+next
+  case 1:(Suc n)
+  have 2:"shiftEnv s (Suc n) = shiftEnv (predEnv s) n" using shiftEnv_def predEnv_shiftEnv_swap by simp
+  
+  then show ?case  by 
+qed
+
+
+definition set_sup :: "state set \<Rightarrow> state \<Rightarrow> bool" where
+"set_sup s a = ((\<forall>x\<in>s. x\<le>a) \<and> a\<in>s)"
+
+lemma 
+  assumes "toEnvP s"
+  shows "set_sup (state_to_set s) s"
+  by 
+
+end

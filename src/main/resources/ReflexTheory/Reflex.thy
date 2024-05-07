@@ -18,7 +18,7 @@ datatype state =
   | setPstate state process pstate 
   | reset state process
 
-fun getVarBool:: "state \<Rightarrow> variable \<Rightarrow> bool" where
+primrec getVarBool:: "state \<Rightarrow> variable \<Rightarrow> bool" where
 "getVarBool emptyState _ = False"
 | "getVarBool (toEnv s) x = getVarBool s x" 
 | "getVarBool (setVarBool s y v) x =
@@ -29,7 +29,7 @@ fun getVarBool:: "state \<Rightarrow> variable \<Rightarrow> bool" where
 | "getVarBool (setPstate s _ _) x = getVarBool s x" 
 | "getVarBool (reset s _) x = getVarBool s x" 
 
-fun getVarInt:: "state \<Rightarrow> variable \<Rightarrow> int" where
+primrec getVarInt:: "state \<Rightarrow> variable \<Rightarrow> int" where
 "getVarInt emptyState _ = 0"
 | "getVarInt (toEnv s) x = getVarInt s x" 
 | "getVarInt (setVarBool s y v) x = getVarInt s x" 
@@ -40,7 +40,7 @@ fun getVarInt:: "state \<Rightarrow> variable \<Rightarrow> int" where
 | "getVarInt (setPstate s _ _) x = getVarInt s x" 
 | "getVarInt (reset s _) x = getVarInt s x"
 
-fun getVarNat:: "state \<Rightarrow> variable \<Rightarrow>nat" where
+primrec getVarNat:: "state \<Rightarrow> variable \<Rightarrow>nat" where
 "getVarNat emptyState _ = 0"
 | "getVarNat (toEnv s) x = getVarNat s x"
 | "getVarNat (setVarBool s _ _) x = getVarNat s x"
@@ -51,7 +51,7 @@ fun getVarNat:: "state \<Rightarrow> variable \<Rightarrow>nat" where
 | "getVarNat (setPstate s _ _) x = getVarNat s x"
 | "getVarNat (reset s _) x = getVarNat s x"
 
-fun getVarReal:: "state \<Rightarrow> variable \<Rightarrow>real" where
+primrec getVarReal:: "state \<Rightarrow> variable \<Rightarrow>real" where
 "getVarReal emptyState _ = 0.0"
 | "getVarReal (toEnv s) x = getVarReal s x"
 | "getVarReal (setVarBool s _ _) x = getVarReal s x"
@@ -61,7 +61,7 @@ fun getVarReal:: "state \<Rightarrow> variable \<Rightarrow>real" where
 | "getVarReal (setPstate s _ _) x = getVarReal s x"
 | "getVarReal (reset s _) x = getVarReal s x"
 
-fun getPstate:: "state \<Rightarrow> process \<Rightarrow> pstate" where
+primrec getPstate:: "state \<Rightarrow> process \<Rightarrow> pstate" where
 "getPstate emptyState _ = ''''"
 | "getPstate (toEnv s) p = getPstate s p" 
 | "getPstate (setVarBool s _ _) p = getPstate s p" 
@@ -72,7 +72,7 @@ fun getPstate:: "state \<Rightarrow> process \<Rightarrow> pstate" where
   (if p=p1 then q else (getPstate s p))" 
 | "getPstate (reset s _) p = getPstate s p"
 
-fun substate:: "state \<Rightarrow> state \<Rightarrow> bool" where
+primrec substate:: "state \<Rightarrow> state \<Rightarrow> bool" where
 "substate s emptyState =
  (if s = emptyState then True else False)" 
 | "substate s (toEnv s1) =
@@ -90,7 +90,7 @@ fun substate:: "state \<Rightarrow> state \<Rightarrow> bool" where
 | "substate s (reset s1 p) =
   (if s = reset s1 p then True else substate s s1)"
 
-fun toEnvNum:: "state \<Rightarrow>state \<Rightarrow> nat" where 
+primrec toEnvNum:: "state \<Rightarrow>state \<Rightarrow> nat" where 
 "toEnvNum s emptyState = 0" 
 | "toEnvNum s (toEnv s1) = 
   (if s = toEnv s1 then 0 else toEnvNum s s1 + 1)" 
@@ -106,13 +106,22 @@ fun toEnvNum:: "state \<Rightarrow>state \<Rightarrow> nat" where
   (if s = setPstate s1 p q then 0 else toEnvNum s s1)" 
 | "toEnvNum s (reset s1 p) =
   (if s = reset s1 p then 0 else toEnvNum s s1)"
-
+(*
+primrec toEnvP::"state \<Rightarrow> bool" where
+"toEnvP (toEnv _) = True" 
+| "toEnvP emptyState = False"
+| "toEnvP (setVarBool _ _ _) = False"
+| "toEnvP (setVarNat _ _ _) = False"
+| "toEnvP (setVarInt _ _ _) = False"
+| "toEnvP (setVarReal _ _ _) = False"
+| "toEnvP (setPstate _ _ _) = False"
+| "toEnvP (reset _ _ ) = False"
+*)
 fun toEnvP::"state \<Rightarrow> bool" where
-"toEnvP (toEnv _) = True" |
-"toEnvP _ = False"
+"toEnvP (toEnv _) = True" 
+| "toEnvP _ = False"
 
-
-fun predEnv:: "state \<Rightarrow> state" where
+primrec predEnv:: "state \<Rightarrow> state" where
 "predEnv emptyState = emptyState" 
 | "predEnv (toEnv s) =
   (if (toEnvP s) then s else predEnv s)" 
@@ -129,7 +138,7 @@ fun predEnv:: "state \<Rightarrow> state" where
 | "predEnv (reset s _) = 
   (if (toEnvP s) then s else predEnv s)"
 
-fun shiftEnv:: "state \<Rightarrow> nat \<Rightarrow> state" where
+primrec shiftEnv:: "state \<Rightarrow> nat \<Rightarrow> state" where
 "shiftEnv s 0 = s" |
 "shiftEnv s (Suc n) = predEnv (shiftEnv s n)"
 
@@ -967,8 +976,9 @@ qed
 lemma state_down_ind: 
 "toEnvP s \<and> toEnvP s1 \<Longrightarrow> P s \<Longrightarrow>
  (\<And> s2. toEnvP s2 \<Longrightarrow>
- (substate s1 s2 \<and> substate s2 s \<and> s1 \<noteq> s2)
- \<Longrightarrow> P s2 \<Longrightarrow> P (predEnv s2)) \<Longrightarrow>
+ (substate s1 s2 \<and> substate s2 s \<and> s1 \<noteq> s2)\<Longrightarrow> 
+  P s2 \<Longrightarrow> 
+  P (predEnv s2)) \<Longrightarrow>
 toEnvP s2 \<and> substate s1 s2 \<and> substate s2 s \<longrightarrow>
  P s2"
 proof -
@@ -1062,5 +1072,36 @@ qed
 lemma div_inverse:
 "(s0::nat) = s1 div a \<and> s1 mod a = 0 \<Longrightarrow> s0 * a = s1"
   by auto
+
+lemma toEnvNum_predEnv:
+"toEnvP s \<and> toEnvP s' \<and> substate s s' \<and>toEnvNum s s' = 1\<Longrightarrow> s = predEnv s'"
+  by (metis One_nat_def shiftEnv.simps(1) shiftEnv.simps(2) shift_toEnvNum)
+ 
+lemma predEnv_toEnvNum:
+"toEnvP s \<and> toEnvP s' \<and> substate s s' \<and>s = predEnv s' \<Longrightarrow> toEnvNum s s' = 1"
+  by (metis add_diff_cancel_left' emptyState_substate gtime_predE toEnvNum3)
+
+lemma toEnvP_emptyState:"\<not>toEnvP emptyState" by auto
+
+
+(*
+lemma P2_cons_to_predEnv:
+  "P2_cons Q s \<Longrightarrow> P2_predEnv Q s"
+proof -
+  assume prem1:"P2_cons Q s"
+  thus "P2_predEnv Q s"
+  proof (simp only: P2_cons_def P2_predEnv_def; intro allI; intro impI)
+    fix x
+    assume prem2:"toEnvP x \<and> substate x s"
+    have "substate (predEnv x) x" 
+      by (simp add: predEnv_substate)
+    moreover have "toEnvNum (predEnv x) x = 1" using prem2 calculation predEnv_toEnvNum gtime_predE toEnvNum_id
+      by (metis One_nat_def add.commute plus_1_eq_Suc predEnvP_or_emptyState)
+    moreover have "toEnvP (predEnv x)\<or> (predEnv x)=emptyState" using prem1 P2_cons_def predEnvP_or_emptyState by auto
+    ultimately show "Q s x (predEnv x)" using prem2 prem1
+      apply (elim disjE)
+      using P2_cons_def apply simp
+      using P2_cons_def toEnvP_emptyState apply 
+*)
 
 end

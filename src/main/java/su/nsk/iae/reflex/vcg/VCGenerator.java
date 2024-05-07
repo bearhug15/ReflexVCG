@@ -29,6 +29,8 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
     VCPrinter printer;
     ProcessStateTraces traces;
     HashMap<String,Integer> ifCounter;
+
+    Integer conditionsGenerated;
     public VCGenerator(){
         stateCount = 0;
         formula = new ConjuctionFormula();
@@ -37,6 +39,7 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         metaData= new ProgramMetaData();
         traces = new ProcessStateTraces();
         ifCounter = new HashMap<>();
+        conditionsGenerated = 0;
     }
 
     public void test(){
@@ -83,11 +86,13 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         }
 
     }
+
     public void generateVC(Path source, Path destination){
         String sourceName = source.getFileName().toString();
         printer = new VCPrinter(destination,sourceName,metaData);
 
         try {
+            System.out.println("Starting program parsing.");
             FileInputStream fileInput = new FileInputStream(source.toFile());
             ANTLRInputStream input = new ANTLRInputStream(fileInput);
             ReflexLexer lexer = new ReflexLexer(input);
@@ -97,14 +102,14 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
 
             prepareVariableMapper(context);
             prepareMetaData(context);
-
+            System.out.println("Completed program parsing. Starting program analysis.");
             analyzeProgram(context);
-
+            System.out.println("Completed program analysis. Starting verification conditions generation.");
             visitProgram(context);
             visitStack();
-
-
+            System.out.println("Completed verification conditions generation. Conditions generated: " + conditionsGenerated );
         }catch (Exception e){
+            System.out.println("Generation aborted due an error:");
             throw new RuntimeException(e);
         }
 
@@ -129,8 +134,6 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
                 String qualName = portId;
                 if (pmap.bit!=null){
                     qualName += "_"+pmap.bit.getText();
-                }else{
-                    qualName+= "_0";
                 }
                 for (ReflexParser.PortContext port:ctx.ports){
                     if (port.name.getText().equals(portId) && port.varType.getText().equals("input")){
@@ -171,8 +174,6 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
                     String qualName = portId;
                     if (pmap.bit!=null){
                         qualName += "_"+pmap.bit.getText();
-                    }else{
-                        qualName+= "_0";
                     }
                     for (ReflexParser.PortContext port:ctx.ports){
                         if (port.name.getText().equals(portId) && port.varType.getText().equals("input")){
@@ -287,7 +288,7 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         stateCount++;
         formula.addConjunct(new StateFormula(stateName(),toE));
 
-        ImplicationFormula f1 = new ImplicationFormula(formula,new RawFormula(inv(stateName())));
+        ImplicationFormula f1 = buildImplication(formula);
         finishVC(f1);
 
         stateCount=0;
@@ -300,7 +301,7 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         toE = toEnv(stateName());
         stateCount++;
         formula.addConjunct(new StateFormula(stateName(),toE));
-        ImplicationFormula f2 = new ImplicationFormula(formula,new RawFormula(inv(stateName())));
+        ImplicationFormula f2 = buildImplication(formula);
         finishVC(f2);
 
         return null;
@@ -956,7 +957,7 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
             String toE = toEnv(stateName());
             stateCount++;
             formula.addConjunct(new StateFormula(stateName(),toE));
-            ImplicationFormula f = new ImplicationFormula(formula,new RawFormula(inv(stateName())));
+            ImplicationFormula f = buildImplication(formula);
             finishVC(f);
         }
     }
@@ -1003,7 +1004,13 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         return "(ltime "+stateName+" ''"+processName+"'')";
     }
 
+    private ImplicationFormula buildImplication(ConjuctionFormula conjuctionFormula){
+        conjuctionFormula.addConjunct(new StateFormula("st_final",stateName()));
+        return new ImplicationFormula(conjuctionFormula,new RawFormula(inv("st_final")));
+    }
+
     public void finishVC(ImplicationFormula formula){
+        conditionsGenerated++;
         printer.printVC(formula);
     }
 }

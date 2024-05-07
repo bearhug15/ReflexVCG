@@ -32,8 +32,8 @@ program Thermopot {
 	
 	process Init {
 		state begin {
-			start process TempSelection;
-			start process HeaterController;
+			start TempSelection;
+			start HeaterController;
 			stop;
 		}
 	}

@@ -11,6 +11,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.StringJoiner;
 
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+
 public class VCPrinter {
     String sourceName;
 
@@ -38,8 +40,10 @@ public class VCPrinter {
 
     public void copyReflexTheory(){
         try {
-            InputStream input = getClass().getClassLoader().getResourceAsStream("ReflexTheory/Reflex.thy");
-            Files.copy(input,Paths.get(destination.toString()+"/Reflex.thy"));
+            InputStream input1 = getClass().getClassLoader().getResourceAsStream("ReflexTheory/Reflex.thy");
+            Files.copy(input1,Paths.get(destination.toString()+"/Reflex.thy"),REPLACE_EXISTING );
+            InputStream input2 = getClass().getClassLoader().getResourceAsStream("ReflexTheory/ReflexPatterns.thy");
+            Files.copy(input2,Paths.get(destination.toString()+"/ReflexPatterns.thy"),REPLACE_EXISTING );
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -56,7 +60,7 @@ public class VCPrinter {
         fileName = fileName+"Theory";
         StringBuilder builder = new StringBuilder();
         builder.append("theory ").append(fileName).append("\n");
-        builder.append("imports Reflex\n");
+        builder.append("imports ReflexPatterns\n");
         builder.append("begin\n\n");
         builder.append("fun ltime:: \"state \\<Rightarrow> process \\<Rightarrow> nat\" where \n" +
                 "\"ltime emptyState _ = 0\" \n" +

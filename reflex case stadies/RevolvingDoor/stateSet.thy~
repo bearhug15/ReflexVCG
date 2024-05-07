@@ -1,0 +1,316 @@
+theory stateSet
+imports Reflex HOL.Orderings
+begin
+type_synonym states = "state set"
+
+instantiation state :: ord
+begin
+definition less_eq_state : "a \<le> b \<equiv> substate a b"
+definition less_state : "a < b \<equiv> substate a b \<and> a\<noteq>b"
+
+instance ..
+end
+
+instance state :: preorder proof 
+  fix x y z :: state
+  show "x \<le> x" using less_eq_state substate_refl by auto
+  show "(x < y) = (x \<le> y \<and> \<not> y \<le> x)" using less_state less_eq_state substate_asym by auto
+  show "x \<le> y \<Longrightarrow> y \<le> z \<Longrightarrow> x \<le> z" using less_eq_state substate_trans by blast    
+qed 
+
+instance state ::order proof
+  fix x y :: state
+  show "x \<le> y \<Longrightarrow> y \<le> x \<Longrightarrow> x = y" using less_eq_state substate_asym by blast
+qed
+(*
+definition list_prop: "list_prop (P::state\<Rightarrow>bool) (s:: state list) \<equiv> (\<forall>x. member s x \<longrightarrow> P x)"
+*)
+primrec list_prop :: "(state\<Rightarrow>bool) \<Rightarrow> state list \<Rightarrow> bool" where 
+"list_prop P [] =True"
+| "list_prop P (x#xs) = (P x \<and> list_prop P xs)"
+
+lemma state_list_upd:
+  fixes sset :: "state list" and P :: "state\<Rightarrow>bool"
+  assumes "list_prop P sset"
+    and "P y"
+  shows "list_prop P (y#sset)"
+  using list_prop_def assms by auto
+
+primrec state_to_list :: "state \<Rightarrow> state list" where
+"state_to_list emptyState = []"
+| "state_to_list (toEnv s) = (toEnv s)#(state_to_list s)"
+| "state_to_list (setVarBool s _ _) = (state_to_list s)"
+| "state_to_list (setVarNat s _ _) = (state_to_list s)"
+| "state_to_list (setVarInt s _ _) = (state_to_list s)"
+| "state_to_list (setVarReal s _ _) = (state_to_list s)"
+| "state_to_list (setPstate s _ _) = (state_to_list s)"
+| "state_to_list (reset s _) = (state_to_list s)"
+
+primrec state_to_set :: "state \<Rightarrow> (state set)" where
+"state_to_set emptyState = {emptyState}"
+| "state_to_set (toEnv s) = insert (toEnv s) (state_to_set s)"
+| "state_to_set (setVarBool s _ _) = (state_to_set s)"
+| "state_to_set (setVarNat s _ _) = (state_to_set s)"
+| "state_to_set (setVarInt s _ _) = (state_to_set s)"
+| "state_to_set (setVarReal s _ _) = (state_to_set s)"
+| "state_to_set (setPstate s _ _) = (state_to_set s)"
+| "state_to_set (reset s _) = (state_to_set s)"
+
+primrec list_to_state :: "state list \<Rightarrow> state" where
+"list_to_state [] = emptyState"
+| "list_to_state (x#xs) = x"
+
+lemma state_list_refl:
+"(s = toEnv s') \<Longrightarrow> (list_to_state (state_to_list s) = s)"
+by auto
+
+
+definition state_example :: state where
+"state_example = toEnv (emptyState)"
+
+value "tl(state_to_list state_example)"
+value "toEnvNum emptyState (toEnv emptyState)"
+
+lemma
+"list_prop (\<lambda>x. toEnvP x) (state_to_list s)"
+  apply (induction s)
+  using state_to_list.simps list_prop_def apply auto
+  done
+
+lemma shift_state_list:
+  fixes s1 s2 :: state
+  assumes "toEnvP s1 \<and> toEnvP s2"
+    and "substate s1 s2"
+    and "toEnvNum s1 s2 = n"
+  shows "state_to_list (shiftEnv s2 n) = (state_to_list s1)"
+  using assms shift_toEnvNum by fastforce
+
+
+lemma predEnv_inter:
+  fixes s1 s2::state
+  assumes "substate s1 s2"
+    and "toEnvNum s1 s2 =0"
+    and "\<not>toEnvP s1" 
+  shows "predEnv s1 = predEnv s2"
+by (smt (verit, ccfv_SIG) add_is_0 assms emptyState_substate gtimeE_inj gtime_predE gtime_predI less_one nat_add_left_cancel_less predEnvP_or_emptyState predEnv_substate substate_asym substate_eq_or_predEnv substate_trans toEnvNum3 zero_neq_one)
+(*
+lemma notEnv_state_to_list:
+  fixes s1 s2::state
+  assumes "s2=setVarBool s1 x1 x2 \<or>
+          s2=setVarInt s1 x3 x4 \<or>
+          s2=setVarNat s1 x5 x6 \<or>
+          s2=setVarReal s1 x7 x8 \<or>
+          s2=setPstate s1 x9 x10 \<or>
+          s2=reset s1 x"
+  shows "state_to_list s1 = state_to_list s2"
+  using assms by fastforce
+*)
+
+lemma toEnvP_set:"\<forall>x. x\<in>(state_to_set s) \<and> x\<noteq>emptyState \<longrightarrow> toEnvP x"
+  apply (induction s)
+         apply auto
+  done
+lemma shift_state_set:
+  fixes s1 s2 :: state
+  assumes "toEnvP s1 \<and> toEnvP s2"
+    and "substate s1 s2"
+    and "toEnvNum s1 s2 = n"
+  shows "state_to_set (shiftEnv s2 n) = (state_to_set s1)"
+  using assms shift_toEnvNum by fastforce
+
+lemma state_set_not_empty: "toEnvP s \<longrightarrow> (state_to_set s \<noteq>{})" 
+  using state_to_set_def toEnvP.elims(2) by fastforce
+
+lemma self_set:
+  assumes "toEnvP s1"
+  shows "s1 \<in> state_to_set s1"
+  using state_to_set_def assms toEnvP.elims(2) by fastforce
+
+lemma predEnv_set:
+assumes "toEnvP s1"
+shows "predEnv s1 \<in> state_to_set s1"
+  apply (induction s1)
+  apply (auto simp add:self_set)
+  done
+
+lemma shiftEnv1_set:
+assumes "toEnvP s1"
+shows "shiftEnv s1 1 \<in> state_to_set s1"
+  apply (induction s1)
+  using assms self_set predEnv_set shiftEnv_def apply (auto)
+  done
+
+lemma predEnv_shiftEnv_swap:
+"predEnv (shiftEnv s n) = (shiftEnv (predEnv s) n)"
+  apply (induction n)
+   apply auto
+  done
+
+
+lemma state_to_set_wrap:
+"state_to_set s = state_to_set (predEnv (toEnv s))"
+  apply (induction s)
+   apply auto
+  done
+
+lemma emptyState_shiftEnv: "shiftEnv emptyState n = emptyState"
+  apply (induction n)
+   apply auto
+  done
+
+lemma shiftEnv_unwarp:
+"shiftEnv s (n+1) = shiftEnv (predEnv s) n"
+  apply (induction n)
+   apply auto
+  done
+
+lemma shiftEnv1:
+"shiftEnv s (n+1) = shiftEnv (shiftEnv s n) 1"
+  by simp
+
+lemma shiftEnv2:
+"shiftEnv s (n+1) = shiftEnv (shiftEnv s 1) n"
+  using shiftEnv_unwarp by auto
+
+lemma state_to_set_state_sep:
+  assumes "toEnvP s"
+  shows "state_to_set s = insert s (state_to_set (predEnv s))"
+  by (metis assms state_to_set.simps(2) state_to_set_wrap toEnvP.elims(2))
+
+lemma state_to_set_subset:
+  assumes "toEnvP s1 \<and> toEnvP s2"
+    and "s1 = predEnv s2"
+  shows "(state_to_set s1) \<subseteq> (state_to_set s2)"
+  by (simp add: assms(1) assms(2) state_to_set_state_sep subset_insertI)
+
+
+lemma 
+  assumes "toEnvP s"
+  shows "shiftEnv s n\<in> state_to_set s"
+proof (induction n)
+  case 0
+  then show ?case
+  using assms(1) shiftEnv1_set self_set by auto
+next
+  case 1:(Suc n)
+  have 2:"shiftEnv s (Suc n) = shiftEnv (predEnv s) n" by (simp add: predEnv_shiftEnv_swap)
+  then have "state_to_set (predEnv s) \<subseteq> state_to_set s" using state_to_set_subset assms state_to_set_state_sep by auto
+  then show ?case by 
+
+qed
+
+
+
+lemma
+assumes "toEnvP s1"
+    and "toEnvP s2"
+    and "s1 \<in> state_to_set s2"
+  shows "substate s1 s2"
+  by 
+
+lemma
+  assumes "toEnvP s1"
+    and "toEnvP s2"
+    and "s1 \<noteq> s2"
+  shows "state_to_set s1 \<noteq> state_to_set s2"
+proof -
+  have "s1 \<in> state_to_set s2"
+(*  apply (induction s1)
+         apply (auto)
+proof -
+  have "state_to_set s2\<noteq>{}" using assms state_set_not_empty by auto
+  thus "{} = state_to_set s2 \<Longrightarrow>False" by auto
+next
+  show "\<And>s1 x.
+       insert (toEnv s1)
+        (state_to_set s1) =
+       state_to_set s2 \<Longrightarrow>
+       x \<in> state_to_set s2 \<Longrightarrow>
+       x \<in> state_to_set s1"
+    apply (induction s2)
+    apply auto
+  using assms toEnvP_set shift_state_set state_to_set_def state_set_not_empty by 
+*)
+
+
+
+fun is_cons_states :: "state list \<Rightarrow> state \<Rightarrow> state \<Rightarrow> bool" where
+"is_cons_states [] _ _ = False"
+| "is_cons_states (_#[]) _ _ = False"
+| "is_cons_states (x1#x2#xs) y1 y2 = (if x1=y1 & x2 = y2 then True else (is_cons_states (x2#xs) y1 y2))"
+
+
+
+
+lemma
+  assumes "s1=predEnv s2"
+    and "toEnvP s1 \<and> toEnvP s2"
+  shows "is_cons_states (state_to_list s2) s2 s1"
+  using assms state_to_list_def is_cons_states.simps apply 
+
+lemma 
+ "\<forall>x. List.member (state_to_list (predEnv s1)) x \<longrightarrow> List.member (state_to_list s1) x"
+  apply (rule allI; rule impI)
+proof -
+
+
+lemma
+  fixes s1 ::state
+  assumes "toEnvP s1"
+  shows "tl (state_to_list s1) = state_to_list (shiftEnv s1 1)"
+proof -
+  have "list_prop (\<lambda>x. (List.member (state_to_list s1) x)) (state_to_list (shiftEnv s1 1))" using assms by 
+
+lemma 
+  fixes s1 s2:: state
+  assumes "toEnvNum s1 s2 = 0"
+    and "substate s1 s2"
+    and "\<not>toEnvP s1 \<and> \<not>toEnvP s2"
+  shows "state_to_list s1 = state_to_list s2"
+proof - 
+  have "predEnv s1 = predEnv s2" using assms 
+  by (smt (verit, ccfv_SIG) emptyState_substate gtimeE_inj gtime_predE gtime_predI predEnvP_or_emptyState predEnv_substate substate_eq_or_predEnv substate_trans toEnvNum.simps(1) toEnvNum3 verit_sum_simplify zero_eq_add_iff_both_eq_0 zero_neq_one)
+  then show ?thesis by 
+
+lemma 
+  fixes s1 s2 :: state
+  assumes "toEnvP s1 \<and> toEnvP s2"
+    and "substate s1 s2"
+    and "toEnvNum s1 s2 = 1"
+  shows "tl (state_to_list s2) = (state_to_list s1)"
+proof - 
+  have "tl (state_to_list s2) = state_to_list (shiftEnv s2 1)" by sledgehammer proof (induction s2)
+    case 1:emptyState
+    have "s2\<noteq>emptyState" using assms by auto
+    then show ?case using assms 1 by simp
+  next
+    case 1:(toEnv s2)
+    then show ?case using assms 1 by sledgehammer  
+  next
+    case (setVarBool s2 x2a x3)
+    then show ?case sorry
+  next
+    case (setVarInt s2 x2a x3)
+    then show ?case sorry
+  next
+    case (setVarNat s2 x2a x3)
+    then show ?case sorry
+  next
+    case (setVarReal s2 x2a x3)
+    then show ?case sorry
+  next
+    case (setPstate s2 x2a x3)
+    then show ?case sorry
+  next
+    case (reset s2 x2a)
+    then show ?case sorry
+  qed
+
+lemma
+  fixes s1 s2 ::state
+  assumes "substate s1 s2"
+  and "toEnvNum s1 s2 = 1"
+  and "list_prop ()"
+  shows ""
+
+end
