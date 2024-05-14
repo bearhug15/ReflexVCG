@@ -208,7 +208,7 @@ lemma
  and st3:"(st3=(toEnv st2))"
  and st_final:"(st_final=st3)"
 shows "(inv1 st_final)"
-
+  by sorry
 
 (*Не пройдет т.к. возможна ситуция в когда ранее было давление, а теперь его нет, но таймаут не превышен*)
 (*
@@ -218,9 +218,9 @@ next
   show "R1 st_final"
   proof -
     have "toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms inv1_def extraInv_def by auto
-    moreover have "P2_predEnv R1_A2 st0" using R1_A2 assms inv1_def by auto
+    moreover have "P2_1_predEnv R1_A2 st0" using R1_A2 assms inv1_def by auto
     moreover have "R1_A2 st_final st0" using assms R1_A2_def by 
-    ultimately show ?thesis using two_pos_cond_cons_exp A2_R1 by auto
+    ultimately show ?thesis using P2_1_lemma A2_R1 by auto
   qed
 qed
 *)
@@ -241,14 +241,14 @@ next
   show "R2 st_final"
   proof -
     have "toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms inv2_def extraInv_def by auto
-    moreover have "P2_predEnv R2_A2 st0" using R2_A2 assms inv2_def by auto
+    moreover have "P2_1_cons R2_A2 st0" using R2_A2 assms inv2_def by auto
     moreover have "R2_A2 st_final st0" using assms R2_A2_def by auto
-    ultimately show ?thesis using two_pos_cond_cons_exp A2_R2 by auto
+    ultimately show ?thesis using P2_1_lemma A2_R2 by auto
   qed
 qed
 
 lemma
- assumes base_inv:"(inv st0)"
+ assumes base_inv:"(inv6 st0)"
  and st1:"(st1=(setVarBool st0 ''pressure'' pressure))"
  and st2:"(st2=(setVarBool st1 ''user'' user))"
  and st2_Controller_state:"(getPstate st2 ''Controller'')=''suspended''"
@@ -256,5 +256,52 @@ lemma
  and st2_suspended_timeout:"1000>(ltime st2 ''Controller'')"
  and st3:"(st3=(toEnv st2))"
  and st_final:"(st_final=st3)"
-shows "(inv st_final)"
+shows "(inv6 st_final)"
+proof(simp only: inv6_def; rule conjI)
+  show "extraInv st_final" using assms extra inv6_def by auto
+next
+  have extra:"extraInv st_final" using assms extra inv6_def by auto
+  show "R6 st_final"
+  proof -
+    have 0:"toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms R6_def inv6_def by auto
+    moreover have "P1 R6_A st0" using assms inv6_def R6_A by auto
+    moreover have "R6_A st_final" 
+      using R6_A_def assms inv6_def extraInv_def extraSuspendedOut_def extraMotionlessOut_def extraControllerStates_def extraRotatingOut_def local.extra substate_refl
+      by (smt (verit)) 
+    ultimately have "P1 R6_A st_final" using P1_lemma by blast
+    thus ?thesis using A_R6 0 by auto
+  qed
+qed
+
+lemma
+ assumes base_inv:"(inv4 st0)"
+ and st1:"(st1=(setVarBool st0 ''pressure'' pressure))"
+ and st2:"(st2=(setVarBool st1 ''user'' user))"
+ and st2_Controller_state:"(getPstate st2 ''Controller'')=''suspended''"
+ and st2_if9:"(getVarBool st2 ''pressure'')=False"
+ and st2_suspended_timeout:"1000>(ltime st2 ''Controller'')"
+ and st3:"(st3=(toEnv st2))"
+ and st_final:"(st_final=st3)"
+shows "(inv4 st_final)"
+proof(simp only: inv4_def; rule conjI)
+  show "extraInv st_final" using assms extra inv4_def by auto
+next
+  have extra:"extraInv st_final" using assms extra inv4_def by auto
+  show "R4_full st_final"
+  proof -
+    define inv4_A1 where "inv4_A1 \<equiv> (p_2_3_conpred R4_A3) st_final "
+    moreover have "toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms R4_full_def inv4_def by auto
+    moreover have "P3_cons R4_A3 st0" using assms inv4_def R4_A3 R4_full_def by auto
+    moreover have "P1 inv4_A1 st0"
+    proof(simp only: P1_def p_2_3_conpred_def R4_A3_def inv4_A1_def SMT.verit_bool_simplify(4); rule allI; rule impI)
+      show "getVarBool st_final ''brake''" using assms inv4_def extraInv_def extraSuspendedOut_def substate_refl by auto
+    qed 
+    moreover have "inv4_A1 st_final" 
+    proof(simp only:  p_2_3_conpred_def R4_A3_def inv4_A1_def SMT.verit_bool_simplify(4); rule impI)
+      show "getVarBool st_final ''brake''" using assms inv4_def extraInv_def extraSuspendedOut_def substate_refl by auto
+    qed 
+    ultimately show ?thesis using P3_lemma A3_R4 by auto
+  qed
+qed
+
 end

@@ -227,9 +227,9 @@ next
   show "R1 st_final"
   proof -
     have "toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms inv1_def extraInv_def by auto
-    moreover have "P2_predEnv R1_A2 st0" using R1_A2 assms inv1_def by auto
+    moreover have "P2_1_cons R1_A2 st0" using R1_A2 assms inv1_def by auto
     moreover have "R1_A2 st_final st0" using assms R1_A2_def by auto
-    ultimately show ?thesis using two_pos_cond_cons_exp A2_R1 by auto
+    ultimately show ?thesis using P2_1_lemma A2_R1 by auto
   qed
 qed
 
@@ -253,9 +253,9 @@ next
   show "R2 st_final"
   proof -
     have "toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms inv2_def extraInv_def by auto
-    moreover have "P2_predEnv R2_A2 st0" using R2_A2 assms inv2_def by auto
+    moreover have "P2_1_cons R2_A2 st0" using R2_A2 assms inv2_def by auto
     moreover have "R2_A2 st_final st0" using assms R2_A2_def by auto
-    ultimately show ?thesis using two_pos_cond_cons_exp A2_R2 by auto
+    ultimately show ?thesis using P2_1_lemma A2_R2 by auto
   qed
 qed
 
@@ -276,17 +276,208 @@ shows "(inv4 st_final)"
 proof(simp only: inv4_def; rule conjI)
   show "extraInv st_final" using assms extra inv4_def by auto
 next
-  show "R4 st_final"
+  have extra:"extraInv st_final" using assms extra inv4_def by auto
+  show "R4_full st_final"
   proof -
-    define inv4_A1 where "inv4_A1 = P3_to_predEnv R4_A3 st_final"
-    moreover have "toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms R4_def inv4_def by auto
-    moreover have "P3_predEnv R4_A3 st0" using assms inv4_def R4_A3 R4_def by auto
-    moreover have "P1 inv4_A1 st0" using assms P1_def inv4_A1_def P3_to_predEnv_def R4_A3_def by auto
-    moreover have "inv4_A1 st_final" using assms inv4_A1_def P3_to_predEnv_def R4_A3_def by auto
-    ultimately show ?thesis using P3_predEnv A3_inv4 by auto
+    define inv4_A1 where "inv4_A1 \<equiv> (p_2_3_conpred R4_A3) st_final "
+    moreover have "toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms R4_full_def inv4_def by auto
+    moreover have "P3_cons R4_A3 st0" using assms inv4_def R4_A3 R4_full_def by auto
+    moreover have "P1 inv4_A1 st0"
+    proof(simp only: P1_def p_2_3_conpred_def R4_A3_def inv4_A1_def SMT.verit_bool_simplify(4); rule allI; rule impI)
+      show "getVarBool st_final ''brake''" using assms inv4_def extraInv_def extraSuspendedOut_def substate_refl by auto
+    qed 
+    moreover have "inv4_A1 st_final" 
+    proof(simp only:  p_2_3_conpred_def R4_A3_def inv4_A1_def SMT.verit_bool_simplify(4); rule impI)
+      show "getVarBool st_final ''brake''" using assms inv4_def extraInv_def extraSuspendedOut_def substate_refl by auto
+    qed 
+    ultimately show ?thesis using P3_lemma A3_R4 by auto
   qed
 qed
 
-find_theorems "_ \<longrightarrow> _ \<longrightarrow> _ \<Longrightarrow> _ \<and> _ \<longrightarrow> _ "
+lemma
+ assumes base_inv:"(inv6 st0)"
+ and st1:"(st1=(setVarBool st0 ''pressure'' pressure))"
+ and st2:"(st2=(setVarBool st1 ''user'' user))"
+ and st2_Controller_state:"(getPstate st2 ''Controller'')=''motionless''"
+ and st2_if0:"(getVarBool st2 ''user'')=True"
+ and st2_if1:"(getVarBool st2 ''pressure'')=True"
+ and st3:"(st3=(setVarBool st2 ''brake'' True))"
+ and st4:"(st4=(setPstate st3 ''Controller'' ''suspended''))"
+ and st5:"(st5=(toEnv st4))"
+ and st_final:"(st_final=st5)"
+shows "(inv6 st_final)"
+proof(simp only: inv6_def; rule conjI)
+  show "extraInv st_final" using assms extra inv6_def by auto
+next
+  have extra:"extraInv st_final" using assms extra inv6_def by auto
+  show "R6 st_final"
+  proof -
+    have 0:"toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms R6_def inv6_def by auto
+    moreover have "P1 R6_A st0" using assms inv6_def R6_A by auto
+    moreover have "R6_A st_final" 
+      using R6_A_def assms inv6_def extraInv_def extraSuspendedOut_def extraMotionlessOut_def extraControllerStates_def extraRotatingOut_def local.extra substate_refl
+      by (smt (verit)) 
+    ultimately have "P1 R6_A st_final" using P1_lemma by blast
+    thus ?thesis using A_R6 0 by auto
+  qed
+qed
+
+find_theorems "(_ \<and> _)"
+find_theorems "(_ \<and> (_ \<and> _)) = (_ \<and> _ \<and> _)"
+find_theorems "(_ \<longrightarrow> _ \<longrightarrow> _) \<Longrightarrow>(_ \<and> _ \<longrightarrow> _) "
+(*
+lemma
+ assumes base_inv:"(inv3 st0)"
+ and st1:"(st1=(setVarBool st0 ''pressure'' pressure))"
+ and st2:"(st2=(setVarBool st1 ''user'' user))"
+ and st2_Controller_state:"(getPstate st2 ''Controller'')=''motionless''"
+ and st2_if0:"(getVarBool st2 ''user'')=True"
+ and st2_if1:"(getVarBool st2 ''pressure'')=True"
+ and st3:"(st3=(setVarBool st2 ''brake'' True))"
+ and st4:"(st4=(setPstate st3 ''Controller'' ''suspended''))"
+ and st5:"(st5=(toEnv st4))"
+ and st_final:"(st_final=st5)"
+shows "(inv3 st_final)"
+proof(simp only: inv3_def; rule conjI)
+  show "extraInv st_final" using assms extra inv3_def by auto
+next
+  have extra:"extraInv st_final" using assms extra inv3_def by auto
+  show "R3_full st_final"
+  proof -
+    have 0:"toEnvP st0 \<and> toEnvP st_final \<and> st0=predEnv st_final" using assms inv3_def extraInv_def by auto
+    moreover have "P8_cons R3_A R3_B R3_C st0" using R3_to_P8_cons assms inv3_def by auto
+    moreover have "(P8_ABC_comb R3_A R3_B R3_C) st_final st_final" 
+      apply (simp only:P8_ABC_comb R3_A_def R3_B_def R3_C_def AB_comb_after_def P8_BC_comb p_2_3_conpred_def)
+      by (simp add: toEnvNum_id)
+    moreover have "(\<forall>x. toEnvP x \<and> substate x st_final \<and> (p_2_3_conpred R3_A) st_final x \<and> \<not> (p_2_3_conpred R3_A) st0 x \<longrightarrow> 
+          (\<exists>y. toEnvP y \<and> substate x y \<and> substate y st_final \<and> (P8_BC_comb R3_B R3_C) x y))" 
+    proof (simp only: p_2_3_conpred_def R3_A_def de_Morgan_conj conj_disj_distribL P8_BC_comb R3_B_def R3_C_def p_1_2_conpred_def SMT.verit_bool_simplify(4); rule allI; rule impI; elim disjE)
+      fix x
+      assume prem:"toEnvP x \<and>
+         substate x st_final \<and>
+         (10 \<le> toEnvNum x st_final \<and>
+          getVarBool (predEnv x) ''rotation'' \<and>
+          \<not> getVarBool x ''user'') \<and>
+         \<not> 10 \<le> toEnvNum x st0"
+      thus "\<exists>y. toEnvP y \<and> substate x y \<and> substate y st_final \<and> 
+              (toEnvNum x y \<le> 10 \<and> getVarBool y ''rotation'' = False \<or> toEnvNum x y \<le> 10 \<and> getVarBool y ''user'') \<and>
+             (\<forall>s3. (toEnvP s3 \<and> substate x s3 \<and> substate s3 y) \<and>s3 \<noteq> y \<longrightarrow>
+                 getVarBool s3 ''rotation'' \<and> \<not> getVarBool s3 ''user'')"
+      proof (cases)
+        assume "x = st_final"
+        thus ?thesis using prem toEnvNum_id by auto
+      next
+        assume asm:"\<not> x = st_final"
+        then have 1:"substate x st0" using 0 prem substate_eq_or_predEnv by blast
+        moreover have "10 >toEnvNum x st0" using prem by auto
+        moreover have "toEnvNum st0 st_final = 1" using 0 predEnv_toEnvNum predEnv_substate by auto
+        moreover have "substate st0 st_final" using 0 predEnv_substate by auto
+        ultimately have "11 >toEnvNum x st_final " using toEnvNum3 by force
+        then have "toEnvNum x st_final = 10" using prem by force
+        then have 2:"toEnvNum x st0 = 9" using toEnvNum3 0 predEnv_substate
+          using \<open>substate x st0\<close> \<open>toEnvNum st0 st_final = 1\<close> by fastforce
+        have 3:"extra1 st0" using assms inv3_def extraInv_def by blast
+        have 4:"toEnvP (predEnv x)" using prem predEnvP_or_emptyState by fastforce
+        then have 5:"getPstate (predEnv x) ''Controller'' = ''rotating''" using extraInv_def 
+          by (meson extraControllerStates_def extraMotionlessOut_def extraSuspendedOut_def local.extra predEnv_substate prem substate_trans)
+        have 6:"substate (predEnv x) st0" using 1 predEnv_substate substate_trans by blast
+        have predxEnv:"toEnvNum (predEnv x) st0 \<ge>1" using 1
+        by (metis "0" "4" "6" less_one linorder_le_less_linear predEnv_substate predEnv_toEnvNum substate_asym substate_toEnvNum_id zero_neq_one)
+        have 7:"(getPstate st0 ''Controller'')=''motionless''" using assms by auto
+        have "(\<forall> s2.
+                    toEnvP s2 \<and>
+                    substate s2 st0 \<longrightarrow>
+                    getPstate s2 ''Controller'' = ''motionless'') \<or>
+                  (\<exists> s2 s3.
+                    toEnvP s2 \<and>
+                    toEnvP s3 \<and>
+                    substate s2 s3 \<and>
+                    substate s3 st0 \<and>
+                    toEnvNum s2 s3 = 1 \<and>
+                    getPstate s2 ''Controller'' = ''rotating'' \<and>
+                    ltime s2 ''Controller'' \<ge> 1000 \<and>
+                    \<not> getVarBool s3 ''user'' \<and>
+                    \<not> getVarBool s3 ''pressure'' \<and>
+                    (\<forall> s4 s5.
+                      toEnvP s4 \<and> 
+                      toEnvP s5 \<and> 
+                      substate s3 s4 \<and> 
+                      substate s4 s5 \<and> 
+                      substate s5 st0 \<and>
+                      toEnvNum s4 s5 = 1 \<longrightarrow>
+                        getPstate s4 ''Controller'' = ''motionless'' \<and>
+                        \<not> getVarBool s5 ''user''))" using 0 1 3 7 extra1_def  substate_refl by blast
+        then obtain s2 s3 where o1: "(
+                    toEnvP s2 \<and>
+                    toEnvP s3 \<and>
+                    substate s2 s3 \<and>
+                    substate s3 st0 \<and>
+                    toEnvNum s2 s3 = 1 \<and>
+                    getPstate s2 ''Controller'' = ''rotating'' \<and>
+                    ltime s2 ''Controller'' \<ge> 1000 \<and>
+                    \<not> getVarBool s3 ''user'' \<and>
+                    \<not> getVarBool s3 ''pressure'' \<and>
+                    (\<forall> s4 s5.
+                      toEnvP s4 \<and> 
+                      toEnvP s5 \<and> 
+                      substate s3 s4 \<and> 
+                      substate s4 s5 \<and> 
+                      substate s5 st0 \<and>
+                      toEnvNum s4 s5 = 1 \<longrightarrow>
+                        getPstate s4 ''Controller'' = ''motionless'' \<and>
+                        \<not> getVarBool s5 ''user''))" 
+          using 0 1 4 5 6 by auto
+        have 8:"substate (predEnv x) s3 \<or> substate s3 (predEnv x)" using o1 6 substate_total by auto
+        have "toEnvP (predEnv x) \<and> toEnvP x \<and> substate s3 (predEnv x) \<and> substate (predEnv x) x \<and> substate x st0 \<longrightarrow> 
+                getPstate (predEnv x)''Controller'' = ''motionless''" 
+          using o1 predEnv_toEnvNum by blast
+        then have "\<not>substate s3 (predEnv x)" using o1 5 4 6 substate_refl 1 8 predEnv_substate prem by force
+        then have "substate (predEnv x) s3 \<and> (predEnv x)\<noteq>s3" using 8 by auto
+        then have "substate x s3" using predEnv_substate_imp_eq_or_substate 1 o1 prem by auto
+        then have "x = s3" by 
+        thus ?thesis using prem using assms extra 0 1 2 3 4 5 6 prem extraInv_def by 
+      qed
+    next
+      fix x
+      assume "toEnvP x \<and>
+         substate x st_final \<and>
+         (10 \<le> toEnvNum x st_final \<and>
+          getVarBool (predEnv x) ''rotation'' \<and>
+          \<not> getVarBool x ''user'') \<and>
+         \<not> getVarBool (predEnv x) ''rotation''"
+      thus "\<exists>y. toEnvP y \<and> substate x y \<and> substate y st_final \<and> 
+              (toEnvNum x y \<le> 10 \<and> getVarBool y ''rotation'' = False \<or> toEnvNum x y \<le> 10 \<and> getVarBool y ''user'') \<and>
+             (\<forall>s3. (toEnvP s3 \<and> substate x s3 \<and> substate s3 y) \<and>s3 \<noteq> y \<longrightarrow>
+                 getVarBool s3 ''rotation'' \<and> \<not> getVarBool s3 ''user'')" by auto
+    next
+      fix x
+      assume "toEnvP x \<and>
+         substate x st_final \<and>
+         (10 \<le> toEnvNum x st_final \<and>
+          getVarBool (predEnv x) ''rotation'' \<and> \<not> getVarBool x ''user'') \<and>
+         \<not> \<not> getVarBool x ''user''"
+      thus "\<exists>y. toEnvP y \<and> substate x y \<and> substate y st_final \<and> 
+              (toEnvNum x y \<le> 10 \<and> getVarBool y ''rotation'' = False \<or> toEnvNum x y \<le> 10 \<and> getVarBool y ''user'') \<and>
+             (\<forall>s3. (toEnvP s3 \<and> substate x s3 \<and> substate s3 y) \<and>s3 \<noteq> y \<longrightarrow>
+                 getVarBool s3 ''rotation'' \<and> \<not> getVarBool s3 ''user'')" by auto
+    qed
+    ultimately have  "P8_cons R3_A R3_B R3_C st_final" using P8_lemma by blast
+    thus ?thesis using "0" P8_cons_to_R3 by auto
+  qed
+qed
+*)
+lemma
+ assumes base_inv:"(inv5 st0)"
+ and st1:"(st1=(setVarBool st0 ''pressure'' pressure))"
+ and st2:"(st2=(setVarBool st1 ''user'' user))"
+ and st2_Controller_state:"(getPstate st2 ''Controller'')=''motionless''"
+ and st2_if0:"(getVarBool st2 ''user'')=True"
+ and st2_if1:"(getVarBool st2 ''pressure'')=True"
+ and st3:"(st3=(setVarBool st2 ''brake'' True))"
+ and st4:"(st4=(setPstate st3 ''Controller'' ''suspended''))"
+ and st5:"(st5=(toEnv st4))"
+ and st_final:"(st_final=st5)"
+shows "(inv5 st_final)"
+
 
 end

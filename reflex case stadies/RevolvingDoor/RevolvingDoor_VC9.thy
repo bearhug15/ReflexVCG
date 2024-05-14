@@ -208,9 +208,9 @@ next
   show "R1 st_final"
   proof -
     have "toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms inv1_def extraInv_def by auto
-    moreover have "P2_predEnv R1_A2 st0" using R1_A2 assms inv1_def by auto
+    moreover have "P2_1_cons R1_A2 st0" using R1_A2 assms inv1_def by auto
     moreover have "R1_A2 st_final st0" using assms R1_A2_def by auto
-    ultimately show ?thesis using two_pos_cond_cons_exp A2_R1 by auto
+    ultimately show ?thesis using P2_1_lemma A2_R1 by auto
   qed
 qed
 
@@ -234,14 +234,14 @@ next
   show "R2 st_final"
   proof -
     have "toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms inv2_def extraInv_def by auto
-    moreover have "P2_predEnv R2_A2 st0" using R2_A2 assms inv2_def by auto
+    moreover have "P2_1_cons R2_A2 st0" using R2_A2 assms inv2_def by auto
     moreover have "R2_A2 st_final st0" using assms R2_A2_def by auto
-    ultimately show ?thesis using two_pos_cond_cons_exp A2_R2 by auto
+    ultimately show ?thesis using P2_1_lemma A2_R2 by auto
   qed
 qed
 
 lemma
- assumes base_inv:"(inv st0)"
+ assumes base_inv:"(inv6 st0)"
  and st1:"(st1=(setVarBool st0 ''pressure'' pressure))"
  and st2:"(st2=(setVarBool st1 ''user'' user))"
  and st2_Controller_state:"(getPstate st2 ''Controller'')=''suspended''"
@@ -252,6 +252,75 @@ lemma
  and st5:"(st5=(setPstate st4 ''Controller'' ''rotating''))"
  and st6:"(st6=(toEnv st5))"
  and st_final:"(st_final=st6)"
-shows "(inv st_final)"
+shows "(inv6 st_final)"
+proof(simp only: inv6_def; rule conjI)
+  show "extraInv st_final" using assms extra inv6_def by auto
+next
+  have extra:"extraInv st_final" using assms extra inv6_def by auto
+  show "R6 st_final"
+  proof -
+    have 0:"toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms R6_def inv6_def by auto
+    moreover have "P1 R6_A st0" using assms inv6_def R6_A by auto
+    moreover have "R6_A st_final" 
+      using R6_A_def assms inv6_def extraInv_def extraSuspendedOut_def extraMotionlessOut_def extraControllerStates_def extraRotatingOut_def local.extra substate_refl
+      by (smt (verit)) 
+    ultimately have "P1 R6_A st_final" using P1_lemma by blast
+    thus ?thesis using A_R6 0 by auto
+  qed
+qed
+
+lemma
+ assumes base_inv:"(inv4 st0)"
+ and st1:"(st1=(setVarBool st0 ''pressure'' pressure))"
+ and st2:"(st2=(setVarBool st1 ''user'' user))"
+ and st2_Controller_state:"(getPstate st2 ''Controller'')=''suspended''"
+ and st2_if9:"(getVarBool st2 ''pressure'')=False"
+ and st2_suspended_timeout:"1000\<le>(ltime st2 ''Controller'')"
+ and st3:"(st3=(setVarBool st2 ''brake'' False))"
+ and st4:"(st4=(setVarBool st3 ''rotation'' True))"
+ and st5:"(st5=(setPstate st4 ''Controller'' ''rotating''))"
+ and st6:"(st6=(toEnv st5))"
+ and st_final:"(st_final=st6)"
+shows "(inv4 st_final)"
+proof(simp only: inv4_def; rule conjI)
+  show "extraInv st_final" using assms extra inv4_def by auto
+next
+  have extra:"extraInv st_final" using assms extra inv4_def by auto
+  show "R4_full st_final"
+  proof -
+    define inv4_A1 where "inv4_A1 = p_2_3_conpred R4_A3 st_final"
+    moreover have 0:"toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms R4_full_def inv4_def by auto
+    moreover have "P3_cons R4_A3 st0" using assms inv4_def R4_A3 R4_def by auto
+    moreover have "P1 inv4_A1 st0"
+    proof (simp only: P1_def inv4_A1_def p_2_3_conpred_def R4_A3_def SMT.verit_bool_simplify(4);rule allI; rule impI)
+      fix x
+      assume prem:"(toEnvP x \<and> substate x st0) \<and>
+               toEnvNum x st_final < 10 \<and>
+               getVarBool (predEnv x) ''rotation'' \<and>
+               getVarBool x ''pressure''"
+      then have 1:"substate x st0 \<and> substate st0 st_final \<and> substate (predEnv x) st0 \<and> substate (predEnv x) x" using 0 predEnv_substate prem substate_trans by blast 
+      then have 2: "toEnvNum st0 st_final = 1" using assms calculation(2) predEnv_toEnvNum by blast
+      then have 3:"toEnvNum x st0 < 9" using prem assms toEnvNum3
+        by (metis "1" add_less_imp_less_right numeral_plus_one semiring_norm(5) semiring_norm(8))
+      have 4:"toEnvP (predEnv x) \<and> toEnvNum (predEnv x) x =1" using predEnv_substate predEnv_toEnvNum predEnvP_or_emptyState prem by force
+      then have 5:"toEnvNum (predEnv x) st0 <10" using 1 2 predEnv_substate toEnvNum3 predEnv_toEnvNum prem predEnvP_or_emptyState by force 
+      have 6:"extra7 st0" using assms inv4_def extraInv_def by auto
+      have 7:"toEnvNum (predEnv x) st0 < ltime st0 ''Controller'' div 100" using assms 5 by force
+      have 8:"getPstate st0 ''Controller'' = ''suspended''" using assms by auto
+      have 9:"toEnvP st0" using base_inv inv4_def extraInv_def by auto
+      have "getPstate (predEnv x) ''Controller'' = ''suspended'' \<and>
+            \<not> getVarBool x ''pressure''" using 6 extra7_def 1 prem 4 7 8 9 substate_refl by blast
+      thus "getVarBool st_final ''brake''" using prem by auto
+    qed
+    moreover have "inv4_A1 st_final"
+    proof(simp only:inv4_A1_def p_2_3_conpred_def R4_A3_def; rule impI)
+      assume "toEnvNum st_final st_final < 10 \<and>
+              getVarBool (predEnv st_final) ''rotation'' \<and>
+              getVarBool st_final ''pressure''"
+      thus "getVarBool st_final ''brake''" using assms by auto
+    qed
+    ultimately show ?thesis using P3_lemma A3_R4 by auto
+  qed
+qed
 
 end

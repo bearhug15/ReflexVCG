@@ -1083,25 +1083,36 @@ lemma predEnv_toEnvNum:
 
 lemma toEnvP_emptyState:"\<not>toEnvP emptyState" by auto
 
+lemma predEnv_det:"s1 = predEnv s \<and> s2 = predEnv s \<Longrightarrow> s1 = s2"
+  by simp
+
+lemma 
+  assumes "toEnvP s \<and> toEnvP s'"
+    and "substate (predEnv s) s'"
+    and "(predEnv s) \<noteq>s'"
+    and "substate s s'' \<and> substate s' s''"
+  shows "substate s s'"
+  using assms(1) assms(2) assms(3) assms(4) predEnv_substate_imp_eq_or_substate by auto
+
 
 (*
-lemma P2_cons_to_predEnv:
-  "P2_cons Q s \<Longrightarrow> P2_predEnv Q s"
+lemma P2_1_cons_to_predEnv:
+  "P2_1_cons Q s \<Longrightarrow> P2_1_predEnv Q s"
 proof -
-  assume prem1:"P2_cons Q s"
-  thus "P2_predEnv Q s"
-  proof (simp only: P2_cons_def P2_predEnv_def; intro allI; intro impI)
+  assume prem1:"P2_1_cons Q s"
+  thus "P2_1_predEnv Q s"
+  proof (simp only: P2_1_cons_def P2_1_predEnv_def; intro allI; intro impI)
     fix x
     assume prem2:"toEnvP x \<and> substate x s"
     have "substate (predEnv x) x" 
       by (simp add: predEnv_substate)
     moreover have "toEnvNum (predEnv x) x = 1" using prem2 calculation predEnv_toEnvNum gtime_predE toEnvNum_id
       by (metis One_nat_def add.commute plus_1_eq_Suc predEnvP_or_emptyState)
-    moreover have "toEnvP (predEnv x)\<or> (predEnv x)=emptyState" using prem1 P2_cons_def predEnvP_or_emptyState by auto
+    moreover have "toEnvP (predEnv x)\<or> (predEnv x)=emptyState" using prem1 P2_1_cons_def predEnvP_or_emptyState by auto
     ultimately show "Q s x (predEnv x)" using prem2 prem1
       apply (elim disjE)
-      using P2_cons_def apply simp
-      using P2_cons_def toEnvP_emptyState apply 
+      using P2_1_cons_def apply simp
+      using P2_1_cons_def toEnvP_emptyState apply 
 *)
 
 end

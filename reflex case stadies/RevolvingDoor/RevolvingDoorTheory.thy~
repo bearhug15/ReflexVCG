@@ -1,5 +1,5 @@
 theory RevolvingDoorTheory
-imports Reflex
+imports Reflex ReflexPatterns
 begin
 
 fun ltime:: "state \<Rightarrow> process \<Rightarrow> nat" where 
@@ -40,6 +40,381 @@ lemma ltime_le_toEnvNum:
          apply(auto)
   done
 
+section "Extra"
+
+definition extraControllerStates where
+"extraControllerStates s \<equiv>
+(\<forall> s1. 
+  toEnvP s1 \<and> 
+  substate s1 s \<longrightarrow>
+    getPstate s1 ''Controller'' = ''motionless'' \<or>
+    getPstate s1 ''Controller'' = ''rotating'' \<or>
+    getPstate s1 ''Controller'' = ''suspended'')"
+
+definition extraMotionlessOut where
+"extraMotionlessOut s \<equiv>
+(\<forall> s1.
+  toEnvP s1 \<and> 
+  substate s1 s \<and>
+  getPstate s1 ''Controller'' = ''motionless'' \<longrightarrow>
+  \<not>getVarBool s1 ''rotation'' \<and> 
+  \<not>getVarBool s1 ''brake'')"
+
+definition extraRotatingOut where
+"extraRotatingOut s \<equiv>
+(\<forall> s1. 
+  toEnvP s1 \<and> 
+  substate s1 s \<and> 
+  getPstate s1 ''Controller'' = ''rotating'' \<longrightarrow>
+    getVarBool s1 ''rotation'' \<and> 
+    \<not>getVarBool s1 ''brake'' \<and>
+    ltime s1 ''Controller'' \<le> 1000)"
+
+definition extraSuspendedOut where
+"extraSuspendedOut s \<equiv>
+(\<forall> s1. 
+  toEnvP s1 \<and> 
+  substate s1 s \<and> 
+  getPstate s1 ''Controller'' = ''suspended'' \<longrightarrow>
+    \<not>getVarBool s1 ''rotation'' \<and> 
+    getVarBool s1 ''brake'' \<and>
+    ltime s1 ''Controller'' \<le> 1000)"
+
+definition extra1 where
+"extra1 s \<equiv>
+(\<forall> s1.
+  toEnvP s1 \<and>
+  substate s1 s \<and>
+  getPstate s1 ''Controller'' = ''motionless'' \<longrightarrow>
+    (\<forall> s2.
+      toEnvP s2 \<and>
+      substate s2 s1 \<longrightarrow>
+      getPstate s2 ''Controller'' = ''motionless'')\<or>
+    (\<exists> s2 s3.
+      toEnvP s2 \<and>
+      toEnvP s3 \<and>
+      substate s2 s3 \<and>
+      substate s3 s1 \<and>
+      toEnvNum s2 s3 = 1 \<and>
+      getPstate s2 ''Controller'' = ''rotating'' \<and>
+      ltime s2 ''Controller'' \<ge> 1000 \<and>
+      \<not> getVarBool s3 ''user'' \<and>
+      \<not> getVarBool s3 ''pressure'' \<and>
+      (\<forall> s4 s5.
+        toEnvP s4 \<and> 
+        toEnvP s5 \<and> 
+        substate s3 s4 \<and> 
+        substate s4 s5 \<and> 
+        substate s5 s1 \<and>
+        toEnvNum s4 s5 = 1 \<longrightarrow>
+          getPstate s4 ''Controller'' = ''motionless'' \<and>
+          \<not> getVarBool s5 ''user'')))"
+
+definition extra1_Q1::"state\<Rightarrow>bool" where
+"extra1_Q1 s1 \<equiv>
+  getPstate s1 ''Controller'' = ''motionless'' \<longrightarrow>
+    (\<forall> s2.
+      toEnvP s2 \<and>
+      substate s2 s1 \<longrightarrow>
+      getPstate s2 ''Controller'' = ''motionless'')\<or>
+    (\<exists> s2 s3.
+      toEnvP s2 \<and>
+      toEnvP s3 \<and>
+      substate s2 s3 \<and>
+      substate s3 s1 \<and>
+      toEnvNum s2 s3 = 1 \<and>
+      getPstate s2 ''Controller'' = ''rotating'' \<and>
+      ltime s2 ''Controller'' \<ge> 1000 \<and>
+      \<not> getVarBool s3 ''user'' \<and>
+      \<not> getVarBool s3 ''pressure'' \<and>
+      (\<forall> s4 s5.
+        toEnvP s4 \<and> 
+        toEnvP s5 \<and> 
+        substate s3 s4 \<and> 
+        substate s4 s5 \<and> 
+        substate s5 s1 \<and>
+        toEnvNum s4 s5 = 1 \<longrightarrow>
+          getPstate s4 ''Controller'' = ''motionless'' \<and>
+          \<not> getVarBool s5 ''user''))"
+
+lemma P1_extra1_Q1_st0:
+"extra1 st0\<Longrightarrow>P1 extra1_Q1 st0"
+  using extra1_def  apply auto
+  by (smt (verit) One_nat_def P1_def extra1_Q1_def)
+(*
+lemma P2_inv1_Q2_eq_R1:
+"toEnvP st_final \<and> P2 inv1_Q2 st_final \<Longrightarrow>R1 st_final"
+  using P2_def inv1_Q2_def including R1_defs apply auto
+  done
+*)
+definition extra2 where
+"extra2 s \<equiv>
+(\<forall> s1.
+  toEnvP s1 \<and>
+  substate s1 s \<and>
+  getPstate s1 ''Controller'' = ''rotating'' \<longrightarrow>
+  (\<exists> s2 s3.
+    toEnvP s2 \<and> 
+    toEnvP s3 \<and> 
+    substate s2 s3 \<and> 
+    substate s3 s1 \<and> 
+    toEnvNum s2 s3 = 1 \<and>
+    toEnvNum s2 s1 = ltime s1 ''Controller'' div 100 \<and>
+    ((getPstate s2 ''Controller'' = ''motionless'' \<or> 
+        getPstate s2 ''Controller'' = ''rotating'') \<and>
+      getVarBool s3 ''user'' \<or> 
+      getPstate s2 ''Controller'' = ''suspended'') \<and> 
+    \<not>getVarBool s3 ''pressure''))"
+
+definition extra2_A where
+"extra2_A s s1 \<equiv> getPstate s1 ''Controller'' = ''rotating''"
+
+definition extra2_B where
+"extra2_B s1 s3 s2 \<equiv> 
+  toEnvNum s2 s1 = ltime s1 ''Controller'' div 100 \<and>
+    ((getPstate s2 ''Controller'' = ''motionless'' \<or> 
+        getPstate s2 ''Controller'' = ''rotating'') \<and>
+      getVarBool s3 ''user'' \<or> 
+      getPstate s2 ''Controller'' = ''suspended'') \<and> 
+    \<not>getVarBool s3 ''pressure''"
+
+lemma extra2:"extra2 s = P5_1_cons extra2_A extra2_B s" 
+  by (simp only: extra2_def P5_1_cons_def extra2_A_def extra2_B_def)
+(*
+lemma "(toEnvP s2 \<and> s2 = predEnv s3 \<and> extra2_B s1 s3 s2) = p_2_3_conpred_notEmpty extra2_B s1 s3" 
+proof 
+  assume "(toEnvP s2 \<and> s2 = predEnv s3 \<and> extra2_B s1 s3 s2)"
+  thus "p_2_3_conpred_notEmpty extra2_B s1 s3" by force
+next
+  assume prem:"p_2_3_conpred_notEmpty extra2_B s1 s3"
+  thus "(toEnvP s2 \<and> s2 = predEnv s3 \<and> extra2_B s1 s3 s2)"
+  proof -
+    obtain s4 where o1:"s4 = predEnv s3" by auto
+    then have 1:"s4  \<noteq> emptyState\<and>
+              toEnvNum s4 s1 = ltime s1 ''Controller'' div 100 \<and>
+              ((getPstate s4 ''Controller'' = ''motionless'' \<or>
+                getPstate s4 ''Controller'' = ''rotating'') \<and>
+               getVarBool s3 ''user'' \<or>
+               getPstate s4 ''Controller'' = ''suspended'') \<and>
+              \<not> getVarBool s3 ''pressure''" using prem p_2_3_conpred_notEmpty extra2_B_def o1  by auto
+    have 2: "toEnvP s4" using o1 1 using predEnvP_or_emptyState by blast
+    thus ?thesis using extra2_B_def 1 2 predEnv_det o1 by sledgehammer
+(*    apply (simp only:p_2_3_conpred_notEmpty extra2_B_def)*) 
+*)
+
+definition extra3 where
+"extra3 s \<equiv>
+(\<forall> s1. 
+  toEnvP s1 \<and> 
+  substate s1 s \<and> 
+  getPstate s1 ''Controller'' = ''rotating'' \<longrightarrow>
+    (\<exists> s2 s3. 
+      toEnvP s2 \<and> 
+      toEnvP s3 \<and> 
+      substate s2 s3 \<and> 
+      substate s3 s1 \<and> 
+      toEnvNum s2 s3 = 1 \<and> 
+      (getPstate s2 ''Controller'' = ''motionless'' \<and> 
+        getVarBool s3 ''user'' \<or>
+        getPstate s2 ''Controller'' = ''suspended'') \<and> 
+      \<not> getVarBool s3 ''pressure'' \<and>
+      (\<forall> s4. 
+        toEnvP s4 \<and> 
+        substate s3 s4 \<and> 
+        substate s4 s1 \<longrightarrow> 
+          getPstate s4 ''Controller'' = ''rotating'')))"
+
+definition extra3_A where
+"extra3_A s s1 \<equiv> getPstate s1 ''Controller'' = ''rotating''"
+
+definition extra3_B where 
+"extra3_B s2 s3 \<equiv>
+(getPstate s2 ''Controller'' = ''motionless'' \<and> 
+getVarBool s3 ''user'' \<or>
+getPstate s2 ''Controller'' = ''suspended'') \<and> 
+\<not> getVarBool s3 ''pressure'' "
+
+definition extra3_C where
+"extra3_C s4 \<equiv>
+  getPstate s4  ''Controller'' = ''rotating''"
+
+lemma extra3:
+"extra3 s \<equiv> P1_E2cons_P1 extra3_A extra3_B extra3_C s" 
+  apply (simp only:extra3_def P1_E2cons_P1_def extra3_A_def extra3_B_def extra3_C_def)
+  by presburger
+
+
+
+definition extra4 where
+"extra4 s \<equiv>
+(\<forall> s1.
+  toEnvP s1 \<and>
+  substate s1 s \<and>
+  getPstate s1 ''Controller'' = ''suspended'' \<longrightarrow>
+  (\<exists> s2 s3. 
+    toEnvP s2 \<and> 
+    toEnvP s3 \<and> 
+    substate s2 s3 \<and> 
+    substate s3 s1 \<and> 
+    toEnvNum s2 s3 = 1 \<and>
+    toEnvNum s2 s1 = ltime s1 ''Controller'' div 100 \<and>
+    (getPstate s2 ''Controller'' \<noteq> ''motionless'' \<or> 
+      getVarBool s3 ''user'') \<and> 
+    getVarBool s3 ''pressure''))"
+
+definition extra5 where
+"extra5 s \<equiv>
+(\<forall> s1. 
+  toEnvP s1 \<and> 
+  substate s1 s \<and> 
+  getPstate s1 ''Controller'' = ''suspended'' \<longrightarrow>
+    (\<exists> s2 s3. 
+      toEnvP s2 \<and> 
+      toEnvP s3 \<and> 
+      substate s2 s3 \<and> 
+      substate s3 s1 \<and> 
+      toEnvNum s2 s3 = 1 \<and> 
+      (getPstate s2 ''Controller'' = ''motionless'' \<and> 
+        getVarBool s3 ''user'' \<or>
+        getPstate s2 ''Controller'' = ''rotating'') \<and> 
+      getVarBool s3 ''pressure'' \<and>
+      (\<forall> s4. 
+        toEnvP s4 \<and> 
+        substate s3 s4 \<and> 
+        substate s4 s1 \<longrightarrow> 
+          getPstate s4 ''Controller'' = ''suspended'')))"
+
+definition extra5_A where
+"extra5_A s s1 \<equiv> getPstate s1 ''Controller'' = ''suspended''"
+
+definition extra5_B where 
+"extra5_B s2 s3 \<equiv>
+(getPstate s2 ''Controller'' = ''motionless'' \<and> 
+  getVarBool s3 ''user'' \<or>
+  getPstate s2 ''Controller'' = ''rotating'') \<and> 
+getVarBool s3 ''pressure'' "
+
+definition extra5_C where
+"extra5_C s4 \<equiv>
+  getPstate s4 ''Controller'' = ''suspended''"
+
+lemma extra5:
+"extra5 s \<equiv> P1_E2cons_P1 extra5_A extra5_B extra5_C s" 
+  apply (simp only:extra5_def P1_E2cons_P1_def extra5_A_def extra5_B_def extra5_C_def)
+  by presburger
+
+
+definition extra6 where
+"extra6 s \<equiv>
+(\<forall> s1 s2 s3. 
+  toEnvP s1 \<and> 
+  toEnvP s2 \<and> 
+  toEnvP s3 \<and> 
+  substate s1 s2 \<and> 
+  substate s2 s3 \<and> 
+  substate s3 s \<and>
+  getPstate s3 ''Controller'' = ''rotating'' \<and> 
+  toEnvNum s1 s2 = 1 \<and> 
+  toEnvNum s1 s3 < ltime s3 ''Controller'' div 100 \<longrightarrow>
+    getPstate s1 ''Controller'' = ''rotating'' \<and> 
+    \<not> getVarBool s2 ''user'')"
+
+definition ex6_A3 where
+"ex6_A3 s3 s2 s1 \<equiv>
+  getPstate s3 ''Controller'' = ''rotating'' \<and> 
+  toEnvNum s1 s3 < ltime s3 ''Controller'' div 100 \<longrightarrow>
+    getPstate s1 ''Controller'' = ''rotating'' \<and> 
+    \<not> getVarBool s2 ''user''"
+
+lemma ex6_A3_sub:
+"extra6 s \<Longrightarrow> P3_cons ex6_A3 s"
+  using extra6_def P3_cons_def ex6_A3_def by auto
+
+lemma ex6_A3:
+"extra6 s \<Longrightarrow> P3_predEnv ex6_A3 s"
+  using ex6_A3_sub P3_bridge by auto
+
+lemma A3_ex6_sub:
+"P3_cons ex6_A3 s \<Longrightarrow> extra6 s"
+  using extra6_def P3_cons_def ex6_A3_def by auto
+
+lemma "P3_predEnv ex6_A3 s \<Longrightarrow> extra6 s"
+  using A3_ex6_sub P3_bridge by auto
+
+definition extra7 where
+"extra7 s \<equiv>
+(\<forall> s1 s2 s3. 
+  toEnvP s1 \<and> 
+  toEnvP s2 \<and> 
+  toEnvP s3 \<and> 
+  substate s1 s2 \<and> 
+  substate s2 s3 \<and> 
+  substate s3 s \<and>
+  toEnvNum s1 s2 = 1 \<and> 
+  toEnvNum s1 s3 < ltime s3 ''Controller'' div 100 \<and> 
+  getPstate s3 ''Controller'' = ''suspended'' \<longrightarrow>
+    getPstate s1 ''Controller'' = ''suspended'' \<and> 
+    \<not> getVarBool s2 ''pressure'')"
+
+definition extraInv where
+"extraInv s \<equiv>
+toEnvP s \<and>
+extraControllerStates s \<and>
+extraMotionlessOut s \<and>
+extraRotatingOut s \<and>
+extraSuspendedOut s \<and>
+
+extra1 s \<and>
+extra2 s \<and>
+extra3 s \<and>
+extra4 s \<and>
+extra5 s \<and>
+extra6 s \<and>
+extra7 s"
+
+(*
+lemma extraInv_cont:
+"extraInv s \<and> substate s' s \<and> toEnvP s' \<Longrightarrow> extraInv s'"
+  by sorry
+*)
+(*
+Первая большая может быть такой:
+  (\<forall> s1.
+  toEnvP s1 \<and>
+  substate s1 s \<and>
+  getPstate s1 ''Controller'' = ''motionless'' \<longrightarrow>
+    (\<forall> s2.
+      toEnvP s2 \<and>
+      substate s2 s1 \<longrightarrow>
+      getPstate s2 ''Controller'' = ''motionless'')\<or>
+    (\<exists> s2.
+      toEnvP s2 \<and>
+      toEnvP s3 \<and>
+      substate s2 s1 \<and>
+      getPstate s2 ''Controller'' = ''rotating'' \<and>
+      ltime s2 ''Controller'' \<ge> 1000 \<and>
+      (\<forall> s3.
+        substate s2 s3 \<and>
+        substate s3 s1 \<and>
+        s2 \<noteq> s3 \<and>
+        getPstate s3 ''Controller'' = ''motionless'')))
+*)
+
+bundle extraInv_defs 
+begin
+declare extraInv_def [simp]
+declare extraControllerStates_def [simp]
+declare extraMotionlessOut_def [simp]
+declare extraRotatingOut_def [simp]
+declare extraSuspendedOut_def [simp]
+declare extra1_def [simp]
+declare extra2_def [simp]
+declare extra3_def [simp]
+declare extra4_def [simp]
+declare extra5_def [simp]
+declare extra6_def [simp]
+declare extra7_def [simp]
+end
 
 (*
 1. При входе пользователя дверь начинает вращаться, если на перегородки
@@ -242,6 +617,62 @@ declare R3_sub4_prems_def [simp]
 declare R3_sub4_def [simp]
 end
 
+definition R3_full where
+"R3_full s \<equiv>
+toEnvP s \<and> 
+(\<forall> s1 s2. 
+  toEnvP s1 \<and> 
+  toEnvP s2 \<and>
+  substate s1 s2 \<and> 
+  substate s2 s \<and>
+  toEnvNum s1 s2 = 1 \<and> 
+  toEnvNum s2 s \<ge> 10 \<and>
+  getVarBool s1 ''rotation''\<and> 
+  \<not> getVarBool s2 ''user'' \<longrightarrow>
+    (\<exists> s4. 
+    toEnvP s4 \<and> 
+    substate s2 s4 \<and> 
+    substate s4 s \<and> 
+    toEnvNum s2 s4 \<le> 10 \<and>
+    (getVarBool s4 ''rotation'' = False \<or> getVarBool s4 ''user'') \<and>
+      (\<forall> s3. 
+        toEnvP s3 \<and> 
+        substate s2 s3 \<and> 
+        substate s3 s4 \<and> 
+        s3 \<noteq> s4 \<longrightarrow>  
+          getVarBool s3 ''rotation''\<and> 
+          \<not> getVarBool s3 ''user'')))"
+
+definition R3_A where
+"R3_A s s2 s1 \<equiv>
+  toEnvNum s2 s \<ge> 10 \<and>
+  getVarBool s1 ''rotation''\<and> 
+  \<not> getVarBool s2 ''user''"
+
+definition R3_B where
+"R3_B s2 s1 s4 \<equiv>
+  toEnvNum s2 s4 \<le> 10 \<and>
+    (getVarBool s4 ''rotation'' = False \<or> getVarBool s4 ''user'')"
+
+definition R3_C where
+"R3_C s2 s4 s3 \<equiv>
+  s3 \<noteq> s4 \<longrightarrow>  
+   getVarBool s3 ''rotation''\<and> 
+   \<not> getVarBool s3 ''user''"
+
+lemma [simp]:"R3 s = R3_full s" including R3_defs using R3_full_def by auto
+
+lemma R3_to_P8_cons:
+"R3_full s \<Longrightarrow> P8_cons R3_A R3_B R3_C s"
+  apply (simp only:R3_full_def P8_cons_def R3_A_def R3_B_def R3_C_def)
+  using SMT.verit_bool_simplify(4) by force
+
+lemma P8_cons_to_R3:
+"toEnvP s \<and> P8_cons R3_A R3_B R3_C s \<Longrightarrow> R3_full s"
+  apply (simp only:R3_full_def P8_cons_def R3_A_def R3_B_def R3_C_def)
+  using SMT.verit_bool_simplify(4) by force
+
+
 section "Requirement 4"
 
 definition R4_sub2_prems where
@@ -298,20 +729,20 @@ definition R4_A3 where
     getVarBool s3 ''brake''"
 
 lemma R4_A3_sub:
-"R4 s \<Longrightarrow>P3_cons R4_A3 s"
-  using P3_cons_def R4_A3_def including R4_defs by auto
+"R4_full s \<Longrightarrow>P3_cons R4_A3 s"
+  using P3_cons_def R4_A3_def R4_full_def by auto
 
 lemma R4_A3:
-"R4 s \<Longrightarrow> P3_predEnv R4_A3 s"
-  using P3_cons_to_predEnv R4_A3_sub by auto
+"R4_full s \<Longrightarrow> P3_predEnv R4_A3 s"
+  using P3_bridge R4_A3_sub by auto
 
 lemma A3_R4_sub:
-"toEnvP s \<and> P3_cons R4_A3 s \<Longrightarrow> R4 s"
-  using P3_cons_def R4_A3_def including R4_defs by auto
+"toEnvP s \<and> P3_cons R4_A3 s \<Longrightarrow> R4_full s"
+  using P3_cons_def R4_A3_def R4_full_def by auto
 
 lemma A3_inv4:
-"toEnvP s \<and> P3_predEnv R4_A3 s \<Longrightarrow> R4 s"
-  using A3_R4_sub P3_cons_from_predEnv by auto
+"toEnvP s \<and> P3_predEnv R4_A3 s \<Longrightarrow> R4_full s"
+  using A3_R4_sub P3_bridge by auto
 
 section "Requirement 5" 
 definition R5_sub4_prems where
@@ -377,335 +808,48 @@ declare R5_sub4_def [simp]
 end
 
 section "Requirement 6" 
-definition R6_sub2_prems where
-"R6_sub2_prems s s1 \<equiv>
-  substate s1 s \<and> 
-  toEnvP s1 \<and> 
-  getVarBool s1 ''brake''"
 
 definition R6_sub1 where
 "R6_sub1 s \<equiv>
  (\<forall> s1. 
   substate s1 s \<and> 
-  toEnvP s1 \<and> 
+  toEnvP s1 \<longrightarrow>
   (getVarBool s1 ''brake'' \<longrightarrow>
     \<not> getVarBool s1 ''rotation'') \<and>
   (getVarBool s1 ''rotation''  \<longrightarrow>
   \<not> getVarBool s1 ''brake''))"
 
+definition R6_A where
+"R6_A s1 == 
+(getVarBool s1 ''brake'' \<longrightarrow>
+    \<not> getVarBool s1 ''rotation'') \<and>
+  (getVarBool s1 ''rotation''  \<longrightarrow>
+  \<not> getVarBool s1 ''brake'')"
+
 definition R6 where "R6 s \<equiv> 
 toEnvP s \<and>
 R6_sub1 s"
+
+lemma R6_A:
+"R6 s \<Longrightarrow> P1 R6_A s"
+  using R6_def P1_def R6_A_def  R6_sub1_def by blast
+
+lemma A_R6:
+"toEnvP s \<and> P1 R6_A s \<Longrightarrow> R6 s"
+  using R6_def P1_def R6_A_def  R6_sub1_def SMT.verit_bool_simplify(4) by auto
 
 bundle R6_defs
 begin
 declare R6_def [simp]
 declare R6_sub1_def [simp]
-declare R6_sub2_prems_def [simp]
+
 end
-
-
-section "Extra"
-
-definition extraControllerStates where
-"extraControllerStates s \<equiv>
-(\<forall> s1. 
-  toEnvP s1 \<and> 
-  substate s1 s \<longrightarrow>
-    getPstate s1 ''Controller'' = ''motionless'' \<or>
-    getPstate s1 ''Controller'' = ''rotating'' \<or>
-    getPstate s1 ''Controller'' = ''suspended'')"
-
-definition extraMotionlessOut where
-"extraMotionlessOut s \<equiv>
-(\<forall> s1.
-  toEnvP s1 \<and> 
-  substate s1 s \<and>
-  getPstate s1 ''Controller'' = ''motionless'' \<longrightarrow>
-  \<not>getVarBool s1 ''rotation'' \<and> 
-  \<not>getVarBool s1 ''brake'')"
-
-definition extraRotatingOut where
-"extraRotatingOut s \<equiv>
-(\<forall> s1. 
-  toEnvP s1 \<and> 
-  substate s1 s \<and> 
-  getPstate s1 ''Controller'' = ''rotating'' \<longrightarrow>
-    getVarBool s1 ''rotation'' \<and> 
-    \<not>getVarBool s1 ''brake'' \<and>
-    ltime s1 ''Controller'' \<le> 1000)"
-
-definition extraSuspendedOut where
-"extraSuspendedOut s \<equiv>
-(\<forall> s1. 
-  toEnvP s1 \<and> 
-  substate s1 s \<and> 
-  getPstate s1 ''Controller'' = ''suspended'' \<longrightarrow>
-    \<not>getVarBool s1 ''rotation'' \<and> 
-    getVarBool s1 ''brake'' \<and>
-    ltime s1 ''Controller'' \<le> 1000)"
-
-definition extra1 where
-"extra1 s \<equiv>
-(\<forall> s1.
-  toEnvP s1 \<and>
-  substate s1 s \<and>
-  getPstate s1 ''Controller'' = ''motionless'' \<longrightarrow>
-    (\<forall> s2.
-      toEnvP s2 \<and>
-      substate s2 s1 \<longrightarrow>
-      getPstate s2 ''Controller'' = ''motionless'')\<or>
-    (\<exists> s2 s3.
-      toEnvP s2 \<and>
-      toEnvP s3 \<and>
-      substate s2 s3 \<and>
-      substate s3 s1 \<and>
-      toEnvNum s2 s3 = 1 \<and>
-      getPstate s2 ''Controller'' = ''rotating'' \<and>
-      ltime s2 ''Controller'' \<ge> 1000 \<and>
-      \<not> getVarBool s3 ''user'' \<and>
-      \<not> getVarBool s3 ''pressure'' \<and>
-      (\<forall> s4 s5.
-        toEnvP s4 \<and> 
-        toEnvP s5 \<and> 
-        substate s3 s4 \<and> 
-        substate s4 s5 \<and> 
-        substate s5 s1 \<and>
-        toEnvNum s4 s5 = 1 \<longrightarrow>
-          getPstate s4 ''Controller'' = ''motionless'' \<and>
-          \<not> getVarBool s5 ''user'')))"
-
-definition extra1_Q1::"state\<Rightarrow>bool" where
-"extra1_Q1 s1 \<equiv>
-  getPstate s1 ''Controller'' = ''motionless'' \<longrightarrow>
-    (\<forall> s2.
-      toEnvP s2 \<and>
-      substate s2 s1 \<longrightarrow>
-      getPstate s2 ''Controller'' = ''motionless'')\<or>
-    (\<exists> s2 s3.
-      toEnvP s2 \<and>
-      toEnvP s3 \<and>
-      substate s2 s3 \<and>
-      substate s3 s1 \<and>
-      toEnvNum s2 s3 = 1 \<and>
-      getPstate s2 ''Controller'' = ''rotating'' \<and>
-      ltime s2 ''Controller'' \<ge> 1000 \<and>
-      \<not> getVarBool s3 ''user'' \<and>
-      \<not> getVarBool s3 ''pressure'' \<and>
-      (\<forall> s4 s5.
-        toEnvP s4 \<and> 
-        toEnvP s5 \<and> 
-        substate s3 s4 \<and> 
-        substate s4 s5 \<and> 
-        substate s5 s1 \<and>
-        toEnvNum s4 s5 = 1 \<longrightarrow>
-          getPstate s4 ''Controller'' = ''motionless'' \<and>
-          \<not> getVarBool s5 ''user''))"
-
-lemma P1_extra1_Q1_st0:
-"extra1 st0\<Longrightarrow>P1 extra1_Q1 st0"
-  using extra1_def including R1_defs apply auto
-  by (smt (verit) One_nat_def P1_def extra1_Q1_def)
-(*
-lemma P2_inv1_Q2_eq_R1:
-"toEnvP st_final \<and> P2 inv1_Q2 st_final \<Longrightarrow>R1 st_final"
-  using P2_def inv1_Q2_def including R1_defs apply auto
-  done
-*)
-definition extra2 where
-"extra2 s \<equiv>
-(\<forall> s1.
-  toEnvP s1 \<and>
-  substate s1 s \<and>
-  getPstate s1 ''Controller'' = ''rotating'' \<longrightarrow>
-  (\<exists> s2 s3.
-    toEnvP s2 \<and> 
-    toEnvP s3 \<and> 
-    substate s2 s3 \<and> 
-    substate s3 s1 \<and> 
-    toEnvNum s2 s3 = 1 \<and>
-    toEnvNum s2 s1 = ltime s1 ''Controller'' div 100 \<and>
-    ((getPstate s2 ''Controller'' = ''motionless'' \<or> 
-        getPstate s2 ''Controller'' = ''rotating'') \<and>
-      getVarBool s3 ''user'' \<or> 
-      getPstate s2 ''Controller'' = ''suspended'') \<and> 
-    \<not>getVarBool s3 ''pressure''))"
-
-definition extra3 where
-"extra3 s \<equiv>
-(\<forall> s1. 
-  toEnvP s1 \<and> 
-  substate s1 s \<and> 
-  getPstate s1 ''Controller'' = ''rotating'' \<longrightarrow>
-    (\<exists> s2 s3. 
-      toEnvP s2 \<and> 
-      toEnvP s3 \<and> 
-      substate s2 s3 \<and> 
-      substate s3 s1 \<and> 
-      toEnvNum s2 s3 = 1 \<and> 
-      (getPstate s2 ''Controller'' = ''motionless'' \<and> 
-        getVarBool s3 ''user'' \<or>
-        getPstate s2 ''Controller'' = ''suspended'') \<and> 
-      \<not> getVarBool s3 ''pressure'' \<and>
-      (\<forall> s4. 
-        toEnvP s4 \<and> 
-        substate s3 s4 \<and> 
-        substate s4 s1 \<longrightarrow> 
-          getPstate s4 ''Controller'' = ''rotating'')))"
-
-definition extra4 where
-"extra4 s \<equiv>
-(\<forall> s1.
-  toEnvP s1 \<and>
-  substate s1 s \<and>
-  getPstate s1 ''Controller'' = ''suspended'' \<longrightarrow>
-  (\<exists> s2 s3. 
-    toEnvP s2 \<and> 
-    toEnvP s3 \<and> 
-    substate s2 s3 \<and> 
-    substate s3 s1 \<and> 
-    toEnvNum s2 s3 = 1 \<and>
-    toEnvNum s2 s1 = ltime s1 ''Controller'' div 100 \<and>
-    (getPstate s2 ''Controller'' \<noteq> ''motionless'' \<or> 
-      getVarBool s3 ''user'') \<and> 
-    getVarBool s3 ''pressure''))"
-
-definition extra5 where
-"extra5 s \<equiv>
-(\<forall> s1. 
-  toEnvP s1 \<and> 
-  substate s1 s \<and> 
-  getPstate s1 ''Controller'' = ''suspended'' \<longrightarrow>
-    (\<exists> s2 s3. 
-      toEnvP s2 \<and> 
-      toEnvP s3 \<and> 
-      substate s2 s3 \<and> 
-      substate s3 s1 \<and> 
-      toEnvNum s2 s3 = 1 \<and> 
-      (getPstate s2 ''Controller'' = ''motionless'' \<and> 
-        getVarBool s3 ''user'' \<or>
-        getPstate s2 ''Controller'' = ''rotating'') \<and> 
-      getVarBool s3 ''pressure'' \<and>
-      (\<forall> s4. 
-        toEnvP s4 \<and> 
-        substate s3 s4 \<and> 
-        substate s4 s1 \<longrightarrow> 
-          getPstate s4 ''Controller'' = ''suspended'')))"
-
-definition extra6 where
-"extra6 s \<equiv>
-(\<forall> s1 s2 s3. 
-  toEnvP s1 \<and> 
-  toEnvP s2 \<and> 
-  toEnvP s3 \<and> 
-  substate s1 s2 \<and> 
-  substate s2 s3 \<and> 
-  substate s3 s \<and>
-  getPstate s3 ''Controller'' = ''rotating'' \<and> 
-  toEnvNum s1 s2 = 1 \<and> 
-  toEnvNum s1 s3 < ltime s3 ''Controller'' div 100 \<longrightarrow>
-    getPstate s1 ''Controller'' = ''rotating'' \<and> 
-    \<not> getVarBool s2 ''user'')"
-
-definition ex6_A3 where
-"ex6_A3 s3 s2 s1 \<equiv>
-  getPstate s3 ''Controller'' = ''rotating'' \<and> 
-  toEnvNum s1 s3 < ltime s3 ''Controller'' div 100 \<longrightarrow>
-    getPstate s1 ''Controller'' = ''rotating'' \<and> 
-    \<not> getVarBool s2 ''user''"
-
-lemma ex6_A3_sub:
-"extra6 s \<Longrightarrow> P3_cons ex6_A3 s"
-  using extra6_def P3_cons_def ex6_A3_def by auto
-
-lemma ex6_A3:
-"extra6 s \<Longrightarrow> P3_predEnv ex6_A3 s"
-  using ex6_A3_sub P3_cons_to_predEnv by auto
-
-lemma A3_ex6_sub:
-"P3_cons ex6_A3 s \<Longrightarrow> extra6 s"
-  using extra6_def P3_cons_def ex6_A3_def by auto
-
-lemma "P3_predEnv ex6_A3 s \<Longrightarrow> extra6 s"
-  using A3_ex6_sub P3_cons_from_predEnv by auto
-
-definition extra7 where
-"extra7 s \<equiv>
-(\<forall> s1 s2 s3. 
-  toEnvP s1 \<and> 
-  toEnvP s2 \<and> 
-  toEnvP s3 \<and> 
-  substate s1 s2 \<and> 
-  substate s2 s3 \<and> 
-  substate s3 s \<and>
-  toEnvNum s1 s2 = 1 \<and> 
-  toEnvNum s1 s3 < ltime s3 ''Controller'' div 100 \<and> 
-  getPstate s3 ''Controller'' = ''suspended'' \<longrightarrow>
-    getPstate s1 ''Controller'' = ''suspended'' \<and> 
-    \<not> getVarBool s2 ''pressure'')"
-
-definition extraInv where
-"extraInv s \<equiv>
-toEnvP s \<and>
-extraControllerStates s \<and>
-extraMotionlessOut s \<and>
-extraRotatingOut s \<and>
-extraSuspendedOut s \<and>
-
-extra1 s \<and>
-extra2 s \<and>
-extra3 s \<and>
-extra4 s \<and>
-extra5 s \<and>
-extra6 s \<and>
-extra7 s
-"
-
-(*
-Первая большая может быть такой:
-  (\<forall> s1.
-  toEnvP s1 \<and>
-  substate s1 s \<and>
-  getPstate s1 ''Controller'' = ''motionless'' \<longrightarrow>
-    (\<forall> s2.
-      toEnvP s2 \<and>
-      substate s2 s1 \<longrightarrow>
-      getPstate s2 ''Controller'' = ''motionless'')\<or>
-    (\<exists> s2.
-      toEnvP s2 \<and>
-      toEnvP s3 \<and>
-      substate s2 s1 \<and>
-      getPstate s2 ''Controller'' = ''rotating'' \<and>
-      ltime s2 ''Controller'' \<ge> 1000 \<and>
-      (\<forall> s3.
-        substate s2 s3 \<and>
-        substate s3 s1 \<and>
-        s2 \<noteq> s3 \<and>
-        getPstate s3 ''Controller'' = ''motionless'')))
-*)
-
-bundle extraInv_defs 
-begin
-declare extraInv_def [simp]
-declare extraControllerStates_def [simp]
-declare extraMotionlessOut_def [simp]
-declare extraRotatingOut_def [simp]
-declare extraSuspendedOut_def [simp]
-declare extra1_def [simp]
-declare extra2_def [simp]
-declare extra3_def [simp]
-declare extra4_def [simp]
-declare extra5_def [simp]
-declare extra6_def [simp]
-declare extra7_def [simp]
-end
-
 
 
 definition inv1 where "inv1 s \<equiv> R1 s \<and> extraInv s"
 definition inv2 where "inv2 s \<equiv> R2 s \<and> extraInv s"
-definition inv3 where "inv3 s \<equiv> R3 s \<and> extraInv s"
-definition inv4 where "inv4 s \<equiv> R4 s \<and> extraInv s"
+definition inv3 where "inv3 s \<equiv> R3_full s \<and> extraInv s"
+definition inv4 where "inv4 s \<equiv> R4_full s \<and> extraInv s"
 definition inv5 where "inv5 s \<equiv> R5 s \<and> extraInv s"
 definition inv6 where "inv6 s \<equiv> R6 s \<and> extraInv s"
 

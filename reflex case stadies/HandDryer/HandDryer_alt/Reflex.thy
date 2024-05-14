@@ -1073,89 +1073,6 @@ lemma div_inverse:
 "(s0::nat) = s1 div a \<and> s1 mod a = 0 \<Longrightarrow> s0 * a = s1"
   by auto
 
-
-definition P1 :: "(state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
-"P1 Q s = (\<forall>x. toEnvP x \<and> substate x s \<longrightarrow> Q x)"
-
-lemma one_pos_cond:
-  fixes Q1 :: "state \<Rightarrow>bool"
-  assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
-  and "P1 Q1 s"
-  and "Q1 s'"
-shows "P1 Q1 s'"
-proof(simp add: P1_def; rule allI; rule impI)
-  fix x::state
-  assume prems:"toEnvP x \<and> substate x s'"
-  show "Q1 x"
-  proof (cases)
-    assume "x=s'"
-    thus ?thesis using assms by auto
-  next
-    assume 1:"x\<noteq>s'"
-    then have "substate x s \<or> (substate s x \<and> substate x s' \<and> x \<noteq> s \<and> x \<noteq> s')" using substate_trans substate_asym substate_eq_or_predEnv
-    using assms(1) prems by blast
-    then show ?thesis 
-    by (metis P1_def assms(1) assms(2) prems substate_eq_or_predEnv)
-  qed
-qed
-
-definition P1f:: "(state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
-"P1f Q s \<equiv>(\<forall>x. toEnvP x \<and> substate x s \<longrightarrow> Q s x)"
-
-lemma one_pos_cond_full:
-  fixes Q1 :: "state\<Rightarrow>state\<Rightarrow>bool"
-  assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
-  and "P1f Q1 s"
-  and "Q1 s' s'"
-  and "(\<forall>x. toEnvP x \<and> substate x s \<and> Q1 s x \<longrightarrow> Q1 s' x)"
-shows "P1f Q1 s'" 
-  using P1f_def assms(1) assms(2) assms(3) assms(4) substate_eq_or_predEnv by blast 
-
-definition P2 :: "(state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
-"P2 Q s = (\<forall>x y. toEnvP y \<and> toEnvP x \<and> substate x y \<and> substate y s \<longrightarrow> Q y x)"
-
-lemma two_pos_cond:
-  fixes Q2 :: "state\<Rightarrow>state\<Rightarrow>bool"
-  assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
-  and "P2 Q2 s"
-  and "Q1 = Q2 s'"
-  and "P1 Q1 s'"
-shows "P2 Q2 s'"
-proof(simp add: P2_def; intro allI; rule impI)
-  fix x y::state
-  assume prems:"toEnvP y \<and> toEnvP x \<and> substate x y \<and> substate y s'"
-  show "Q2 y x"
-  proof (cases)
-    assume "y=s'"
-    thus ?thesis using assms using P1_def prems by blast
-  next
-    assume 1:"y\<noteq>s'"
-    then have "substate y s \<or> (substate s y \<and> substate y s' \<and> y \<noteq> s \<and> y \<noteq> s')" using substate_trans substate_asym substate_eq_or_predEnv
-    using assms(1) prems by blast
-    then show ?thesis 
-    by (metis P2_def assms(1) assms(2) prems substate_eq_or_predEnv)
-  qed
-qed
-
-lemma two_pos_cond_exp:
-  fixes Q2 :: "state\<Rightarrow>state\<Rightarrow>bool"
-  assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
-  and "P2 Q2 s"
-  and "Q1 = Q2 s'"
-  and "P1 Q1 s"
-  and "Q1 s'"
-shows "P2 Q2 s'"
-  using assms one_pos_cond two_pos_cond by blast
-
-definition P2_cons :: "(state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
-"P2_cons Q s \<equiv> (\<forall>x y. toEnvP y \<and> toEnvP x \<and> substate x y \<and> substate y s \<and> toEnvNum x y =1 \<longrightarrow> Q  y x)"
-
-definition cons_to_predEnv :: "(state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow> (state\<Rightarrow>bool)" where
-"cons_to_predEnv Q = (\<lambda> s. Q s (predEnv s))"
-
-definition P2_predEnv :: "(state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
-"P2_predEnv Q s \<equiv> (\<forall>x.  toEnvP x \<and> substate x s \<and> (predEnv x)\<noteq>emptyState \<longrightarrow> Q x (predEnv x))"
-
 lemma toEnvNum_predEnv:
 "toEnvP s \<and> toEnvP s' \<and> substate s s' \<and>toEnvNum s s' = 1\<Longrightarrow> s = predEnv s'"
   by (metis One_nat_def shiftEnv.simps(1) shiftEnv.simps(2) shift_toEnvNum)
@@ -1166,113 +1083,36 @@ lemma predEnv_toEnvNum:
 
 lemma toEnvP_emptyState:"\<not>toEnvP emptyState" by auto
 
-lemma P2_cons_from_predEnv:
-  "P2_predEnv Q s \<Longrightarrow> P2_cons Q s"
-proof -
-  assume prem1:"P2_predEnv Q s"
-  thus "P2_cons Q s"
-  proof (simp only:P2_cons_def P2_predEnv_def; intro allI; intro impI)
-    fix x y
-    assume prem2:"toEnvP y \<and>
-                   toEnvP x \<and>
-                   substate x y \<and>
-                   substate y s \<and>
-                   toEnvNum x y = 1"
-    then have "x = predEnv y" using prem2 toEnvNum_predEnv by auto
-    thus "Q y x" using prem1 P2_predEnv_def prem2 cons_to_predEnv_def by auto
-  qed
-qed
+lemma predEnv_det:"s1 = predEnv s \<and> s2 = predEnv s \<Longrightarrow> s1 = s2"
+  by simp
 
-lemma P2_cons_to_predEnv:
-  "P2_cons Q s \<Longrightarrow> P2_predEnv Q s"
-proof -
-  assume prem1:"P2_cons Q s"
-  thus "P2_predEnv Q s"
-  proof (simp only:P2_cons_def P2_predEnv_def; intro allI; intro impI)
-    fix x
-    assume prem2:"toEnvP x \<and>
-                   substate x s \<and>
-                   predEnv x \<noteq> emptyState"
-    thus "Q x (predEnv x)" using prem1 P2_predEnv_def prem2 cons_to_predEnv_def
-    by (metis P2_cons_def predEnvP_or_emptyState predEnv_substate predEnv_toEnvNum)
-  qed
-qed
+lemma 
+  assumes "toEnvP s \<and> toEnvP s'"
+    and "substate (predEnv s) s'"
+    and "(predEnv s) \<noteq>s'"
+    and "substate s s'' \<and> substate s' s''"
+  shows "substate s s'"
+  using assms(1) assms(2) assms(3) assms(4) predEnv_substate_imp_eq_or_substate by auto
 
-lemma two_pos_cond_cons_exp:
-  fixes Q2 :: "state\<Rightarrow>state\<Rightarrow>bool"
-  assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
-  and "P2_predEnv Q2 s"
-  and "Q2 s' s"
-shows "P2_predEnv Q2 s'"
-proof(simp add: P2_predEnv_def; rule allI; rule impI)
-  fix x::state
-  assume prems:"toEnvP x \<and> substate x s' \<and> predEnv x \<noteq>emptyState"
-  show "Q2 x (predEnv x)"
-  proof (cases)
-    assume "x=s'"
-    thus ?thesis using assms by auto
-  next
-    assume 1:"x\<noteq>s'"
-    then have "substate x s \<or> (substate s x \<and> substate x s' \<and> x \<noteq> s \<and> x \<noteq> s')" using substate_trans substate_asym substate_eq_or_predEnv
-    using assms(1) prems by blast
-    then show ?thesis 
-    by (metis P2_predEnv_def assms(1) assms(2) prems substate_eq_or_predEnv)
-  qed
-qed
-
-definition P1f_E1f :: "(state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow> (state\<Rightarrow>state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow>state \<Rightarrow>bool" where
-"P1f_E1f A B s \<equiv> (\<forall>s1. toEnvP s1 \<and> substate s1 s \<and> A s s1 \<longrightarrow> (\<exists>s2. toEnvP s2 \<and> substate s1 s2 \<and> substate s2 s \<and> B s s1 s2))"
-
-definition AB_Q where
-"AB_Q A B s s1 \<equiv> A s s1 \<longrightarrow> (\<exists>s2. toEnvP s2 \<and> substate s1 s2 \<and> substate s2 s \<and> B s s1 s2)"
-
-lemma P1f_from_P1f_E1f:
-  assumes "P1f_E1f A B s"
-  shows "P1f (AB_Q A B) s"
-  using AB_Q_def P1f_E1f_def P1f_def assms by auto
-
-lemma P1f_E1f_from_P1f:
-  assumes "P1f (AB_Q A B) s"
-  shows "P1f_E1f A B s"
-  using AB_Q_def P1f_E1f_def P1f_def assms by auto
-
-
-definition E2_P2 where
-"E2_P2 A B s \<equiv> 
-(\<exists> s1 s2. 
-  toEnvP s2 \<and>
-  toEnvP s1 \<and>
-  substate s1 s2 \<and>
-  substate s2 s \<and>
-  toEnvNum s1 s2 = 1 \<and>
-  A s2 s1 \<and>
-  (\<forall> s3 s4.
-    toEnvP s4 \<and> 
-    toEnvP s3 \<and> 
-    substate s2 s3 \<and> 
-    substate s3 s4 \<and> 
-    substate s4 s \<and>
-    toEnvNum s3 s4 = 1 \<longrightarrow>
-    B s4 s3))"
 
 (*
-lemma P2_cons_to_predEnv:
-  "P2_cons Q s \<Longrightarrow> P2_predEnv Q s"
+lemma P2_1_cons_to_predEnv:
+  "P2_1_cons Q s \<Longrightarrow> P2_1_predEnv Q s"
 proof -
-  assume prem1:"P2_cons Q s"
-  thus "P2_predEnv Q s"
-  proof (simp only: P2_cons_def P2_predEnv_def; intro allI; intro impI)
+  assume prem1:"P2_1_cons Q s"
+  thus "P2_1_predEnv Q s"
+  proof (simp only: P2_1_cons_def P2_1_predEnv_def; intro allI; intro impI)
     fix x
     assume prem2:"toEnvP x \<and> substate x s"
     have "substate (predEnv x) x" 
       by (simp add: predEnv_substate)
     moreover have "toEnvNum (predEnv x) x = 1" using prem2 calculation predEnv_toEnvNum gtime_predE toEnvNum_id
       by (metis One_nat_def add.commute plus_1_eq_Suc predEnvP_or_emptyState)
-    moreover have "toEnvP (predEnv x)\<or> (predEnv x)=emptyState" using prem1 P2_cons_def predEnvP_or_emptyState by auto
+    moreover have "toEnvP (predEnv x)\<or> (predEnv x)=emptyState" using prem1 P2_1_cons_def predEnvP_or_emptyState by auto
     ultimately show "Q s x (predEnv x)" using prem2 prem1
       apply (elim disjE)
-      using P2_cons_def apply simp
-      using P2_cons_def toEnvP_emptyState apply 
+      using P2_1_cons_def apply simp
+      using P2_1_cons_def toEnvP_emptyState apply 
 *)
 
 end

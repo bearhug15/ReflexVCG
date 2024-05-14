@@ -165,7 +165,7 @@ next
         then have "P1 extra1_1_Q1 st0" using P1_def extra1_1_Q1_def by auto
         moreover have "toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms extraInv_def by auto
         moreover have "extra1_1_Q1 st_final" by (simp add: extra1_1_Q1_def st2_Controller_state st3 st_final)
-        ultimately have "P1 extra1_1_Q1 st_final" using one_pos_cond by auto
+        ultimately have "P1 extra1_1_Q1 st_final" using P1_lemma by auto
         then show ?thesis using P1_def extra1_1_Q1_def 
           by (simp add: extra1_1_Q1_to_extra1_Q1 st2_Controller_state st3 st_final)
       next
@@ -212,9 +212,9 @@ next
   show "R1 st_final"
   proof -
     have "toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms inv1_def extraInv_def by auto
-    moreover have "P2_predEnv R1_A2 st0" using R1_A2 assms inv1_def by auto
+    moreover have "P2_1_cons R1_A2 st0" using R1_A2 assms inv1_def by auto
     moreover have "R1_A2 st_final st0" using assms R1_A2_def by auto
-    ultimately show ?thesis using two_pos_cond_cons_exp A2_R1 by auto
+    ultimately show ?thesis using P2_1_lemma A2_R1 by auto
   qed
 qed
 
@@ -234,9 +234,34 @@ next
   show "R2 st_final"
   proof -
     have "toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms inv2_def extraInv_def by auto
-    moreover have "P2_predEnv R2_A2 st0" using R2_A2 assms inv2_def by auto
+    moreover have "P2_1_cons R2_A2 st0" using R2_A2 assms inv2_def by auto
     moreover have "R2_A2 st_final st0" using assms R2_A2_def by auto
-    ultimately show ?thesis using two_pos_cond_cons_exp A2_R2 by auto
+    ultimately show ?thesis using P2_1_lemma A2_R2 by auto
+  qed
+qed
+
+lemma
+ assumes base_inv:"(inv6 st0)"
+ and st1:"(st1=(setVarBool st0 ''pressure'' pressure))"
+ and st2:"(st2=(setVarBool st1 ''user'' user))"
+ and st2_Controller_state:"(getPstate st2 ''Controller'')=''motionless''"
+ and st2_if3:"(getVarBool st2 ''user'')=False"
+ and st3:"(st3=(toEnv st2))"
+ and st_final:"(st_final=st3)"
+shows "(inv6 st_final)"
+proof(simp only: inv6_def; rule conjI)
+  show "extraInv st_final" using assms extra inv6_def by auto
+next
+  have extra:"extraInv st_final" using assms extra inv6_def by auto
+  show "R6 st_final"
+  proof -
+    have 0:"toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms R6_def inv6_def by auto
+    moreover have "P1 R6_A st0" using assms inv6_def R6_A by auto
+    moreover have "R6_A st_final" 
+      using R6_A_def assms inv6_def extraInv_def extraSuspendedOut_def extraMotionlessOut_def extraControllerStates_def extraRotatingOut_def local.extra substate_refl
+      by (smt (verit)) 
+    ultimately have "P1 R6_A st_final" using P1_lemma by blast
+    thus ?thesis using A_R6 0 by auto
   qed
 qed
 
@@ -252,14 +277,39 @@ shows "(inv4 st_final)"
 proof(simp only: inv4_def; rule conjI)
   show "extraInv st_final" using assms extra inv4_def by auto
 next
-  show "R4 st_final"
+  have extra:"extraInv st_final" using assms extra inv4_def by auto
+  show "R4_full st_final"
   proof -
-    define inv4_A1 where "inv4_A1 = P3_to_predEnv inv4_A3 st_final"
-    moreover have "toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms R4_def inv4_def by auto
-    moreover have "P3_predEnv inv4_A3 st0" using assms inv4_def inv4_A3 R4_def by auto
-    moreover have "P1 inv4_A1 st0" using assms P1_def inv4_A1_def P3_to_predEnv_def inv4_A3_def by auto
-    moreover have "inv4_A1 st_final" using assms inv4_A1_def P3_to_predEnv_def inv4_A3_def by auto
-    ultimately show ?thesis using P3_predEnv A3_inv4 by auto
+    define inv4_A1 where "inv4_A1 = p_2_3_conpred R4_A3 st_final"
+    moreover have 0:"toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms R4_full_def inv4_def by auto
+    moreover have "P3_cons R4_A3 st0" using assms inv4_def R4_A3 R4_def by auto
+    moreover have "P1 inv4_A1 st0" 
+    proof (simp only: P1_def inv4_A1_def p_2_3_conpred_def R4_A3_def SMT.verit_bool_simplify(4); rule allI; rule impI)
+      fix x
+      assume prem:"(toEnvP x \<and> substate x st0) \<and>
+               toEnvNum x st_final < 10 \<and>
+               getVarBool (predEnv x) ''rotation'' \<and>
+               getVarBool x ''pressure''"
+      have 1:"substate st0 st_final \<and> toEnvNum st0 st_final =1" using 0 predEnv_substate predEnv_toEnvNum by auto
+      then have 2:"toEnvNum x st0 < 9" using toEnvNum3 prem by force
+      have 3:"\<not>getVarBool st0 ''brake''" using assms inv4_def extraInv_def extraMotionlessOut_def 
+        by (metis getPstate.simps(3) substate_refl)
+      have "P1 (p_2_3_conpred R4_A3 st0) st0"
+        apply (simp only: P1_def p_2_3_conpred_def R4_A3_def SMT.verit_bool_simplify(4))
+        apply (rule allI)
+        using calculation(3) P3_predEnv_def p_2_3_conpred_def R4_A3_def
+        by (smt (verit, ccfv_SIG) "0" "1" getVarBool.simps(1) predEnvP_or_emptyState substate_total)
+      then have "\<not>((toEnvP x \<and> substate x st0) \<and>
+                  toEnvNum x st0 < 10 \<and>
+                  getVarBool (predEnv x) ''rotation'' \<and>
+                  getVarBool x ''pressure'')" using 3 by (simp add: P1_def R4_A3_def p_2_3_conpred_def)
+      thus "getVarBool st_final ''brake''" using prem 2 1 prem toEnvNum3 by fastforce
+    qed
+    moreover have "inv4_A1 st_final"
+      apply (simp only: inv4_A1_def p_2_3_conpred_def R4_A3_def)
+      using 0 assms inv4_def extraInv_def extraMotionlessOut_def 
+    by (metis getPstate.simps(3) substate_refl) 
+    ultimately show ?thesis using P3_lemma A3_R4 by auto
   qed
 qed
 
