@@ -23,6 +23,7 @@ lemma
  and st2:"(st2=(setVarBool st1 ''out_1'' True))"
  and st3:"(st3=(setPstate st2 ''Dryer'' ''Work''))"
  and st4:"(st4=(toEnv st3))"
+and st_final:"st_final = st4"
 shows "(inv1 st4)"
 proof (simp add: inv1_def; intro conjI)
   show "extraInv st4" using assms extra inv1_def by simp
@@ -64,6 +65,7 @@ assumes base_inv:"(inv2 st0)"
  and st2:"(st2=(setVarBool st1 ''out_1'' True))"
  and st3:"(st3=(setPstate st2 ''Dryer'' ''Work''))"
  and st4:"(st4=(toEnv st3))"
+and st_final:"st_final = st4"
 shows "(inv2 st4)"
 proof (simp add: inv2_def; intro conjI)
   show "extraInv st4" using assms extra inv2_def by simp
@@ -96,6 +98,7 @@ assumes base_inv:"(inv3 st0)"
  and st2:"(st2=(setVarBool st1 ''out_1'' True))"
  and st3:"(st3=(setPstate st2 ''Dryer'' ''Work''))"
  and st4:"(st4=(toEnv st3))"
+and st_final:"st_final = st4"
 shows "(inv3 st4)"
 proof (simp add: inv3_def; intro conjI)
   show "extraInv st4" using assms extra inv3_def by simp
@@ -215,6 +218,7 @@ assumes base_inv:"(inv4 st0)"
  and st2:"(st2=(setVarBool st1 ''out_1'' True))"
  and st3:"(st3=(setPstate st2 ''Dryer'' ''Work''))"
  and st4:"(st4=(toEnv st3))"
+and st_final:"st_final = st4"
 shows "(inv4 st4)" 
 proof (simp add: inv4_def; intro conjI)
   show "extraInv st4" using assms extra inv4_def by simp

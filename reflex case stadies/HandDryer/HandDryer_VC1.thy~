@@ -48,7 +48,7 @@ next
       next
         assume 1: "s2\<noteq>st4"
         then have 2: "substate s2 st0" using prems assms R1_sub2_prems_def by (simp split: if_splits)
-        then obtain "R1_sub2 st0 s2" using assms prems inv1_def R1_def R1_sub1_def R1_sub2_prems_def by auto
+        then obtain "R1_sub2 st0 s2" including R1_defs using assms prems inv1_def by auto
         then obtain s4 where 3:"R1_sub3_prems st0 s2 s4 \<and> R1_sub3 s2 s4" using R1_sub2_def by auto
         thus ?thesis using 3 assms R1_sub2_def R1_sub3_prems_def substate.simps by metis
       qed
@@ -82,8 +82,7 @@ next
         thus ?thesis using assms prems R2_sub2_prems_def by auto
       next
         assume 2: "s2\<noteq>st4"
-        thus ?thesis using assms prems R2_def R2_sub1_def R2_sub2_prems_def inv2_def 
-          by (metis substate.simps(2) substate.simps(3) substate.simps(7) toEnvP.simps(3) toEnvP.simps(7))
+        thus ?thesis using assms prems R2_def R2_sub1_def R2_sub2_prems_def inv2_def substate.simps toEnvP.simps by metis
       qed
     qed
   qed

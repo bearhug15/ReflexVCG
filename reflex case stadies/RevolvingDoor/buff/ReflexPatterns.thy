@@ -32,7 +32,7 @@ qed
 definition P1f:: "(state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
 "P1f A s \<equiv>(\<forall>x. toEnvP x \<and> substate x s \<longrightarrow> A s x)"
 
-lemma P1_lemma_full:
+lemma P1f_lemma:
   fixes A1 :: "state\<Rightarrow>state\<Rightarrow>bool"
   assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
   and "P1f A1 s"
@@ -243,7 +243,7 @@ lemma
     and "P1f_E1 A B s"
     and "(AB_comb A B) s' s'"
     and "(\<forall>x. toEnvP x \<and> substate x s \<and> (AB_comb A B) s x \<longrightarrow> (AB_comb A B) s' x)"
-  shows "P1f_E1 A B s'" using P1f_from_P1_E1 P1f_E1_from_P1f P1_lemma_full assms by blast
+  shows "P1f_E1 A B s'" using P1f_from_P1_E1 P1f_E1_from_P1f P1f_lemma assms by blast
 
 lemma
   fixes A B :: "state\<Rightarrow>state\<Rightarrow>bool"

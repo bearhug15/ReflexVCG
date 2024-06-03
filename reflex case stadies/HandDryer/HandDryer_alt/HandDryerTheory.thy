@@ -1,5 +1,5 @@
 theory HandDryerTheory
-imports Reflex
+imports ReflexPatterns
 begin
 
 fun ltime:: "state \<Rightarrow> process \<Rightarrow> nat" where 
@@ -40,7 +40,25 @@ lemma ltime_le_toEnvNum:
          apply(auto)
   done
 
-find_theorems "(_ + _) * _"
+
+definition extraInv where
+"extraInv s \<equiv>
+toEnvP s \<and>
+(getPstate s ''Dryer'' = ''Work'' \<longrightarrow>
+0 < ltime s ''Dryer'' \<and> ltime s ''Dryer'' \<le> 2000 \<and>
+(\<forall> s1. toEnvP s1 \<and> substate s1 s \<and>
+ (toEnvNum s1 s*100 +100) = ltime s ''Dryer'' \<longrightarrow>
+getVarBool s1 ''inp_1'' = True \<and>
+ getVarBool s1 ''out_1'' = True) \<and>
+(\<forall> s1. toEnvP s1 \<and> substate s1 s \<and>
+ (toEnvNum s1 s*100 +100) < ltime s ''Dryer'' \<longrightarrow>
+getVarBool s1 ''inp_1'' = False \<and>
+ getVarBool s1 ''out_1'' = True)) \<and>
+(getPstate s ''Dryer'' = ''Wait'' \<longrightarrow>
+ getVarBool s ''out_1'' = False) \<and>
+(\<forall> s1. toEnvP s1 \<and> substate s1 s \<longrightarrow>
+getPstate s1 ''Dryer'' = ''Wait'' \<or>
+getPstate s1 ''Dryer'' = ''Work'')"
 
 subsection "Requirement 1"
 
@@ -129,6 +147,32 @@ declare R1_sub3_def [simp]
 declare R1_sub4_prems_def [simp]
 end
 
+definition inv1 where "inv1 s \<equiv> R1_full s \<and> extraInv s"
+
+definition R1_A where
+"R1_A s s2 s1 \<equiv>
+  getVarBool s1 ''inp_1'' = False \<and>
+  getVarBool s1 ''out_1'' = False \<and>
+  getVarBool s2 ''inp_1'' = True"
+
+definition R1_B where
+"R1_B s2 s1 s4 \<equiv>
+  toEnvNum s2 s4 \<le> 1 \<and> 
+  getVarBool s4 ''out_1'' = True"
+
+definition R1_C where
+"R1_C s2 s4 s3 \<equiv>
+  s3 \<noteq> s4 \<longrightarrow>
+  getVarBool s3 ''inp_1'' = True"
+
+lemma R1_A:"R1_full s\<Longrightarrow> P8_cons R1_A R1_B R1_C s"
+  apply (simp only:R1_full_def P8_cons_def R1_A_def R1_B_def R1_C_def SMT.verit_bool_simplify(4))
+  by auto
+
+lemma A_R1:"toEnvP s \<and> P8_cons R1_A R1_B R1_C s \<Longrightarrow> R1_full s"
+  apply (simp only:R1_full_def P8_cons_def R1_A_def R1_B_def R1_C_def SMT.verit_bool_simplify(4))
+  by auto
+
 subsection "Requirement 2"
 
 definition R2_sub2_prems where
@@ -170,6 +214,23 @@ toEnvP s \<and>
   getVarBool s1 ''out_1'' = False \<and>
   getVarBool s2 ''inp_1'' = False \<longrightarrow>
     getVarBool s2 ''out_1'' = False)"
+
+definition inv2 where "inv2 s \<equiv> R2_full s \<and> extraInv s"
+
+definition R2_A where
+"R2_A s2 s1 \<equiv>
+  getVarBool s1 ''out_1'' = False \<and>
+  getVarBool s2 ''inp_1'' = False \<longrightarrow>
+  getVarBool s2 ''out_1'' = False"
+
+lemma R2_A:
+"R2_full s \<Longrightarrow> P2_1_cons R2_A s"
+  using R2_full_def P2_1_cons_def R2_A_def by auto
+
+lemma A_R2:
+"toEnvP s \<and> P2_1_cons R2_A s \<Longrightarrow> R2_full s"
+  using R2_full_def P2_1_cons_def R2_A_def by auto
+
 subsection "Requirement 3"
 
 definition R3_sub4_prems where
@@ -286,31 +347,6 @@ toEnvP s \<and>
 R5_sub1 s"
 
 
-definition extraInv where
-"extraInv s \<equiv>
-toEnvP s \<and>
-(getPstate s ''Dryer'' = ''Work'' \<longrightarrow>
-0 < ltime s ''Dryer'' \<and> ltime s ''Dryer'' \<le> 2000 \<and>
-(\<forall> s1. toEnvP s1 \<and> substate s1 s \<and>
- (toEnvNum s1 s*100 +100) = ltime s ''Dryer'' \<longrightarrow>
-getVarBool s1 ''inp_1'' = True \<and>
- getVarBool s1 ''out_1'' = True) \<and>
-(\<forall> s1. toEnvP s1 \<and> substate s1 s \<and>
- (toEnvNum s1 s*100 +100) < ltime s ''Dryer'' \<longrightarrow>
-getVarBool s1 ''inp_1'' = False \<and>
- getVarBool s1 ''out_1'' = True)) \<and>
-(getPstate s ''Dryer'' = ''Wait'' \<longrightarrow>
- getVarBool s ''out_1'' = False) \<and>
-(\<forall> s1. toEnvP s1 \<and> substate s1 s \<longrightarrow>
-getPstate s1 ''Dryer'' = ''Wait'' \<or>
-getPstate s1 ''Dryer'' = ''Work'')"
-
-
-definition inv1 where "inv1 s \<equiv> R1 s \<and> extraInv s"
-
-
-definition inv2 where "inv2 s \<equiv> R2 s \<and> extraInv s"
-
 
 definition inv3 where "inv3 s \<equiv> R3 s \<and> extraInv s"
 
@@ -369,44 +405,4 @@ declare pred3_sub2_prems_def [simp]
 declare pred3_sub3_def [simp]
 end
 
-
-definition inv2_Q2 where
-"inv2_Q2 s2 s1\<equiv>
-  \<not>getVarBool s1 ''out_1''  \<and>
-  \<not>getVarBool s2 ''inp_1'' \<longrightarrow>
-    \<not>getVarBool s2 ''out_1'' "
-
-lemma P2_inv2_Q2_eq_R2:
-  assumes "toEnvP s" 
-    and "P2_cons inv2_Q2 s"
-  shows "R2 s"
-  using P2_cons_def inv2_Q2_def including R2_defs apply auto
-  using assms apply blast
-  apply (smt (z3) assms(2) inv2_Q2_def substate_refl) 
-  done
-
-lemma P2_inv2_Q2_st0_sub:
-"inv2 st0 \<Longrightarrow> P2_cons inv2_Q2 st0"
-  using inv2_def P2_cons_def inv2_Q2_def including R2_defs apply auto
-  done
-
-lemma P2_inv2_Q2_st0:
-"inv2 st0 \<Longrightarrow> P2_predEnv inv2_Q2 st0"
-  using inv2_def P2_cons_def inv2_Q2_def P2_inv2_Q2_st0_sub P2_cons_to_predEnv including R2_defs 
-  by blast
-
-lemma inv2_Q2_R2:
-  assumes "toEnvP s"
-  and "P2_predEnv inv2_Q2 s"
-  shows "R2 s"
-  using R2_full_def P2_cons_from_predEnv P2_predEnv_def P2_cons_def P2_inv2_Q2_eq_R2 assms by metis 
-
-(*
-definition inv2_Q2 where
-"inv2_Q2 s2 s1 \<equiv>
-  toEnvNum s1 s2 = 1 \<and>
-  \<not>getVarBool s1 ''out_1''  \<and>
-  \<not>getVarBool s2 ''inp_1'' \<longrightarrow>
-    \<not>getVarBool s2 ''out_1'' "
-*)
 end

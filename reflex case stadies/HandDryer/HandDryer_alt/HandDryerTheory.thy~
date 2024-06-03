@@ -391,15 +391,15 @@ lemma P2_inv2_Q2_st0_sub:
   done
 
 lemma P2_inv2_Q2_st0:
-"inv2 st0 \<Longrightarrow> P2_cons_predEnv inv2_Q2 st0"
+"inv2 st0 \<Longrightarrow> P2_predEnv inv2_Q2 st0"
   using inv2_def P2_cons_def inv2_Q2_def P2_inv2_Q2_st0_sub P2_cons_to_predEnv including R2_defs 
   by blast
 
 lemma inv2_Q2_R2:
   assumes "toEnvP s"
-  and "P2_cons_predEnv inv2_Q2 s"
+  and "P2_predEnv inv2_Q2 s"
   shows "R2 s"
-  using R2_full_def P2_cons_from_predEnv P2_cons_predEnv_def P2_cons_def P2_inv2_Q2_eq_R2 assms by metis 
+  using R2_full_def P2_cons_from_predEnv P2_predEnv_def P2_cons_def P2_inv2_Q2_eq_R2 assms by metis 
 
 (*
 definition inv2_Q2 where

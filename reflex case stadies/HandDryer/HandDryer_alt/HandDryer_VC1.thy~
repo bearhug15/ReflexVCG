@@ -72,7 +72,7 @@ next
   show "R2 st_final"
   proof -
     have "toEnvP st0 \<and> toEnvP st_final \<and> st0=predEnv st_final" using assms inv2_def extraInv_def by auto
-    moreover have "P2_cons_predEnv inv2_Q2 st0" using assms P2_inv2_Q2_st0 by auto
+    moreover have "P2_predEnv inv2_Q2 st0" using assms P2_inv2_Q2_st0 by auto
     moreover have "inv2_Q2 st_final st0" using assms inv2_Q2_def by simp
     ultimately show ?thesis 
     using inv2_Q2_R2 two_pos_cond_cons_exp by blast

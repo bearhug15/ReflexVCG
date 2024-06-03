@@ -12,7 +12,7 @@ section "Pattern 1"
 definition P1 :: "(state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
 "P1 A s = (\<forall>x. toEnvP x \<and> substate x s \<longrightarrow> A x)"
 
-lemma one_pos_cond:
+lemma P1_lemma:
   fixes A1 :: "state \<Rightarrow>bool"
   assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
   and "P1 A1 s"
@@ -37,7 +37,7 @@ qed
 definition P1f:: "(state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
 "P1f A s \<equiv>(\<forall>s1. toEnvP s1 \<and> substate s1 s \<longrightarrow> A s s1)"
 
-lemma one_pos_cond_full:
+lemma P1_lemma_full:
   fixes A1 :: "state\<Rightarrow>state\<Rightarrow>bool"
   assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
   and "P1f A1 s"
@@ -52,7 +52,7 @@ section "Pattern 2"
 definition P2 :: "(state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
 "P2 A s = (\<forall>x y. toEnvP y \<and> toEnvP x \<and> substate x y \<and> substate y s \<longrightarrow> A y x)"
 
-lemma two_pos_cond:
+lemma P2_lemma:
   fixes A2 :: "state\<Rightarrow>state\<Rightarrow>bool"
   assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
   and "P2 A2 s"
@@ -75,7 +75,7 @@ proof(simp add: P2_def; intro allI; rule impI)
   qed
 qed
 
-lemma two_pos_cond_exp:
+lemma P2_lemma_exp:
   fixes A2 :: "state\<Rightarrow>state\<Rightarrow>bool"
   assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
   and "P2 A2 s"
@@ -83,25 +83,25 @@ lemma two_pos_cond_exp:
   and "P1 A1 s"
   and "A1 s'"
 shows "P2 A2 s'"
-  using assms one_pos_cond two_pos_cond by blast
+  using assms P1_lemma P2_lemma by blast
 
 section "Pattern 2.1"
 
-definition P2_cons :: "(state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
-"P2_cons A s \<equiv> (\<forall>x y. toEnvP y \<and> toEnvP x \<and> substate x y \<and> substate y s \<and> toEnvNum x y =1 \<longrightarrow> A y x)"
+definition P2_1_cons :: "(state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
+"P2_1_cons A s \<equiv> (\<forall>x y. toEnvP y \<and> toEnvP x \<and> substate x y \<and> substate y s \<and> toEnvNum x y =1 \<longrightarrow> A y x)"
 
 definition cons_to_predEnv :: "(state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow> (state\<Rightarrow>bool)" where
 "cons_to_predEnv A = (\<lambda> s. A s (predEnv s))"
 
-definition P2_predEnv :: "(state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
-"P2_predEnv A s \<equiv> (\<forall>x.  toEnvP x \<and> substate x s \<and> toEnvP (predEnv x) \<longrightarrow> A x (predEnv x))"
+definition P2_1_predEnv :: "(state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
+"P2_1_predEnv A s \<equiv> (\<forall>x.  toEnvP x \<and> substate x s \<and> toEnvP (predEnv x) \<longrightarrow> A x (predEnv x))"
 
-lemma P2_cons_from_predEnv:
-  "P2_predEnv A s \<Longrightarrow> P2_cons A s"
-proof -
-  assume prem1:"P2_predEnv A s"
-  thus "P2_cons A s"
-  proof (simp only:P2_cons_def P2_predEnv_def; intro allI; intro impI)
+lemma P2_1_bridge:
+"P2_1_predEnv A s = P2_1_cons A s"
+proof 
+  assume prem1:"P2_1_predEnv A s"
+  thus "P2_1_cons A s"
+  proof (simp only:P2_1_cons_def P2_1_predEnv_def; intro allI; intro impI)
     fix x y
     assume prem2:"toEnvP y \<and>
                    toEnvP x \<and>
@@ -109,45 +109,46 @@ proof -
                    substate y s \<and>
                    toEnvNum x y = 1"
     then have "x = predEnv y" using prem2 toEnvNum_predEnv by auto
-    thus "A y x" using prem1 P2_predEnv_def prem2  by auto
+    thus "A y x" using prem1 P2_1_predEnv_def prem2  by auto
   qed
-qed
-
-lemma P2_cons_to_predEnv:
-  "P2_cons A s \<Longrightarrow> P2_predEnv A s"
-proof -
-  assume prem1:"P2_cons A s"
-  thus "P2_predEnv A s"
-  proof (simp only:P2_cons_def P2_predEnv_def; intro allI; intro impI)
+next
+  assume prem1:"P2_1_cons A s"
+  thus "P2_1_predEnv A s"
+  proof (simp only:P2_1_cons_def P2_1_predEnv_def; intro allI; intro impI)
     fix x
     assume prem2:"toEnvP x \<and>
                    substate x s \<and>
                    toEnvP (predEnv x)"
-    thus "A x (predEnv x)" using prem1 P2_predEnv_def prem2 cons_to_predEnv_def
-    by (metis P2_cons_def predEnv_substate predEnv_toEnvNum)
+    thus "A x (predEnv x)" using prem1 P2_1_predEnv_def prem2 cons_to_predEnv_def
+    by (metis P2_1_cons_def predEnv_substate predEnv_toEnvNum)
   qed
 qed
 
-lemma two_pos_cond_cons_exp:
+lemma P2_1_lemma:
   fixes A2 :: "state\<Rightarrow>state\<Rightarrow>bool"
   assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
-  and "P2_predEnv A2 s"
+  and "P2_1_cons A2 s"
   and "A2 s' s"
-shows "P2_predEnv A2 s'"
-proof(simp add: P2_predEnv_def; rule allI; rule impI)
-  fix x::state
-  assume prems:"toEnvP x \<and> substate x s' \<and> toEnvP (predEnv x)"
-  show "A2 x (predEnv x)"
-  proof (cases)
-    assume "x=s'"
-    thus ?thesis using assms by auto
-  next
-    assume 1:"x\<noteq>s'"
-    then have "substate x s \<or> (substate s x \<and> substate x s' \<and> x \<noteq> s \<and> x \<noteq> s')" using substate_trans substate_asym substate_eq_or_predEnv
-    using assms(1) prems by blast
-    then show ?thesis 
-    by (metis P2_predEnv_def assms(1) assms(2) prems substate_eq_or_predEnv)
+shows "P2_1_cons A2 s'"
+proof -
+  have 0:"P2_1_predEnv A2 s" using assms P2_1_bridge by auto
+  have "P2_1_predEnv A2 s'"
+  proof(simp add: P2_1_predEnv_def; rule allI; rule impI)
+    fix x::state
+    assume prems:"toEnvP x \<and> substate x s' \<and> toEnvP (predEnv x)"
+    show "A2 x (predEnv x)"
+    proof (cases)
+      assume "x=s'"
+      thus ?thesis using assms by auto
+    next
+      assume 1:"x\<noteq>s'"
+      then have "substate x s \<or> (substate s x \<and> substate x s' \<and> x \<noteq> s \<and> x \<noteq> s')" using substate_trans substate_asym substate_eq_or_predEnv
+      using assms(1) prems by blast
+      then show ?thesis 
+      by (metis P2_1_predEnv_def assms(1) 0 prems substate_eq_or_predEnv)
+    qed
   qed
+  thus ?thesis using P2_1_bridge by auto
 qed
 
 section "Pattern 3"
@@ -193,67 +194,19 @@ next
   qed
 qed
 
-lemma P3_predEnv:
+lemma P3_lemma:
   assumes "toEnvP s \<and> toEnvP s' \<and> s = predEnv s'"
-  and "P3_predEnv A3 s"
+  and "P3_cons A3 s"
   and "A1 = p_2_3_conpred A3 s'"
   and "P1 A1 s"
   and "A1 s'"
-shows "P3_predEnv A3 s'"
-  by (smt (verit) P1_def P3_predEnv_def assms(1) assms(2) assms(3) assms(4) assms(5) substate_eq_or_predEnv)
+shows "P3_cons A3 s'"
+  by (smt (verit) P1_def P3_bridge P3_predEnv_def assms(1) assms(2) assms(3) assms(4) assms(5) substate_eq_or_predEnv)
 
 
 
 section "Pattern 4"
-(*
-definition P1f_E1f :: "(state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow> (state\<Rightarrow>state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow>state \<Rightarrow>bool" where
-"P1f_E1f A B s \<equiv> (\<forall>s1. toEnvP s1 \<and> substate s1 s \<and> A s s1 \<longrightarrow> (\<exists>s2. toEnvP s2 \<and> substate s2 s \<and> B s s1 s2))"
 
-definition AB_combf where
-"AB_combf A B s s1 \<equiv> A s s1 \<longrightarrow> (\<exists>s2. toEnvP s2 \<and>  substate s2 s \<and> B s s1 s2)"
-
-lemma P1f_from_P1f_E1f:
-  assumes "P1f_E1f A B s"
-  shows "P1f (AB_combf A B) s"
-  using AB_combf_def P1f_E1f_def P1f_def assms 
-  by (smt (verit, ccfv_threshold))
-
-lemma P1f_E1f_from_P1f:
-  assumes "P1f (AB_combf A B) s"
-  shows "P1f_E1f A B s"
-  using AB_combf_def P1f_E1f_def P1f_def assms 
-  by (smt (verit, ccfv_threshold))
-
-definition P1f_E1 :: "(state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow> (state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow>state \<Rightarrow>bool" where
-"P1f_E1 A B s \<equiv> (\<forall>s1. toEnvP s1 \<and> substate s1 s \<and> A s s1 \<longrightarrow> (\<exists>s2. toEnvP s2 \<and> substate s2 s \<and> B s1 s2))"
-
-definition AB_comb where
-"AB_comb A B s s1 \<equiv> A s s1 \<longrightarrow> (\<exists>s2. toEnvP s2 \<and> substate s2 s \<and> B s1 s2)"
-
-lemma P1f_from_P1_E1:
-  assumes "P1f_E1 A B s"
-  shows "P1f (AB_comb A B) s"
-  using AB_comb_def P1f_E1_def P1f_def assms by (smt (verit, ccfv_threshold))
-
-lemma P1f_E1_from_P1f:
-  assumes "P1f (AB_comb A B) s"
-  shows "P1f_E1 A B s"
-  using AB_comb_def P1f_E1_def P1f_def assms by (smt (verit, ccfv_threshold))
-
-lemma P1f_E1_lemma:
-  assumes "toEnvP s \<and> toEnvP s' \<and> s=predEnv s'"
-    and "P1f_E1 A B s"
-    and "(AB_comb A B) s' s'"
-    and "(\<forall>x. toEnvP x \<and> substate x s \<and> (AB_comb A B) s x \<longrightarrow> (AB_comb A B) s' x)"
-  shows "P1f_E1 A B s'" using P1f_from_P1_E1 P1f_E1_from_P1f one_pos_cond_full assms by blast
-
-lemma AB_inter:
-  fixes A B :: "state\<Rightarrow>state\<Rightarrow>bool"
-  assumes "toEnvP s \<and> toEnvP s' \<and> s = predEnv s'"
-  and "(\<forall>x. toEnvP x \<and> substate x s' \<and> A s' x \<and> \<not> A s x \<longrightarrow> (\<exists>y. toEnvP y \<and> substate x y \<and> substate y s' \<and> B x y))"
-shows "(\<forall>x. toEnvP x \<and> substate x s \<and> (AB_comb A B) s x \<longrightarrow> (AB_comb A B) s' x)" using AB_comb_def assms 
-  by (smt (verit, best) predEnv_substate substate_trans)
-*)
 subsection "Pattern 4.1"
 
 definition P4_1 :: "(state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow> (state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow>state \<Rightarrow>bool" where
@@ -286,7 +239,7 @@ lemma P4_1_lemma:
     and "P4_1 A B s"
     and "(AB_comb_before A B) s' s'"
     and "(\<forall>x. toEnvP x \<and> substate x s' \<and> A s' x \<and> \<not> A s x \<longrightarrow> (\<exists>y. toEnvP y \<and> substate y x \<and> substate y s' \<and> B x y))"
-  shows "P4_1 A B s'" using P1f_from_P4_1 P4_1_from_P1f one_pos_cond_full assms AB_before_inter by blast
+  shows "P4_1 A B s'" using P1f_from_P4_1 P4_1_from_P1f P1_lemma_full assms AB_before_inter by blast
 
 subsection "Pattern 4.2"
 
@@ -315,7 +268,7 @@ lemma P4_2_lemma:
     and "P4_2 A B s"
     and "(AB_comb_after A B) s' s'"
     and "(\<forall>x. toEnvP x \<and> substate x s \<and> (AB_comb_after A B) s x \<longrightarrow> (AB_comb_after A B) s' x)"
-  shows "P4_2 A B s'" using P1f_from_P4_2 P4_2_from_P1f one_pos_cond_full assms by blast
+  shows "P4_2 A B s'" using P1f_from_P4_2 P4_2_from_P1f P1_lemma_full assms by blast
 
 lemma AB_after_inter:
   fixes A B :: "state\<Rightarrow>state\<Rightarrow>bool"
@@ -323,42 +276,6 @@ lemma AB_after_inter:
   and "(\<forall>x. toEnvP x \<and> substate x s' \<and> A s' x \<and> \<not> A s x \<longrightarrow> (\<exists>y. toEnvP y \<and> substate x y \<and> substate y s' \<and> B x y))"
 shows "(\<forall>x. toEnvP x \<and> substate x s \<and> (AB_comb_after A B) s x \<longrightarrow> (AB_comb_after A B) s' x)" using AB_comb_after_def assms 
   by (smt (verit, best) predEnv_substate substate_trans)
-
-(*proof (simp only:AB_comb_def;rule allI; rule impI)
-  fix x
-  assume prems:"toEnvP x \<and>
-         substate x s \<and>
-         (A s x \<longrightarrow>
-          (\<exists>s2. toEnvP s2 \<and>
-                substate x s2 \<and>
-                substate s2 s \<and>
-                B x s2))"
-  consider (a) "A s x \<and> A s' x" | (b) "\<not>A s x \<and> A s' x" | (c) "\<not>A s' x" by auto 
-  thus "A s' x \<longrightarrow>
-         (\<exists>s2. toEnvP s2 \<and>
-               substate x s2 \<and>
-               substate s2 s' \<and> B x s2)"
-  proof (cases)
-    case a
-    then show ?thesis using assms(1) predEnv_substate prems substate_trans by blast
-  next
-    case b
-    then have "(\<exists>y. toEnvP x \<and> substate x y \<and> substate y s' \<and> B x y)" 
-      using assms(1) assms(2) predEnv_substate prems substate_trans by blast
-    then show ?thesis by sledgehammer
-  next
-    case c
-    then show ?thesis by simp
-  qed
-*)
-
-(*
-(\<forall>x. toEnvP x \<and> substate x s \<and> 
-  (A s x \<longrightarrow> (\<exists>s2. toEnvP s2 \<and> substate x s2 \<and> substate s2 s \<and> B x s2)) \<longrightarrow> 
-  (A s' x \<longrightarrow> (\<exists>s2. toEnvP s2 \<and> substate x s2 \<and> substate s2 s' \<and> B x s2)))
-
-()
-*)
 
 section "Pattern 5"
 
@@ -412,10 +329,10 @@ lemma P5_1_from_P1f:
 
 lemma P5_1_lemma:
   assumes "toEnvP s \<and> toEnvP s' \<and> s = predEnv s'"
-    and "P5_1_predEnv A B s"
+    and "P5_1_cons A B s"
     and "(AB_comb_before A (p_2_3_conpred_notEmpty B)) s' s'"
     and "(\<forall>x. toEnvP x \<and> substate x s' \<and> A s' x \<and> \<not> A s x \<longrightarrow> (\<exists>y. toEnvP y \<and> substate y x \<and> substate y s' \<and> (p_2_3_conpred_notEmpty B) x y))"
-  shows "P5_1_predEnv A B s'" using assms AB_before_inter one_pos_cond_full substate_eq_or_predEnv P1f_from_P5_1 P5_1_from_P1f by fastforce
+  shows "P5_1_cons A B s'" using assms P5_1_bridge AB_before_inter P1_lemma_full substate_eq_or_predEnv P1f_from_P5_1 P5_1_from_P1f by fastforce
 
 
 (*
@@ -423,19 +340,19 @@ lemma P5_1_lemma:
     and "P4_1 A B s"
     and "(AB_comb_before A B) s' s'"
     and "(\<forall>x. toEnvP x \<and> substate x s' \<and> A s' x \<and> \<not> A s x \<longrightarrow> (\<exists>y. toEnvP y \<and> substate y x \<and> substate y s' \<and> B x y))"
-  shows "P4_1 A B s'" using P1f_from_P4_1 P4_1_from_P1f one_pos_cond_full assms AB_before_inter by blast
+  shows "P4_1 A B s'" using P1f_from_P4_1 P4_1_from_P1f P1_lemma_full assms AB_before_inter by blast
 
 *)
 section "Pattern 6"
 
-definition P1_E2cons_P1 :: "(state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow> (state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow> (state\<Rightarrow>bool) \<Rightarrow> state \<Rightarrow>bool" where
-"P1_E2cons_P1 A B C s \<equiv> 
+definition P6_cons :: "(state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow> (state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow> (state\<Rightarrow>bool) \<Rightarrow> state \<Rightarrow>bool" where
+"P6_cons A B C s \<equiv> 
 (\<forall> s1. toEnvP s1 \<and> substate s1 s \<and> A s s1 \<longrightarrow> 
   (\<exists> s2 s3. toEnvP s2 \<and> toEnvP s3 \<and> substate s2 s3 \<and> substate s3 s1 \<and> toEnvNum s2 s3 = 1 \<and> B s2 s3 \<and>
     (\<forall> s4. toEnvP s4 \<and> substate s3 s4 \<and> substate s4 s1 \<longrightarrow> C s4)))"
 
-definition P1_E2predEnv_P1 :: "(state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow> (state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow> (state\<Rightarrow>bool) \<Rightarrow> state \<Rightarrow>bool" where
-"P1_E2predEnv_P1 A B C s \<equiv> 
+definition P6_predEnv :: "(state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow> (state\<Rightarrow>state\<Rightarrow>bool) \<Rightarrow> (state\<Rightarrow>bool) \<Rightarrow> state \<Rightarrow>bool" where
+"P6_predEnv A B C s \<equiv> 
 (\<forall> s1. toEnvP s1 \<and> substate s1 s \<and> A s s1 \<longrightarrow> 
   (\<exists> s2. toEnvP s2  \<and> substate s2 s1  \<and> B (predEnv s2) s2 \<and> (toEnvP (predEnv s2))\<and>
     (\<forall> s3. toEnvP s3 \<and> substate s2 s3 \<and> substate s3 s1 \<longrightarrow> C s3)))"
@@ -444,29 +361,33 @@ definition BC_to_BP4 where
 "BC_to_BP4 B C  \<equiv> (\<lambda>s1 s2. B (predEnv s2) s2 \<and> (toEnvP (predEnv s2))\<and>
                     (\<forall> s3. toEnvP s3 \<and> substate s2 s3 \<and> substate s3 s1 \<longrightarrow> C s3))"
 
-lemma P1_E2cons_P1_to_P1_E2predEnv_P1:
-"P1_E2cons_P1 A B C s\<Longrightarrow> P1_E2predEnv_P1 A B C s"
-using P1_E2cons_P1_def P1_E2predEnv_P1_def 
+lemma P6_bridge:
+"P6_cons A B C s = P6_predEnv A B C s"
+proof
+  assume "P6_cons A B C s"
+  thus "P6_predEnv A B C s"
+    using P6_cons_def P6_predEnv_def 
     by (smt (verit, ccfv_threshold) toEnvNum_predEnv)
-
-lemma P1_E2predEnv_P1_to_P1_E2cons_P1:
-"P1_E2predEnv_P1 A B C s\<Longrightarrow> P1_E2cons_P1 A B C s"
-using P1_E2cons_P1_def P1_E2predEnv_P1_def 
+next
+  assume "P6_predEnv A B C s"
+  thus "P6_cons A B C s"
+using P6_cons_def P6_predEnv_def 
   by (smt (verit) predEnv_substate predEnv_toEnvNum)
+qed
 
-lemma P1_E2predEnv_P1_P1f_E1_eq:
-"P1_E2predEnv_P1 A B C s = P4_1 A (BC_to_BP4 B C) s"
-  apply (simp only: P1_E2predEnv_P1_def P4_1_def BC_to_BP4_def)
+lemma P6_bridge_P4_1:
+"P6_predEnv A B C s = P4_1 A (BC_to_BP4 B C) s"
+  apply (simp only: P6_predEnv_def P4_1_def BC_to_BP4_def)
   done
 
-lemma P1_E2predEnv_P1_lemma:
+lemma P6_lemma:
   assumes "toEnvP s \<and> toEnvP s' \<and> s = predEnv s'"
-    and "P1_E2predEnv_P1 A B C s"
+    and "P6_cons A B C s"
     and "(AB_comb_before A (BC_to_BP4 B C)) s' s'"
     and "(\<forall>x. toEnvP x \<and> substate x s' \<and> A s' x \<and> \<not> A s x \<longrightarrow> 
           (\<exists>y. toEnvP y \<and> substate y x \<and> substate y s' \<and> (BC_to_BP4 B C) x y))"
-  shows "P1_E2predEnv_P1 A B C s'"
-  using P1_E2predEnv_P1_P1f_E1_eq P4_1_lemma assms AB_before_inter by auto
+  shows "P6_cons A B C s'"
+  using P6_bridge_P4_1 P4_1_lemma assms AB_before_inter P6_bridge P6_bridge by auto
 
 (*
 (\<forall>x. toEnvP x \<and> substate x s' \<and> A s' x \<and> \<not> A s x \<longrightarrow> 
@@ -591,7 +512,7 @@ proof -
   moreover have "P1f (P8_ABC_comb A B C) s" using assms P8_pred_bridge_P1f P8_bridge by auto
   moreover have "(P8_ABC_comb A B C) s' s'" using assms by auto
   moreover have "(\<forall>x. toEnvP x \<and> substate x s \<and> (P8_ABC_comb A B C) s x \<longrightarrow> (P8_ABC_comb A B C) s' x)" using assms AB_after_inter P8_ABC_comb by auto
-  ultimately have "P1f (P8_ABC_comb A B C) s'" using one_pos_cond_full by auto
+  ultimately have "P1f (P8_ABC_comb A B C) s'" using P1_lemma_full by auto
   thus ?thesis using P8_pred_bridge_P1f P8_bridge by auto
 qed
 end

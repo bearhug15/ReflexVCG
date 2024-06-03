@@ -361,10 +361,76 @@ qed
 find_theorems "(_ \<longrightarrow>_ \<longrightarrow> _)"
 
 (*
-\<forall>x. toEnvP x \<and> substate x st0 \<longrightarrow>
-        toEnvNum x st_final < 10 \<and>
-        getVarBool (predEnv x) ''rotation'' \<and>
-        getVarBool x ''pressure'' \<longrightarrow>
-        getVarBool st_final ''brake''
+lemma
+ assumes base_inv:"(inv3 st0)"
+ and st1:"(st1=(setVarBool st0 ''pressure'' pressure))"
+ and st2:"(st2=(setVarBool st1 ''user'' user))"
+ and st2_Controller_state:"(getPstate st2 ''Controller'')=''motionless''"
+ and st2_if0:"(getVarBool st2 ''user'')=True"
+ and st2_if2:"(getVarBool st2 ''pressure'')=False"
+ and st3:"(st3=(setVarBool st2 ''rotation'' True))"
+ and st4:"(st4=(setPstate st3 ''Controller'' ''rotating''))"
+ and st5:"(st5=(toEnv st4))"
+ and st_final:"(st_final=st5)"
+shows "(inv3 st_final)"
+proof(simp only: inv3_def; rule conjI)
+  show "extraInv st_final" using assms extra inv3_def by auto
+next
+  have extra:"extraInv st_final" using assms extra inv3_def by auto
+  show "R3_full st_final"
+  proof -
+    have 0:"toEnvP st0 \<and> toEnvP st_final \<and> st0 =predEnv st_final" using assms inv3_def extraInv_def by auto
+    moreover have "P8_cons R3_A R3_B R3_C st0" using assms inv3_def R3_to_P8_cons by auto
+    moreover have "(P8_ABC_comb R3_A R3_B R3_C) st_final st_final"
+      apply(simp only: P8_ABC_comb R3_A_def R3_B_def R3_C_def P8_ABC_comb AB_comb_after_def p_2_3_conpred_def)
+      using toEnvNum_id by auto
+    moreover have "(\<forall>x. toEnvP x \<and> substate x st_final \<and> (p_2_3_conpred R3_A) st_final x \<and> \<not> (p_2_3_conpred R3_A) st0 x \<longrightarrow> 
+          (\<exists>y. toEnvP y \<and> substate x y \<and> substate y st_final \<and> (P8_BC_comb R3_B R3_C) x y))"
+    proof (simp only:p_2_3_conpred_def R3_A_def de_Morgan_conj conj_disj_distribL;rule allI;rule impI; elim disjE)
+      fix x
+      assume prem:"toEnvP x \<and>
+         substate x st_final \<and>
+         (10 \<le> toEnvNum x st_final \<and>
+          getVarBool (predEnv x) ''rotation'' \<and>
+          \<not> getVarBool x ''user'') \<and>
+         \<not> 10 \<le> toEnvNum x st0"
+      thus "\<exists>y. toEnvP y \<and>
+             substate x y \<and>
+             substate y st_final \<and>
+             P8_BC_comb R3_B R3_C x y"
+      proof (simp only: P8_BC_comb R3_B_def R3_C_def p_1_2_conpred_def)
+        have 1:"substate x st0" using substate_trans prem 0 predEnv_substate substate_eq_or_predEnv toEnvNum_id by (metis not_numeral_le_zero)
+        have "toEnvNum x st0 <10 \<and> toEnvNum x st0 \<ge> 9" using prem 0 predEnv_substate predEnv_toEnvNum toEnvNum3
+          using "1" semiring_norm(5) by fastforce
+        then have 2:"toEnvNum x st0 = 9 \<and> toEnvNum x st_final = 10" using 0 predEnv_toEnvNum toEnvNum3 predEnv_substate 1 by force
+        then have 3: "(\<forall>y. toEnvP y \<and> substate x y \<and> substate y st_final \<longrightarrow>toEnvNum x y \<le> 10)" using prem toEnvNum3 0 predEnv_toEnvNum by auto
+        
+      qed
+    next
+      assume "toEnvP x \<and>
+         substate x st_final \<and>
+         (10 \<le> toEnvNum x st_final \<and>
+          getVarBool (predEnv x) ''rotation'' \<and>
+          \<not> getVarBool x ''user'') \<and>
+         \<not> getVarBool (predEnv x)
+             ''rotation''"
+      thus "\<exists>y. toEnvP y \<and>
+             substate x y \<and>
+             substate y st_final \<and>
+             P8_BC_comb R3_B R3_C x y" by auto
+    next
+      assume "toEnvP x \<and>
+         substate x st_final \<and>
+         (10 \<le> toEnvNum x st_final \<and>
+          getVarBool (predEnv x) ''rotation'' \<and>
+          \<not> getVarBool x ''user'') \<and>
+         \<not> \<not> getVarBool x ''user''"
+      thus "\<exists>y. toEnvP y \<and>
+             substate x y \<and>
+             substate y st_final \<and>
+             P8_BC_comb R3_B R3_C x y" by auto
+    qed
+  qed
+qed
 *)
 end

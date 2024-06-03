@@ -37,7 +37,7 @@ qed
 definition P1f:: "(state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
 "P1f A s \<equiv>(\<forall>s1. toEnvP s1 \<and> substate s1 s \<longrightarrow> A s s1)"
 
-lemma P1_lemma_full:
+lemma P1f_lemma:
   fixes A1 :: "state\<Rightarrow>state\<Rightarrow>bool"
   assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
   and "P1f A1 s"
@@ -239,7 +239,7 @@ lemma P4_1_lemma:
     and "P4_1 A B s"
     and "(AB_comb_before A B) s' s'"
     and "(\<forall>x. toEnvP x \<and> substate x s' \<and> A s' x \<and> \<not> A s x \<longrightarrow> (\<exists>y. toEnvP y \<and> substate y x \<and> substate y s' \<and> B x y))"
-  shows "P4_1 A B s'" using P1f_from_P4_1 P4_1_from_P1f P1_lemma_full assms AB_before_inter by blast
+  shows "P4_1 A B s'" using P1f_from_P4_1 P4_1_from_P1f P1f_lemma assms AB_before_inter by blast
 
 subsection "Pattern 4.2"
 
@@ -268,7 +268,7 @@ lemma P4_2_lemma:
     and "P4_2 A B s"
     and "(AB_comb_after A B) s' s'"
     and "(\<forall>x. toEnvP x \<and> substate x s \<and> (AB_comb_after A B) s x \<longrightarrow> (AB_comb_after A B) s' x)"
-  shows "P4_2 A B s'" using P1f_from_P4_2 P4_2_from_P1f P1_lemma_full assms by blast
+  shows "P4_2 A B s'" using P1f_from_P4_2 P4_2_from_P1f P1f_lemma assms by blast
 
 lemma AB_after_inter:
   fixes A B :: "state\<Rightarrow>state\<Rightarrow>bool"
@@ -332,7 +332,7 @@ lemma P5_1_lemma:
     and "P5_1_cons A B s"
     and "(AB_comb_before A (p_2_3_conpred_notEmpty B)) s' s'"
     and "(\<forall>x. toEnvP x \<and> substate x s' \<and> A s' x \<and> \<not> A s x \<longrightarrow> (\<exists>y. toEnvP y \<and> substate y x \<and> substate y s' \<and> (p_2_3_conpred_notEmpty B) x y))"
-  shows "P5_1_cons A B s'" using assms P5_1_bridge AB_before_inter P1_lemma_full substate_eq_or_predEnv P1f_from_P5_1 P5_1_from_P1f by fastforce
+  shows "P5_1_cons A B s'" using assms P5_1_bridge AB_before_inter P1f_lemma substate_eq_or_predEnv P1f_from_P5_1 P5_1_from_P1f by fastforce
 
 
 (*
@@ -340,7 +340,7 @@ lemma P5_1_lemma:
     and "P4_1 A B s"
     and "(AB_comb_before A B) s' s'"
     and "(\<forall>x. toEnvP x \<and> substate x s' \<and> A s' x \<and> \<not> A s x \<longrightarrow> (\<exists>y. toEnvP y \<and> substate y x \<and> substate y s' \<and> B x y))"
-  shows "P4_1 A B s'" using P1f_from_P4_1 P4_1_from_P1f P1_lemma_full assms AB_before_inter by blast
+  shows "P4_1 A B s'" using P1f_from_P4_1 P4_1_from_P1f P1f_lemma assms AB_before_inter by blast
 
 *)
 section "Pattern 6"
@@ -467,8 +467,8 @@ definition P8_BC_comb:
     (\<forall>s3. toEnvP s3 \<and> substate s1 s3 \<and> substate s3 s4 \<longrightarrow> C s1 s4 s3))"
 
 definition P8_ABC_comb:
-"P8_ABC_comb A B C \<equiv> 
-  (\<lambda>s s1. AB_comb_after (\<lambda>x1 x2. toEnvP (predEnv s1) \<and> p_2_3_conpred A x1 x2) (P8_BC_comb B C) s s1)"
+"P8_ABC_comb A B C s s1\<equiv> 
+  AB_comb_after (\<lambda>x1 x2. toEnvP (predEnv s1) \<and> p_2_3_conpred A x1 x2) (P8_BC_comb B C) s s1"
 
 lemma P8_pred_bridge_P1f:
 "P8_pred A B C s = P1f (P8_ABC_comb A B C) s"
@@ -512,7 +512,8 @@ proof -
   moreover have "P1f (P8_ABC_comb A B C) s" using assms P8_pred_bridge_P1f P8_bridge by auto
   moreover have "(P8_ABC_comb A B C) s' s'" using assms by auto
   moreover have "(\<forall>x. toEnvP x \<and> substate x s \<and> (P8_ABC_comb A B C) s x \<longrightarrow> (P8_ABC_comb A B C) s' x)" using assms AB_after_inter P8_ABC_comb by auto
-  ultimately have "P1f (P8_ABC_comb A B C) s'" using P1_lemma_full by auto
+  ultimately have "P1f (P8_ABC_comb A B C) s'" using P1f_lemma by auto
   thus ?thesis using P8_pred_bridge_P1f P8_bridge by auto
 qed
+
 end

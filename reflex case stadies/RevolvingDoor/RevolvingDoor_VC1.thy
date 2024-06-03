@@ -283,13 +283,11 @@ next
     moreover have "toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms R4_full_def inv4_def by auto
     moreover have "P3_cons R4_A3 st0" using assms inv4_def R4_A3 R4_full_def by auto
     moreover have "P1 inv4_A1 st0"
-    proof(simp only: P1_def p_2_3_conpred_def R4_A3_def inv4_A1_def SMT.verit_bool_simplify(4); rule allI; rule impI)
-      show "getVarBool st_final ''brake''" using assms inv4_def extraInv_def extraSuspendedOut_def substate_refl by auto
-    qed 
+      apply (simp only:P1_def p_2_3_conpred_def R4_A3_def inv4_A1_def SMT.verit_bool_simplify(4))
+      using assms by auto
     moreover have "inv4_A1 st_final" 
-    proof(simp only:  p_2_3_conpred_def R4_A3_def inv4_A1_def SMT.verit_bool_simplify(4); rule impI)
-      show "getVarBool st_final ''brake''" using assms inv4_def extraInv_def extraSuspendedOut_def substate_refl by auto
-    qed 
+      apply (simp only: p_2_3_conpred_def R4_A3_def inv4_A1_def SMT.verit_bool_simplify(4))
+      using assms by auto
     ultimately show ?thesis using P3_lemma A3_R4 by auto
   qed
 qed
@@ -325,7 +323,7 @@ qed
 find_theorems "(_ \<and> _)"
 find_theorems "(_ \<and> (_ \<and> _)) = (_ \<and> _ \<and> _)"
 find_theorems "(_ \<longrightarrow> _ \<longrightarrow> _) \<Longrightarrow>(_ \<and> _ \<longrightarrow> _) "
-(*
+
 lemma
  assumes base_inv:"(inv3 st0)"
  and st1:"(st1=(setVarBool st0 ''pressure'' pressure))"
@@ -373,7 +371,7 @@ next
         moreover have "toEnvNum st0 st_final = 1" using 0 predEnv_toEnvNum predEnv_substate by auto
         moreover have "substate st0 st_final" using 0 predEnv_substate by auto
         ultimately have "11 >toEnvNum x st_final " using toEnvNum3 by force
-        then have "toEnvNum x st_final = 10" using prem by force
+        then have buff1:"toEnvNum x st_final = 10" using prem by force
         then have 2:"toEnvNum x st0 = 9" using toEnvNum3 0 predEnv_substate
           using \<open>substate x st0\<close> \<open>toEnvNum st0 st_final = 1\<close> by fastforce
         have 3:"extra1 st0" using assms inv3_def extraInv_def by blast
@@ -433,9 +431,16 @@ next
           using o1 predEnv_toEnvNum by blast
         then have "\<not>substate s3 (predEnv x)" using o1 5 4 6 substate_refl 1 8 predEnv_substate prem by force
         then have "substate (predEnv x) s3 \<and> (predEnv x)\<noteq>s3" using 8 by auto
-        then have "substate x s3" using predEnv_substate_imp_eq_or_substate 1 o1 prem by auto
-        then have "x = s3" by 
-        thus ?thesis using prem using assms extra 0 1 2 3 4 5 6 prem extraInv_def by 
+        then have 8:"substate x s3" using predEnv_substate_imp_eq_or_substate 1 o1 prem by auto
+        have 9:"R3_full st0" using base_inv inv3_def by auto
+        have 10:"(\<forall>y. toEnvP y \<and> substate x y \<and> substate y st_final \<longrightarrow> toEnvNum x y \<le>10)" using 2 0 predEnv_toEnvNum toEnvNum3 buff1 by auto  
+        (*obtain y where "toEnvP y \<and> substate x y \<and> substate y st0 \<and> y\<noteq>st0"
+          using "1" prem substate_total by blast 
+        then have "getVarBool y ''user'' \<or> \<not>getVarBool y ''rotation''"
+        proof
+          assume "\<forall>y. toEnvP y \<and> substate x y \<and> substate y st0 \<longrightarrow> \<not>getVarBool y ''user'' \<and> getVarBool y ''rotation''"
+        qed*)
+        thus ?thesis using prem using assms extra 0 1 2 3 4 5 6 prem extraInv_def R3_full_def by 
       qed
     next
       fix x

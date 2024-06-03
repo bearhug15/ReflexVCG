@@ -1,0 +1,53 @@
+PROGRAM Controller
+	VAR_INPUT
+		requestButton: BOOL;
+	END_VAR
+	VAR_OUTPUT
+		trafficLight: BOOL;
+	END_VAR
+	VAR
+		requestButtonPressed: BOOL;
+	END_VAR
+
+	VAR CONSTANT
+		GREEN : BOOL := TRUE;
+		RED : BOOL := FALSE;
+		PRESSED : BOOL := TRUE;
+		NOT_PRESSED : BOOL:= FALSE;
+		MINIMAL_RED_TIME_LIMIT  : TIME := T#10s;
+		RED_TO_GREEN_TIME_LIMIT : TIME := T#5s;
+		GREEN_TIME_LIMIT : TIME := T#30s;
+	END_VAR
+
+	PROCESS controller 
+		STATE minimalRed
+			IF requestButton THEN 
+				requestButtonPressed := TRUE;
+			END_IF
+			TIMEOUT MINIMAL_RED_TIME_LIMIT  THEN
+				SET NEXT;
+			END_TIMEOUT
+		END_STATE
+
+		STATE redAfterMinimalRed
+			IF requestButtonPressed OR requestButton THEN
+				SET NEXT;
+			END_IF
+		END_STATE
+
+		STATE redToGreen
+			TIMEOUT RED_TO_GREEN_TIME_LIMIT THEN
+				trafficLight := GREEN;
+				requestButtonPressed := FALSE;
+				SET NEXT;
+			END_TIMEOUT
+		END_STATE
+
+		STATE green
+			TIMEOUT GREEN_TIME_LIMIT THEN
+				trafficLight := RED;
+				SET STATE minimalRed;
+			END_TIMEOUT
+		END_STATE
+	END_PROCESS
+END_PROGRAM

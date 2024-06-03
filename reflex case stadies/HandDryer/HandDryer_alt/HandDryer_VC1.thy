@@ -23,36 +23,25 @@ lemma
  and st2:"(st2=(setVarBool st1 ''out_1'' True))"
  and st3:"(st3=(setPstate st2 ''Dryer'' ''Work''))"
  and st4:"(st4=(toEnv st3))"
-shows "(inv1 st4)"
+and st_final:"st_final = st4"
+shows "(inv1 st_final)"
 proof (simp add: inv1_def; intro conjI)
-  show "extraInv st4" using assms extra inv1_def by simp
+  show "extraInv st_final" using assms extra inv1_def by simp
 next
-  show "R1 st4"
-  proof (simp add: R1_def;intro conjI)
-    show "toEnvP st4" using assms by simp
-  next
-    show "R1_sub1 st4"
-    proof (simp add:R1_sub1_def;rule allI;rule allI; rule impI)
-      fix s1 s2
-      assume prems: 
-        "R1_sub2_prems st4 s1 s2"
-      thus "R1_sub2 st4 s2"
-      proof (simp only:R1_sub2_prems_def; cases)
-        assume 1:"s2=st4"
-        have "R1_sub3_prems st4 s2 s2 \<and> R1_sub3 s2 s2" 
-        proof
-          from 1 show "R1_sub3_prems st4 s2 s2" using R1_sub3_prems_def assms by auto
-        next show "R1_sub3 s2 s2" using R1_sub3_def R1_sub4_prems_def substate_asym by auto
-        qed
-        thus ?thesis using R1_sub2_def by blast
-      next
-        assume 1: "s2\<noteq>st4"
-        then have 2: "substate s2 st0" using prems assms R1_sub2_prems_def by (simp split: if_splits)
-        then obtain "R1_sub2 st0 s2" including R1_defs using assms prems inv1_def by auto
-        then obtain s4 where 3:"R1_sub3_prems st0 s2 s4 \<and> R1_sub3 s2 s4" using R1_sub2_def by auto
-        thus ?thesis using 3 assms R1_sub2_def R1_sub3_prems_def substate.simps by metis
-      qed
-    qed
+  show "R1_full st_final"
+  proof -
+    have 0:"toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms inv1_def extraInv_def by auto
+    moreover have "P8_cons R1_A R1_B R1_C st0" using base_inv inv1_def R1_A by auto
+    moreover have "(P8_ABC_comb R1_A R1_B R1_C) st_final st_final"
+      apply (simp only: P8_ABC_comb R1_A_def R1_B_def R1_C_def p_2_3_conpred_def p_1_2_conpred_def P8_BC_comb AB_comb_after_def SMT.verit_bool_simplify(4)) 
+      using 0 substate_refl substate_asym toEnvNum_id assms 
+      by (metis getVarBool.simps(2) getVarBool.simps(3) getVarBool.simps(7) linordered_nonzero_semiring_class.zero_le_one)
+    moreover have "(\<forall>x. toEnvP x \<and> substate x st_final \<and> (p_2_3_conpred R1_A) st_final x \<and> \<not> (p_2_3_conpred R1_A) st0 x \<longrightarrow> 
+                      (\<exists>y. toEnvP y \<and> substate x y \<and> substate y st_final \<and> (P8_BC_comb R1_B R1_C) x y))"
+      apply(simp only: p_2_3_conpred_def R1_A_def)
+      apply blast
+      done
+    ultimately show ?thesis using P8_lemma A_R1 by blast
   qed
 qed
 
@@ -69,13 +58,13 @@ shows "(inv2 st_final)"
 proof (simp add: inv2_def; intro conjI)
   show "extraInv st_final" using assms extra inv2_def by simp
 next
-  show "R2 st_final"
+  show "R2_full st_final"
   proof -
     have "toEnvP st0 \<and> toEnvP st_final \<and> st0=predEnv st_final" using assms inv2_def extraInv_def by auto
-    moreover have "P2_predEnv inv2_Q2 st0" using assms P2_inv2_Q2_st0 by auto
-    moreover have "inv2_Q2 st_final st0" using assms inv2_Q2_def by simp
+    moreover have "P2_1_cons R2_A st0" using assms inv2_def R2_A by auto
+    moreover have "R2_A st_final st0" using assms R2_A_def by simp
     ultimately show ?thesis 
-    using inv2_Q2_R2 two_pos_cond_cons_exp by blast
+    using A_R2 P2_1_lemma by blast
   qed
 qed
 

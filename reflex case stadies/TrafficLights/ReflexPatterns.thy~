@@ -37,7 +37,7 @@ qed
 definition P1f:: "(state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
 "P1f A s \<equiv>(\<forall>s1. toEnvP s1 \<and> substate s1 s \<longrightarrow> A s s1)"
 
-lemma P1f_lemma:
+lemma P1_lemma_full:
   fixes A1 :: "state\<Rightarrow>state\<Rightarrow>bool"
   assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
   and "P1f A1 s"
@@ -197,11 +197,60 @@ qed
 lemma P3_lemma:
   assumes "toEnvP s \<and> toEnvP s' \<and> s = predEnv s'"
   and "P3_cons A3 s"
-  and "A1 = p_2_3_conpred A3 s'"
-  and "P1 A1 s"
-  and "A1 s'"
+  and "P1 (p_2_3_conpred A3 s') s"
+  and "(p_2_3_conpred A3 s') s'"
 shows "P3_cons A3 s'"
-  by (smt (verit) P1_def P3_bridge P3_predEnv_def assms(1) assms(2) assms(3) assms(4) assms(5) substate_eq_or_predEnv)
+  by (smt (verit) P1_def P3_bridge P3_predEnv_def assms(1) assms(2) assms(3) assms(4)  substate_eq_or_predEnv)
+
+definition P3f_cons :: "(state\<Rightarrow>state\<Rightarrow>state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
+"P3f_cons A s \<equiv> (\<forall>x y z. toEnvP y \<and> toEnvP x \<and> toEnvP z \<and> substate x y \<and> substate y z \<and> substate z s \<and> toEnvNum x y =1 \<longrightarrow> A s z y x)"
+
+definition pf_2_3_conpred where 
+"pf_2_3_conpred A s y x \<equiv>  A s y x (predEnv x)"
+
+definition P3f_predEnv :: "(state\<Rightarrow>state\<Rightarrow>state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
+"P3f_predEnv A s \<equiv> (\<forall>x y. toEnvP y \<and> toEnvP x  \<and> substate x y \<and> substate y s \<and> toEnvP (predEnv x)\<longrightarrow> pf_2_3_conpred A s y x)"
+
+lemma P3f_bridge:
+"P3f_cons A s = P3f_predEnv A s"
+proof
+  assume prem1:"P3f_cons A s"
+  thus "P3f_predEnv A s"
+  proof (simp only:P3f_cons_def P3f_predEnv_def; intro allI; intro impI)
+    fix x y
+    assume prem2:"toEnvP y \<and>
+           toEnvP x \<and>
+           substate x y \<and>
+           substate y s \<and>
+           toEnvP (predEnv x)"
+    thus "pf_2_3_conpred A s y x" using prem1 P3f_predEnv_def prem2  P3f_cons_def predEnv_substate predEnv_toEnvNum pf_2_3_conpred_def
+   by (metis (no_types, lifting))
+  qed
+next
+  assume prem1:"P3f_predEnv A s"
+  thus "P3f_cons A s"
+  proof (simp only:P3f_cons_def P3f_predEnv_def; intro allI; intro impI)
+    fix x y z
+    assume prem2:"toEnvP y \<and>
+                   toEnvP x \<and>
+                   toEnvP z \<and>
+                   substate x y \<and>
+                   substate y z \<and>
+                   substate z s \<and>
+                   toEnvNum x y = 1"
+    then have "x = predEnv y" using prem2 toEnvNum_predEnv by auto
+    thus "A s z y x" using prem1 P3f_predEnv_def prem2 pf_2_3_conpred_def by metis
+  qed
+qed
+
+
+lemma P3f_lemma:
+  assumes "toEnvP s \<and> toEnvP s' \<and> s = predEnv s'"
+  and "P3f_cons A3 s"
+  and "P1f (pf_2_3_conpred A3 s') s"
+  and "(pf_2_3_conpred A3 s s') s'"
+shows "P3f_cons A3 s'"
+proof -
 
 
 
@@ -239,7 +288,7 @@ lemma P4_1_lemma:
     and "P4_1 A B s"
     and "(AB_comb_before A B) s' s'"
     and "(\<forall>x. toEnvP x \<and> substate x s' \<and> A s' x \<and> \<not> A s x \<longrightarrow> (\<exists>y. toEnvP y \<and> substate y x \<and> substate y s' \<and> B x y))"
-  shows "P4_1 A B s'" using P1f_from_P4_1 P4_1_from_P1f P1f_lemma assms AB_before_inter by blast
+  shows "P4_1 A B s'" using P1f_from_P4_1 P4_1_from_P1f P1_lemma_full assms AB_before_inter by blast
 
 subsection "Pattern 4.2"
 
@@ -268,7 +317,7 @@ lemma P4_2_lemma:
     and "P4_2 A B s"
     and "(AB_comb_after A B) s' s'"
     and "(\<forall>x. toEnvP x \<and> substate x s \<and> (AB_comb_after A B) s x \<longrightarrow> (AB_comb_after A B) s' x)"
-  shows "P4_2 A B s'" using P1f_from_P4_2 P4_2_from_P1f P1f_lemma assms by blast
+  shows "P4_2 A B s'" using P1f_from_P4_2 P4_2_from_P1f P1_lemma_full assms by blast
 
 lemma AB_after_inter:
   fixes A B :: "state\<Rightarrow>state\<Rightarrow>bool"
@@ -332,7 +381,7 @@ lemma P5_1_lemma:
     and "P5_1_cons A B s"
     and "(AB_comb_before A (p_2_3_conpred_notEmpty B)) s' s'"
     and "(\<forall>x. toEnvP x \<and> substate x s' \<and> A s' x \<and> \<not> A s x \<longrightarrow> (\<exists>y. toEnvP y \<and> substate y x \<and> substate y s' \<and> (p_2_3_conpred_notEmpty B) x y))"
-  shows "P5_1_cons A B s'" using assms P5_1_bridge AB_before_inter P1f_lemma substate_eq_or_predEnv P1f_from_P5_1 P5_1_from_P1f by fastforce
+  shows "P5_1_cons A B s'" using assms P5_1_bridge AB_before_inter P1_lemma_full substate_eq_or_predEnv P1f_from_P5_1 P5_1_from_P1f by fastforce
 
 
 (*
@@ -340,7 +389,7 @@ lemma P5_1_lemma:
     and "P4_1 A B s"
     and "(AB_comb_before A B) s' s'"
     and "(\<forall>x. toEnvP x \<and> substate x s' \<and> A s' x \<and> \<not> A s x \<longrightarrow> (\<exists>y. toEnvP y \<and> substate y x \<and> substate y s' \<and> B x y))"
-  shows "P4_1 A B s'" using P1f_from_P4_1 P4_1_from_P1f P1f_lemma assms AB_before_inter by blast
+  shows "P4_1 A B s'" using P1f_from_P4_1 P4_1_from_P1f P1_lemma_full assms AB_before_inter by blast
 
 *)
 section "Pattern 6"
@@ -512,7 +561,7 @@ proof -
   moreover have "P1f (P8_ABC_comb A B C) s" using assms P8_pred_bridge_P1f P8_bridge by auto
   moreover have "(P8_ABC_comb A B C) s' s'" using assms by auto
   moreover have "(\<forall>x. toEnvP x \<and> substate x s \<and> (P8_ABC_comb A B C) s x \<longrightarrow> (P8_ABC_comb A B C) s' x)" using assms AB_after_inter P8_ABC_comb by auto
-  ultimately have "P1f (P8_ABC_comb A B C) s'" using P1f_lemma by auto
+  ultimately have "P1f (P8_ABC_comb A B C) s'" using P1_lemma_full by auto
   thus ?thesis using P8_pred_bridge_P1f P8_bridge by auto
 qed
 end
