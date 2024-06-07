@@ -633,24 +633,47 @@ definition P9_pred where
   A s s2 (predEnv s2) \<and>
   (\<forall> s4. toEnvP s4 \<and> substate s2 s4 \<and> substate s4 s\<longrightarrow> B s4) \<longrightarrow>C s3)"
 *)
+definition B_wrap where
+"B_wrap B s s2 == (\<forall>x. toEnvP x \<and> substate s2 x \<and> substate x s \<longrightarrow> B x)"
+
+
 definition P9_ABC_comb where
 "P9_ABC_comb A B C== 
 (\<lambda> s y x. toEnvP (predEnv x) \<and> A s x (predEnv x) \<and> 
-  (\<forall>z. toEnvP z \<and> substate x z \<and> substate z s \<longrightarrow> B z) \<longrightarrow> C y)"
+  B_wrap B s x \<longrightarrow> C y)"
 
 lemma P9_pred_bridge_P2f:
 "P9_pred A B C s = P2f (P9_ABC_comb A B C) s"
 proof
   assume "P9_pred A B C s"
   thus "P2f (P9_ABC_comb A B C) s" 
-    apply(simp only: P9_pred_def P2f_def P9_ABC_comb_def SMT.verit_bool_simplify(4))
+    apply(simp only: P9_pred_def P2f_def P9_ABC_comb_def B_wrap_def SMT.verit_bool_simplify(4))
     by blast
 next 
   assume "P2f (P9_ABC_comb A B C) s"
   thus "P9_pred A B C s"
-    apply(simp only: P9_pred_def P2f_def P9_ABC_comb_def SMT.verit_bool_simplify(4))
+    apply(simp only: P9_pred_def P2f_def P9_ABC_comb_def B_wrap_def SMT.verit_bool_simplify(4))
     by blast
 qed
+
+
+lemma
+  assumes "toEnvP s \<and> toEnvP s' \<and> s = predEnv s'"
+  and "\<forall>x. toEnvP x \<and> substate x s' \<and> A s' s' s \<and> B_wrap B s' s' \<and> \<not>(A s s (predEnv s) \<and> B_wrap B s s) \<longrightarrow> C s1"
+shows "(\<forall>x. toEnvP x \<and> substate x s \<and> (P9_ABC_comb A B C) s s x \<longrightarrow> (P9_ABC_comb A B C) s' s' x)"
+proof 
+  have "(\<forall>x. toEnvP x \<and> substate x s \<and> 
+          (P9_ABC_comb A B C) s s x \<longrightarrow> (P9_ABC_comb A B C) s' s' x) =
+        (\<forall>x. toEnvP x \<and>substate x s \<and>
+          (toEnvP (predEnv x) \<and> A s x (predEnv x) \<and>B_wrap B s x \<longrightarrow>C s) \<longrightarrow>
+            toEnvP (predEnv x) \<and> A s' x (predEnv x) \<and> B_wrap B s' x \<longrightarrow>C s')" 
+    using P9_ABC_comb_def by metis
+  then have "(\<forall>x. toEnvP x \<and> substate x s \<and> 
+              (P9_ABC_comb A B C) s s x \<longrightarrow> (P9_ABC_comb A B C) s' s' x) =
+    (\<forall>x. toEnvP x \<and>substate x s \<and>
+          \<not>((toEnvP (predEnv x) \<and> A s x (predEnv x) \<and>B_wrap B s x) \<or> C s) \<longrightarrow>
+            \<not>(toEnvP (predEnv x) \<and> A s' x (predEnv x) \<and> B_wrap B s' x) \<or> C s')" by 
+
 
 lemma P9_lemma:
   assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
