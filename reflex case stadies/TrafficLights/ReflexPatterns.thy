@@ -657,25 +657,70 @@ next
 qed
 
 
-lemma
-  assumes "toEnvP s \<and> toEnvP s' \<and> s = predEnv s'"
-  and "\<forall>x. toEnvP x \<and> substate x s' \<and> A s' s' s \<and> B_wrap B s' s' \<and> \<not>(A s s (predEnv s) \<and> B_wrap B s s) \<longrightarrow> C s1"
-shows "(\<forall>x. toEnvP x \<and> substate x s \<and> (P9_ABC_comb A B C) s s x \<longrightarrow> (P9_ABC_comb A B C) s' s' x)"
-proof 
-  have "(\<forall>x. toEnvP x \<and> substate x s \<and> 
+find_theorems "_ \<longrightarrow> _ \<Longrightarrow> _ \<or> _"
+
+lemma P9_simp1: 
+  assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
+    and "(\<forall>x. toEnvP x \<and> substate x s \<and> toEnvP (predEnv x) \<and>
+        (\<not>A s x (predEnv x) \<or> C s) \<longrightarrow> 
+          (\<not>A s' x (predEnv x) \<or> C s'))"
+  shows "(\<forall>x. toEnvP x \<and> substate x s \<and> (P9_ABC_comb A B C) s s x \<longrightarrow> (P9_ABC_comb A B C) s' s' x)"
+  (*using P9_ABC_comb_def assms by metis *)
+proof -
+  have 1:"(\<forall>x. toEnvP x \<and> substate x s \<and> 
           (P9_ABC_comb A B C) s s x \<longrightarrow> (P9_ABC_comb A B C) s' s' x) =
-        (\<forall>x. toEnvP x \<and>substate x s \<and>
-          (toEnvP (predEnv x) \<and> A s x (predEnv x) \<and>B_wrap B s x \<longrightarrow>C s) \<longrightarrow>
-            toEnvP (predEnv x) \<and> A s' x (predEnv x) \<and> B_wrap B s' x \<longrightarrow>C s')" 
+        (\<forall>x. toEnvP x \<and> substate x s \<and> toEnvP (predEnv x) \<and>
+      (\<not>A s x (predEnv x) \<or> \<not>B_wrap B s x \<or> C s) \<longrightarrow> 
+        (\<not>A s' x (predEnv x) \<or> \<not>B_wrap B s' x \<or> C s'))" 
     using P9_ABC_comb_def by metis
-  then have "(\<forall>x. toEnvP x \<and> substate x s \<and> 
-              (P9_ABC_comb A B C) s s x \<longrightarrow> (P9_ABC_comb A B C) s' s' x) =
-    (\<forall>x. toEnvP x \<and>substate x s \<and>
-          \<not>((toEnvP (predEnv x) \<and> A s x (predEnv x) \<and>B_wrap B s x) \<or> C s) \<longrightarrow>
-            \<not>(toEnvP (predEnv x) \<and> A s' x (predEnv x) \<and> B_wrap B s' x) \<or> C s')" by 
+  have "\<not>(\<forall>z. toEnvP z \<and> substate x z \<and> substate z s \<longrightarrow> B z) \<longrightarrow>  \<not>(\<forall>z. toEnvP z \<and> substate x z \<and> substate z s' \<longrightarrow> B z)" 
+    using assms(1) predEnv_substate substate_trans by blast
+  then have "(\<forall>x. toEnvP x \<and> substate x s \<and> toEnvP (predEnv x) \<and>
+              (\<not>A s x (predEnv x) \<or> C s) \<longrightarrow> 
+                (\<not>A s' x (predEnv x) \<or> C s')) \<longrightarrow>
+            (\<forall>x. toEnvP x \<and> substate x s \<and> toEnvP (predEnv x) \<and>
+              (\<not>A s x (predEnv x) \<or> \<not>B_wrap B s x \<or> C s) \<longrightarrow> 
+                (\<not>A s' x (predEnv x) \<or> \<not>B_wrap B s' x \<or>C s'))" 
+    using B_wrap_def by (smt (verit, ccfv_SIG) assms(1) predEnv_substate substate_trans)
+  thus ?thesis using assms 1 by blast
+qed
+
+lemma P9_simp2: 
+  assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
+    and "(\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> toEnvP (predEnv x) \<and> \<not> C y \<and>
+            (\<not>A s x (predEnv x)) \<longrightarrow>
+              (\<not>A s' x (predEnv x)))"
+  shows "(\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> (P9_ABC_comb A B C) s y x \<longrightarrow> (P9_ABC_comb A B C) s' y x)"
+  (*using P9_ABC_comb_def assms by metis*)
+proof -
+  have "(\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> (P9_ABC_comb A B C) s y x \<longrightarrow> 
+          (P9_ABC_comb A B C) s' y x) =
+        (\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> 
+          (toEnvP (predEnv x) \<and> A s x (predEnv x) \<and> B_wrap B s x \<longrightarrow> C y) \<longrightarrow>
+            toEnvP (predEnv x) \<and> A s' x (predEnv x) \<and> B_wrap B s' x \<longrightarrow> C y)" using P9_ABC_comb_def by metis
+  then have "(\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> (P9_ABC_comb A B C) s y x \<longrightarrow> 
+          (P9_ABC_comb A B C) s' y x) =
+        (\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> toEnvP (predEnv x) \<and> \<not> C y \<and>
+          (\<not>A s x (predEnv x) \<or> \<not>B_wrap B s x) \<longrightarrow>
+          (\<not>A s' x (predEnv x) \<or> \<not>B_wrap B s' x))" by blast
+  then have 1:"(\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> (P9_ABC_comb A B C) s y x \<longrightarrow> 
+          (P9_ABC_comb A B C) s' y x) =
+        (\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> toEnvP (predEnv x) \<and> \<not> C y \<and>
+          (\<not>A s x (predEnv x) \<or> \<not>(\<forall>z. toEnvP z \<and> substate x z \<and> substate z s \<longrightarrow> B z)) \<longrightarrow>
+          (\<not>A s' x (predEnv x) \<or> \<not>(\<forall>z. toEnvP z \<and> substate x z \<and> substate z s' \<longrightarrow> B z)))" using B_wrap_def by force
+  have "\<not>(\<forall>z. toEnvP z \<and> substate x z \<and> substate z s \<longrightarrow> B z) \<longrightarrow>  \<not>(\<forall>z. toEnvP z \<and> substate x z \<and> substate z s' \<longrightarrow> B z)" 
+    using assms(1) predEnv_substate substate_trans by blast
+  then have "(\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> toEnvP (predEnv x) \<and> \<not> C y \<and>
+          (\<not>A s x (predEnv x)) \<longrightarrow>
+            (\<not>A s' x (predEnv x))) =
+        (\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> toEnvP (predEnv x) \<and> \<not> C y \<and>
+          (\<not>A s x (predEnv x) \<or> \<not>(\<forall>z. toEnvP z \<and> substate x z \<and> substate z s \<longrightarrow> B z)) \<longrightarrow>
+          (\<not>A s' x (predEnv x) \<or> \<not>(\<forall>z. toEnvP z \<and> substate x z \<and> substate z s' \<longrightarrow> B z)))" by (smt (z3) assms(1) assms(2) predEnv_substate substate_trans)
+  thus ?thesis using 1 assms by blast
+qed
 
 
-lemma P9_lemma:
+lemma P9_lemma_simped_sub:
   assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
   and "P9_pred A B C s"
   and "(P9_ABC_comb A B C) s' s' s'"
@@ -684,5 +729,86 @@ lemma P9_lemma:
 shows "P9_pred A B C s'"
   using P9_pred_bridge_P2f P2f_lemma assms by auto
 
+lemma P9_lemma_simped:
+  assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
+  and "P9_cons A B C s"
+  and "(P9_ABC_comb A B C) s' s' s'"
+  and "(\<forall>x. toEnvP x \<and> substate x s \<and> toEnvP (predEnv x) \<and>
+        (\<not>A s x (predEnv x) \<or> C s) \<longrightarrow> 
+          (\<not>A s' x (predEnv x)\<or> C s'))"
+  and "(\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> toEnvP (predEnv x) \<and> \<not> C y \<and>
+            (\<not>A s x (predEnv x)) \<longrightarrow>
+              (\<not>A s' x (predEnv x)))"
+shows "P9_cons A B C s'"
+  using P9_simp1 P9_simp2 P9_lemma_simped_sub assms P9_bridge by auto
+
+find_theorems "(_ \<longrightarrow> _) \<longrightarrow> (_ \<longrightarrow> _) \<Longrightarrow> _ \<longrightarrow> _"
+
+lemma P9_eqsimp1:
+  assumes "toEnvP s \<and> toEnvP s' \<and> s = predEnv s'"
+  and "(\<forall>x. toEnvP x \<and>substate x s \<and> toEnvP (predEnv x) \<and> B_wrap B s' x \<and>
+            (\<not>A s x (predEnv x) \<or> C s) \<longrightarrow>
+              (\<not>A s' x (predEnv x) \<or> C s'))"
+  shows "(\<forall>x. toEnvP x \<and> substate x s \<and> (P9_ABC_comb A B C) s s x \<longrightarrow> (P9_ABC_comb A B C) s' s' x)"
+proof -
+  have 1:"(\<forall>x. toEnvP x \<and> substate x s \<and> (P9_ABC_comb A B C) s s x \<longrightarrow> (P9_ABC_comb A B C) s' s' x) =
+        (\<forall>x. toEnvP x \<and>substate x s \<and> toEnvP (predEnv x) \<and>
+          (A s x (predEnv x) \<and> B_wrap B s x \<longrightarrow> C s) \<longrightarrow>
+            A s' x (predEnv x) \<and> B_wrap B s' x \<longrightarrow> C s')" using P9_ABC_comb_def by metis
+  have 2:"(\<forall>x. toEnvP x \<and>substate x s \<and> toEnvP (predEnv x) \<and>
+            (A s x (predEnv x) \<and> B_wrap B s x \<longrightarrow> C s) \<longrightarrow>
+              A s' x (predEnv x) \<and> B_wrap B s' x \<longrightarrow> C s') =
+        (\<forall>x. toEnvP x \<and>substate x s \<and> toEnvP (predEnv x) \<and>
+          (\<not>A s x (predEnv x) \<or> \<not> B_wrap B s x \<or> C s) \<longrightarrow>
+            (\<not>A s' x (predEnv x) \<or> \<not> B_wrap B s' x \<or> C s'))" by blast  
+  have 3:"(\<forall>x. toEnvP x \<and>substate x s \<and> toEnvP (predEnv x) \<and>
+            (\<not>A s x (predEnv x) \<or> \<not> B_wrap B s x \<or> C s) \<longrightarrow>
+              (\<not>A s' x (predEnv x) \<or> \<not> B_wrap B s' x \<or> C s')) =
+          (\<forall>x. toEnvP x \<and>substate x s \<and> toEnvP (predEnv x) \<and> B_wrap B s' x \<and>
+            (\<not>A s x (predEnv x) \<or> C s) \<longrightarrow>
+              (\<not>A s' x (predEnv x) \<or> C s'))" 
+    by (smt (z3) B_wrap_def assms(1) predEnv_substate substate_trans)
+  show ?thesis using assms 1 2 3 by auto
+qed
+
+lemma P9_eqsimp2:
+  assumes "toEnvP s \<and> toEnvP s' \<and> s = predEnv s'"
+    and "(\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> toEnvP (predEnv x) \<and> 
+            \<not> C y \<and> B_wrap B s' x \<and> \<not>A s x (predEnv x) \<longrightarrow>
+              \<not>A s' x (predEnv x))"
+  shows "(\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> (P9_ABC_comb A B C) s y x \<longrightarrow> (P9_ABC_comb A B C) s' y x)"
+proof -
+  have 1:"(\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> (P9_ABC_comb A B C) s y x \<longrightarrow> (P9_ABC_comb A B C) s' y x) =
+          (\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> toEnvP (predEnv x) \<and>
+            (A s x (predEnv x) \<and> B_wrap B s x \<longrightarrow> C y) \<longrightarrow>
+              A s' x (predEnv x) \<and> B_wrap B s' x \<longrightarrow> C y)" using P9_ABC_comb_def by metis
+  have 2:"(\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> toEnvP (predEnv x) \<and>
+            (A s x (predEnv x) \<and> B_wrap B s x \<longrightarrow> C y) \<longrightarrow>
+              A s' x (predEnv x) \<and> B_wrap B s' x \<longrightarrow> C y) =
+          (\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> toEnvP (predEnv x) \<and> \<not> C y\<and>
+            (\<not>A s x (predEnv x) \<or> \<not>B_wrap B s x) \<longrightarrow>
+              \<not>A s' x (predEnv x) \<or> \<not>B_wrap B s' x)" by blast
+  have 3:"(\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> toEnvP (predEnv x) \<and> \<not> C y\<and>
+            (\<not>A s x (predEnv x) \<or> \<not>B_wrap B s x) \<longrightarrow>
+              \<not>A s' x (predEnv x) \<or> \<not>B_wrap B s' x) =
+          (\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> toEnvP (predEnv x) \<and> 
+            \<not> C y \<and> B_wrap B s' x \<and> \<not>A s x (predEnv x) \<longrightarrow>
+              \<not>A s' x (predEnv x))" 
+    by (smt (z3) B_wrap_def assms(1) predEnv_substate substate_trans)
+  show ?thesis using assms 1 2 3 by auto
+qed
+
+lemma P9_lemma:
+  assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
+  and "P9_cons A B C s"
+  and "(P9_ABC_comb A B C) s' s' s'"
+  and "(\<forall>x. toEnvP x \<and>substate x s \<and> toEnvP (predEnv x) \<and> B_wrap B s' x \<and>
+            (\<not>A s x (predEnv x) \<or> C s) \<longrightarrow>
+              (\<not>A s' x (predEnv x) \<or> C s'))"
+  and "(\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y s \<and> toEnvP (predEnv x) \<and> 
+            \<not> C y \<and> B_wrap B s' x \<and> \<not>A s x (predEnv x) \<longrightarrow>
+              \<not>A s' x (predEnv x))"
+shows "P9_cons A B C s'"
+  using P9_eqsimp1 P9_eqsimp2 P9_lemma_simped_sub assms P9_bridge by auto
 
 end

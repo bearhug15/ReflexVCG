@@ -496,6 +496,11 @@ definition R3 where
       (\<forall> s3. toEnvP s3 \<and> substate s2 s3 \<and> substate s3 s4 \<and> s3 \<noteq> s4 \<longrightarrow>
         getVarBool s3 ''light'' = True)))"
 
+(*
+4)  Если только что загорелся красный, то он горит постоянно, пока не нажмут на кнопку
+*)
+
+
 definition R4 where 
 "R4 s \<equiv> toEnvP s \<and>
 (\<forall> s1 s2 s3. toEnvP s1 \<and> toEnvP s2 \<and> toEnvP s3 \<and> 
@@ -505,6 +510,24 @@ definition R4 where
   (\<forall> s4. toEnvP s4 \<and> substate s2 s4 \<and> substate s4 s\<longrightarrow> 
     getVarBool s4 ''button'' = False) \<longrightarrow>
       getVarBool s3 ''light'' = False)"
+
+definition R4_A where
+"R4_A s s2 s1 \<equiv> getVarBool s1 ''light'' \<noteq> False \<and> getVarBool s2 ''light'' = False"
+definition R4_B where
+"R4_B s4 \<equiv> getVarBool s4 ''button'' = False"
+definition R4_C where
+"R4_C s3 \<equiv> getVarBool s3 ''light'' = False"
+
+lemma R4_to_P9_cons:
+"R4 s \<Longrightarrow> P9_cons R4_A R4_B R4_C s"
+  apply (simp only: P9_cons_def R4_A_def R4_B_def R4_C_def)
+  using R4_def by blast
+
+
+lemma P9_cons_to_R4:
+"toEnvP s \<and> P9_cons R4_A R4_B R4_C s \<Longrightarrow> R4 s"
+  apply (simp only: P9_cons_def R4_A_def R4_B_def R4_C_def)
+  using R4_def by blast
 
 definition R5 where 
 "R5 s \<equiv> toEnvP s \<and>

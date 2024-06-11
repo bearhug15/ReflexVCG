@@ -1078,7 +1078,7 @@ lemma toEnvNum_predEnv:
   by (metis One_nat_def shiftEnv.simps(1) shiftEnv.simps(2) shift_toEnvNum)
  
 lemma predEnv_toEnvNum:
-"toEnvP s \<and> toEnvP s' \<and> substate s s' \<and>s = predEnv s' \<Longrightarrow> toEnvNum s s' = 1"
+"toEnvP s' \<and> substate s s' \<and>s = predEnv s' \<Longrightarrow> toEnvNum s s' = 1"
   by (metis add_diff_cancel_left' emptyState_substate gtime_predE toEnvNum3)
 
 lemma toEnvP_emptyState:"\<not>toEnvP emptyState" by auto

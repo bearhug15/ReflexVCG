@@ -99,4 +99,47 @@ next
   qed
 qed
 
+lemma
+ assumes base_inv:"(inv4 st0)"
+ and st1:"(st1=(setVarBool st0 ''button'' button))"
+ and st1_Controller_state:"(getPstate st1 ''Controller'')=''redToGreen''"
+ and st1_redToGreen_timeout:"5000>(ltime st1 ''Controller'')"
+ and st2:"(st2=(toEnv st1))"
+ and st_final:"(st_final=st2)"
+shows "(inv4 st_final)"
+proof(simp only:inv4_def;rule conjI)
+  show "extraInv st_final" using assms extra inv4_def by auto
+next
+  have extra1:"extraInv st0 \<and> R4 st0" using assms extra inv4_def by auto
+  have extra2:"extraInv st_final" using assms extra inv4_def by auto
+  show "R4 st_final"
+  proof -
+    have 0:"toEnvP st0 \<and> toEnvP st_final \<and> st0 = predEnv st_final" using assms inv4_def extraInv_def by auto
+    moreover have "P9_cons R4_A R4_B R4_C st0" using extra1 R4_to_P9_cons by auto
+    moreover have "(P9_ABC_comb R4_A R4_B R4_C) st_final st_final st_final" 
+      apply (simp only:P9_ABC_comb_def R4_A_def R4_B_def R4_C_def)
+      using assms by blast
+    moreover have "(\<forall>x. toEnvP x \<and> substate x st0 \<and> toEnvP (predEnv x) \<and>
+                    (\<not>R4_A st0 x (predEnv x) \<or> R4_C st0) \<longrightarrow> 
+                      (\<not>R4_A st_final x (predEnv x) \<or> R4_C st_final))"
+    proof -
+      have "getPstate st_final ''Controller'' = ''redToGreen''" using assms by auto
+      then have "getVarBool st_final ''light'' = False" using extraInv_def extra2 extra4_def substate_refl by force 
+      then have "R4_C st_final" using R4_C_def by blast
+      thus ?thesis by auto
+    qed
+    moreover have "(\<forall>x y. toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y st0 \<and> toEnvP (predEnv x) \<and> \<not> R4_C y \<and>
+                    (\<not>R4_A st0 x (predEnv x)) \<longrightarrow>
+                      (\<not>R4_A st_final x (predEnv x)))"
+    proof(simp only: R4_A_def R4_B_def R4_C_def; intro allI; rule impI)
+      fix x y
+      assume prem:"toEnvP x \<and> toEnvP y \<and> substate x y \<and> substate y st0 \<and>
+              toEnvP (predEnv x) \<and> getVarBool y ''light'' \<noteq> False \<and>
+              \<not> (getVarBool (predEnv x) ''light'' \<noteq> False \<and> getVarBool x ''light'' = False)"
+      thus "\<not> (getVarBool (predEnv x) ''light'' \<noteq> False \<and> getVarBool x ''light'' = False)" by auto
+    qed
+    ultimately show ?thesis using P9_lemma_simped P9_cons_to_R4 by auto
+  qed
+qed
+
 end

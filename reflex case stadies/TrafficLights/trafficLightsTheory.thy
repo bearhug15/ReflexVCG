@@ -414,6 +414,28 @@ definition extra18 where
   toEnvNum s1 s2 \<le> 100 + 1 + (ltime s2 ''Controller'' div 100) \<longrightarrow>
   getVarBool s1 ''light''=False)"
 
+definition extra19 where
+"extra19 s \<equiv>
+(\<forall> s1 s2. toEnvP s1 \<and> toEnvP s2 \<and>
+  substate s1 s2 \<and> substate s2 s \<and>
+  toEnvNum s1 s2 = 1 \<and> 
+  getPstate s1 ''Controller''= ''green'' \<longrightarrow>
+    getPstate s2 ''Controller''= ''green'' \<or> (getPstate s2 ''Controller''= ''minimalRed'' \<and> ltime s2 ''Controller'' div 100 =1))"
+
+definition extra20 where
+"extra20 s \<equiv>
+(\<forall> s1 s2. toEnvP s1 \<and> toEnvP s2 \<and>
+  substate s1 s2 \<and> substate s2 s \<and>
+  toEnvNum s1 s2 = 1 \<and> 
+  getPstate s2 ''Controller''= ''redToGreen'' \<longrightarrow>
+    getPstate s1 ''Controller''= ''redToGreen'' \<or> getPstate s1 ''Controller''= ''redAfterMinimalRed'')"
+
+definition extra21 where
+"extra21 s \<equiv>
+(\<forall>s2. toEnvP s2 \<and> substate s2 s \<and> getPstate s2 ''Controller'' = ''redToGreen''\<longrightarrow>
+  (\<exists>s1. toEnvP s1 \<and> substate s1 s2 \<and> getVarBool s1 ''button'' \<and> 
+    (\<forall>s3. toEnvP s3 \<and> substate s1 s3 \<and> substate s3 s2 \<and> getPstate s3 ''Controller'' \<noteq>''green'')))"
+
 definition extraInv where "extraInv s \<equiv> toEnvP s \<and>
 extra0 s \<and>
 extra1 s \<and>
@@ -433,7 +455,10 @@ extra14 s\<and>
 extra15 s\<and>
 extra16 s\<and>
 extra17 s\<and>
-extra18 s"
+extra18 s\<and>
+extra19 s\<and>
+extra20 s\<and>
+extra21 s"
 
 (*
 1)  Если горел красный свет и кнопку нажали, то не более, чем через Tr загорится зеленый свет
@@ -512,12 +537,22 @@ definition R4 where
       getVarBool s3 ''light'' = False)"
 
 definition R4_A where
-"R4_A s s3 s2 s1 \<equiv> 
-  getVarBool s1 ''light'' \<noteq> False \<and> 
-  getVarBool s2 ''light'' = False \<and>
-  (\<forall> s4. toEnvP s4 \<and> substate s2 s4 \<and> substate s4 s\<longrightarrow> 
-    getVarBool s4 ''button'' = False) \<longrightarrow>
-      getVarBool s3 ''light'' = False"
+"R4_A s s2 s1 \<equiv> getVarBool s1 ''light'' \<noteq> False \<and> getVarBool s2 ''light'' = False"
+definition R4_B where
+"R4_B s4 \<equiv> getVarBool s4 ''button'' = False"
+definition R4_C where
+"R4_C s3 \<equiv> getVarBool s3 ''light'' = False"
+
+lemma R4_to_P9_cons:
+"R4 s \<Longrightarrow> P9_cons R4_A R4_B R4_C s"
+  apply (simp only: P9_cons_def R4_A_def R4_B_def R4_C_def)
+  using R4_def by blast
+
+
+lemma P9_cons_to_R4:
+"toEnvP s \<and> P9_cons R4_A R4_B R4_C s \<Longrightarrow> R4 s"
+  apply (simp only: P9_cons_def R4_A_def R4_B_def R4_C_def)
+  using R4_def by blast
 
 definition R5 where 
 "R5 s \<equiv> toEnvP s \<and>

@@ -87,13 +87,33 @@ next
       next
         case b
         then have 7:"toEnvNum (predEnv x) st0 > (ltime st0 ''Controller'') div 100" using toEnvNum3 predEnv_substate predEnv_toEnvNum prem by force
-        then obtain y where o1:"toEnvP y \<and> substate x y \<and> substate y st0 \<and>
-                                (getPstate y ''Controller'' \<noteq> ''green'')\<and>
-                                (\<forall>z. toEnvP z \<and> substate y z \<and> substate z st0 \<and> z\<noteq>y \<longrightarrow> 
-                                  (getPstate z ''Controller'' = ''green''))" 
-          using a4 substate_refl prem by 
-        then show ?thesis sorry
-      qed
+        have "getPstate st0 ''Controller''= ''green''" using assms by auto
+        then obtain y where o1:"toEnvP y \<and> substate y st0 \<and>
+                                toEnvNum y st0 = ltime st0 ''Controller'' div 100\<and>
+                                getPstate y ''Controller'' = ''redToGreen'' \<and>
+                                ltime y ''Controller'' \<ge> 5000" 
+          using extra1 extraInv_def extra12_def 0 substate_refl by blast
+        then have "substate (predEnv x) y \<or> substate y (predEnv x)" using substate_total 3 by auto
+        then consider (c) "substate (predEnv x) y" | (d) "substate y (predEnv x) \<and> (predEnv x)\<noteq>y" by auto
+        then show "getVarBool st_final ''light'' = False"
+        proof (cases)
+          case c
+          then have "toEnvNum (predEnv x) st0 = toEnvNum (predEnv x) y + toEnvNum y st0" using o1 toEnvNum3 by auto
+          then have 8:"toEnvNum (predEnv x) y < 150" using 6 by auto
+          have "ltime y ''Controller'' div 100 \<ge> 50" using o1 by auto
+          then have "100 + 1 + (ltime y ''Controller'' div 100) \<ge> 150" by auto
+          then have "toEnvP (predEnv x) \<and> toEnvP y \<and> 
+                      substate (predEnv x) y \<and> substate y st0 \<and>
+                      getPstate y ''Controller'' = ''redToGreen'' \<and>
+                      toEnvNum (predEnv x) y \<le> 100 + 1 + (ltime y ''Controller'' div 100)" using 2 o1 c 3 8 by auto
+          then have "getVarBool (predEnv x) ''light'' = False" using extra1 extraInv_def extra18_def by auto
+          then show ?thesis using prem by auto
+        next
+          case d
+          then have "toEnvNum y st0 = toEnvNum y (predEnv x) + toEnvNum (predEnv x) st0" using 3 toEnvNum3 by auto
+          then have "ltime st0 ''Controller'' div 100 = toEnvNum y (predEnv x) + toEnvNum (predEnv x) st0" using o1 by auto
+          then show ?thesis using 7 by auto 
+        qed
       qed
     qed
     ultimately have "P3_cons R5_A st_final" using P3_lemma by auto

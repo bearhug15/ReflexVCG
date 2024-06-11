@@ -1091,5 +1091,9 @@ lemma substate_end:
   using toEnvP_emptyState apply auto
   by (metis substate.simps(1) substate_eq_or_predEnv toEnvP_emptyState)
  
+lemma predEnv_inner_substate:
+"toEnvP s1 \<and> toEnvP s2 \<and> substate (predEnv s2) s1 \<and> substate s1 s2 \<Longrightarrow> s1 = s2 \<or> s1 = (predEnv s2)"
+  using substate_asym substate_eq_or_predEnv by auto
+
 
 end
