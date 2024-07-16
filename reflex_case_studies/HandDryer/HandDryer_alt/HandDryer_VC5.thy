@@ -1,0 +1,333 @@
+theory HandDryer_VC5
+imports HandDryerTheory
+begin
+
+lemma extra:
+ assumes base_inv:"(extraInv st0)"
+ and st1:"(st1=(setVarBool st0 ''inp_1'' inp_1))"
+ and st1_Dryer_state:"(getPstate st1 ''Dryer'')=''Work''"
+ and st1_if:"(getVarBool st1 ''inp_1'')=False"
+ and st1_Work_timeout:"2000>(ltime st1 ''Dryer'')"
+ and st2:"(st2=(toEnv st1))"
+shows "(extraInv st2)"
+using assms extraInv_def apply auto
+proof -
+  have 1:"ltime st0 ''Dryer'' > 0" using assms extraInv_def by auto
+  have 2:"toEnvP st0 \<and> substate st0 st0" using assms extraInv_def substate_refl by auto
+  have 3:"(toEnvNum st0 st0*100 +100) \<le> ltime st0 ''Dryer''"
+  proof -
+    have "0 \<noteq> ltime st0 ''Dryer''" using assms extraInv_def by auto
+    then have "ltime st0 ''Dryer'' \<ge> 100"
+       apply(induction st0;auto)
+       done
+    thus ?thesis using toEnvNum_id by auto
+  qed
+  from le_imp_less_or_eq[OF this] show  "getVarBool st0 ''out_1''" 
+  proof 
+    assume "(toEnvNum st0 st0*100 +100) < ltime st0 ''Dryer''"
+    thus ?thesis using 2 assms extraInv_def by auto 
+  next
+    assume "(toEnvNum st0 st0*100 +100) = ltime st0 ''Dryer''"
+    thus "getVarBool st0 ''out_1''" using 2 assms extraInv_def by auto
+  qed
+next
+  assume prems:"ltime st0 ''Dryer'' < 2000"
+  have "2000=(20*100::nat)\<and>1900=(20*100-100::nat)" by auto
+  thus "ltime st0 ''Dryer'' \<le> 1900" using ltime_mod prems by presburger
+qed
+
+lemma
+ assumes base_inv:"(inv1 st0)"
+ and st1:"(st1=(setVarBool st0 ''inp_1'' inp_1))"
+ and st1_Dryer_state:"(getPstate st1 ''Dryer'')=''Work''"
+ and st1_if:"(getVarBool st1 ''inp_1'')=False"
+ and st1_Work_timeout:"2000>(ltime st1 ''Dryer'')"
+ and st2:"(st2=(toEnv st1))"
+shows "(inv1 st2)"
+proof (simp only: inv1_def; rule conjI)
+  show "extraInv st2" using assms inv1_def extra by auto
+next
+  show "R1 st2"
+  proof (simp add: R1_def;rule conjI)
+    show "toEnvP st2" using assms by simp
+  next
+    show "R1_sub1 st2"
+    proof (simp add:R1_sub1_def; intro allI;rule impI)
+      fix s1 s2
+      assume prems:"R1_sub2_prems st2 s1 s2"
+      thus "R1_sub2 st2 s2"
+      proof (simp only: R1_sub2_prems_def; cases)
+        assume 1:"s2=st2"
+        have "R1_sub3_prems st2 s2 s2 \<and> R1_sub3 s2 s2"
+        proof
+          show "R1_sub3_prems st2 s2 s2" using 1 assms R1_sub2_prems_def R1_sub2_prems_def prems by auto
+        next
+          show "R1_sub3 s2 s2" using 1 assms R1_sub3_def R1_sub4_prems_def substate_asym by blast
+        qed
+        thus ?thesis using R1_sub2_def by blast
+      next
+        assume 2:"s2\<noteq>st2"
+        then have "substate s2 st0" using prems assms R1_sub2_prems_def substate.simps
+        by (metis toEnvP.simps(3) toEnvP.simps(7))
+        then obtain "R1_sub2 st0 s2" using assms prems inv1_def R1_def R1_sub1_def R1_sub2_prems_def by meson
+        then obtain s4 where "R1_sub3_prems st0 s2 s4 \<and> R1_sub3 s2 s4" using R1_sub2_def by auto
+        thus ?thesis using assms R1_sub2_def R1_sub3_prems_def substate.simps by metis
+      qed
+    qed
+  qed
+qed
+
+lemma
+ assumes base_inv:"(inv2 st0)"
+ and st1:"(st1=(setVarBool st0 ''inp_1'' inp_1))"
+ and st1_Dryer_state:"(getPstate st1 ''Dryer'')=''Work''"
+ and st1_if:"(getVarBool st1 ''inp_1'')=False"
+ and st1_Work_timeout:"2000>(ltime st1 ''Dryer'')"
+ and st2:"(st2=(toEnv st1))"
+shows "(inv2 st2)"
+proof (simp add: inv2_def; intro conjI)
+  show "extraInv st2" using extra assms inv2_def by auto
+next
+  show "R2 st2"
+  proof (simp add: R2_def;intro conjI)
+    show "toEnvP st2" using assms by simp
+  next
+    show "R2_sub1 st2"
+    proof (simp only:R2_sub1_def; rule allI;rule allI;rule impI)
+      fix s1 s2
+      assume prems:"R2_sub2_prems st2 s1 s2"
+      thus "getVarBool s2 ''out_1'' = False"
+      proof (simp only: R2_sub2_prems_def; cases)
+        assume 1: "s2=st2"
+        have ex:"extraInv st2" using extra assms inv2_def by auto
+        then have "getVarBool st2 ''out_1'' = True" 
+        proof -
+          have 0:"getPstate st2 ''Dryer'' = ''Work''" using assms by auto
+          have 1:"ltime st2 ''Dryer'' > 0" using assms extraInv_def by auto
+          have 2:"toEnvP st2 \<and> substate st2 st2" using assms extraInv_def substate_refl by auto
+          have 3:"(toEnvNum st2 st2*100 +100) \<le> ltime st2 ''Dryer''"
+          proof -
+            have "0 \<noteq> ltime st2 ''Dryer''" using assms extraInv_def by auto
+            then have "ltime st2 ''Dryer'' \<ge> 100"
+               apply(induction st2;auto)
+               done
+            thus ?thesis using toEnvNum_id by auto
+          qed
+          from le_imp_less_or_eq[OF this] show  "getVarBool st2 ''out_1'' = True" 
+          proof 
+            assume "(toEnvNum st2 st2*100 +100) < ltime st2 ''Dryer''"
+            thus ?thesis using 0 2 extraInv_def ex by auto 
+          next
+            assume "(toEnvNum st2 st2*100 +100) = ltime st2 ''Dryer''"
+            thus ?thesis using 0 2 ex extraInv_def by auto
+          qed
+        qed
+        from this show ?thesis 
+        by (smt (z3) "1" One_nat_def R2_def R2_sub2_prems_def base_inv getVarBool.simps(2) getVarBool.simps(3) assms inv2_def predEnv.simps(2) predEnv.simps(3) prems shiftEnv.simps(2) shift_toEnvNum  toEnvNum_id)
+      next
+        assume 2: "s2\<noteq>st2"
+        thus ?thesis using assms prems R2_def R2_sub1_def R2_sub2_prems_def inv2_def 
+        by (metis (no_types, lifting) substate.simps(2) substate.simps(3) toEnvP.simps(3))
+      qed
+    qed
+  qed 
+qed
+
+lemma
+ assumes base_inv:"(inv4 st0)"
+ and st1:"(st1=(setVarBool st0 ''inp_1'' inp_1))"
+ and st1_Dryer_state:"(getPstate st1 ''Dryer'')=''Work''"
+ and st1_if:"(getVarBool st1 ''inp_1'')=False"
+ and st1_Work_timeout:"2000>(ltime st1 ''Dryer'')"
+ and st2:"(st2=(toEnv st1))"
+shows "(inv4 st2)"
+proof (simp add: inv4_def; intro conjI)
+  show "extraInv st2" using assms extra inv4_def by simp
+next
+  show "R4 st2"
+  proof (simp add: R4_def;intro conjI)
+    show "toEnvP st2" using assms by simp
+  next
+    show "R4_sub1 st2"
+    proof (simp only:R4_sub1_def;intro allI; rule impI)
+      fix s1 s2
+      assume prems: 
+        "R4_sub2_prems st2 s1 s2"
+      thus "getVarBool s2 ''out_1'' = True"
+      proof (cases)
+        assume 1:"s2=st2"
+        thus ?thesis using assms prems R4_sub2_prems_def by auto
+      next
+        assume 1: "s2\<noteq>st2"
+        then have 2: "substate s2 st0" using prems assms R4_sub2_prems_def by (simp split: if_splits)
+        thus ?thesis using R4_def R4_sub1_def R4_sub2_prems_def base_inv inv4_def prems by metis
+      qed
+    qed
+  qed
+qed
+
+lemma
+ assumes base_inv:"(inv3 st0)"
+ and st1:"(st1=(setVarBool st0 ''inp_1'' inp_1))"
+ and st1_Dryer_state:"(getPstate st1 ''Dryer'')=''Work''"
+ and st1_if:"(getVarBool st1 ''inp_1'')=False"
+ and st1_Work_timeout:"2000>(ltime st1 ''Dryer'')"
+ and st2:"(st2=(toEnv st1))"
+shows "(inv3 st2)"
+proof (simp add: inv3_def; intro conjI)
+  show "extraInv st2" using assms extra inv3_def by simp
+next
+  have ex:"extraInv st2" using assms extra inv3_def by simp
+  show "R3 st2"
+  proof (simp add: R3_def;intro conjI)
+    show "toEnvP st2" using assms by simp
+  next
+    show "R3_sub1 st2"
+    proof(simp only: R3_sub1_def; intro allI; rule impI)
+      fix s1 s2
+      assume prems:"R3_sub2_prems st2 s1 s2" 
+      then obtain "20 \<le> toEnvNum s2 st2" using R3_sub2_prems_def by auto
+      from le_imp_less_or_eq[OF this] show "R3_sub2 st2 s2"
+        apply (rule disjE)
+      proof -
+        assume 1:"20 < toEnvNum s2 st2"
+        have 2: "substate s2 st0" using assms prems R3_sub2_prems_def substate_eq_or_predEnv toEnvNum_id by (simp split:if_splits)
+        obtain "R3_sub1 st0" using prems R3_def base_inv inv3_def by auto
+        then have "R3_sub2 st0 s2" using 1 2 prems assms R3_sub2_def R3_sub2_prems_def R3_sub1_def by (auto simp add: split:if_splits)
+        then obtain s4 where 3: "R3_sub3_prems st0 s2 s4 \<and> R3_sub3 s2 s4" using R3_sub2_def by auto
+        then have "R3_sub3_prems st2 s2 s4 \<and> R3_sub3 s2 s4" using assms R3_sub3_prems_def by auto
+        thus ?thesis using R3_sub2_def by auto
+      next
+        assume 1: "20 = toEnvNum s2 st2"
+        have 2:"R3_sub3 s2 s2" using substate_asym R3_sub3_def R3_sub4_prems_def by auto
+        show ?thesis
+        proof -
+          define s5::state where "s5=s2"
+          have "toEnvP s5 \<and> substate s2 s5 \<and> substate s5 st2
+                \<longrightarrow> pred3 st2 s2 s5" including pred3_defs
+             proof(induction rule: state_down_ind)
+               case 1
+               then show ?case using prems assms R3_sub2_prems_def by auto
+             next
+               case 2
+               then show ?case
+                 apply(simp only: pred3_def)
+               proof
+                 assume 3:"pred3_sub1 s2 st2"
+                 have "\<exists>s3. \<not>(toEnvP s3 \<and> 
+                        substate s2 s3 \<and> 
+                        substate s3 st2 \<and>
+                        s3\<noteq>st2 \<longrightarrow>
+                        getVarBool s3 ''out_1'' \<and>
+                        getVarBool s3 ''inp_1'' =False)" 
+                 proof -
+                   obtain 4:"0 < ltime st0 ''Dryer'' \<and> 
+                            ltime st0 ''Dryer'' \<le> 2000 \<and>
+                            (\<forall> s1. toEnvP s1 \<and>
+                              substate s1 st0 \<and>
+                              (toEnvNum s1 st0 *100 + 100) = ltime st0 ''Dryer'' \<longrightarrow>
+                              getVarBool s1 ''inp_1'' = True \<and>
+                              getVarBool s1 ''out_1'' = True)" using assms inv3_def extraInv_def by auto
+                   have 5:"substate (shiftEnv st0 ((ltime st0 ''Dryer'' - 100)div 100)) st0" using shiftEnv_substate by simp
+                   obtain 6:"toEnvP st0" using assms inv3_def extraInv_def by auto
+                   obtain 7:"0< ltime st0 ''Dryer''" using 4 by auto
+                   define Dryer::string where "Dryer=''Dryer''"
+                   have "(ltime st0 ''Dryer'') div 100 \<le> toEnvNum emptyState st0" using ltime_le_toEnvNum[of st0 Dryer] diff_le_self div_le_mono Dryer_def le_trans by blast
+                   then have "(ltime st0 ''Dryer'' -100) div 100 < toEnvNum emptyState st0" using ltime_div_less 7 nat_neq_iff by blast
+                   then have 8:"toEnvP (shiftEnv st0 ((ltime st0 ''Dryer'' - 100)div 100))" using 6 7 shift_spec Dryer_def by blast
+                   then have "toEnvNum (shiftEnv st0 ((ltime st0 ''Dryer'' - 100)div 100)) st0  + 1 = ltime st0 ''Dryer'' div 100" 
+                     using 6 7 toEnvNum_shift ltime_le_toEnvNum[of st0 Dryer] Dryer_def add_diff_inverse_nat div_add_self1 div_less le_numeral_extra(3) less_nat_zero_code ltime_div_less zero_neq_numeral
+                     by (metis)
+                   then have "(toEnvNum (shiftEnv st0 ((ltime st0 ''Dryer'' - 100)div 100)) st0)*100  + 100 = ltime st0 ''Dryer''" 
+                     using ltime_mult[of st0 Dryer] Dryer_def div_inverse[of _ _ 100] Rings.ring_class.ring_distribs(2) by auto
+      
+                   then have 9:"getVarBool (shiftEnv st0 ((ltime st0 ''Dryer'' - 100)div 100)) ''inp_1'' = True \<and>
+                            getVarBool (shiftEnv st0 ((ltime st0 ''Dryer'' - 100)div 100)) ''out_1'' = True" using 4 5 8 by blast
+                   then have 10:"substate s2 (shiftEnv st0 ((ltime st0 ''Dryer'' - 100)div 100))"
+                   proof -
+                     have buff1:"substate s2 st0" using 6 assms prems R3_sub2_prems_def substate_eq_or_predEnv toEnvNum_id 1 
+                       by (metis predEnv.simps(2) predEnv.simps(3) toEnvP.simps(3) zero_neq_numeral)
+                     obtain "ltime st0 ''Dryer'' \<le> 2000" using "4" by auto
+                     then have buff2:"(ltime st0 ''Dryer'')div 100 \<le> 20" by auto
+                     have "toEnvNum st0 st2 = 1" using assms by (simp add: toEnvNum_id)
+                     moreover have "substate st0 st2" using assms substate_refl by auto
+                     moreover have "substate s2 st2" using prems R3_sub2_prems_def by auto
+                     ultimately have buff3:"toEnvNum s2 st0 = toEnvNum s2 st2 -1" using assms toEnvNum3 buff1
+                     by (metis diff_add_inverse2)
+                     obtain buff4: "toEnvP s2" using prems R3_sub2_prems_def by auto
+                     
+                     show ?thesis using buff1 buff2 buff3 buff4 1 6 7 substate_shift[of s2 st0 "(ltime st0 ''Dryer'' - 100)div 100"]
+                       by fastforce
+                   qed
+                   have 11:"substate (shiftEnv st0 ((ltime st0 ''Dryer'' - 100)div 100)) st0" using shiftEnv_substate by auto
+                   have 12:"substate st0 st2" using assms substate_refl by auto
+                   have 13:"substate (shiftEnv st0 ((ltime st0 ''Dryer'' - 100)div 100)) st2" using 11 12 substate_trans by blast
+                   have "(shiftEnv st0 ((ltime st0 ''Dryer'' - 100)div 100))\<noteq> st2" using 9 st1_if st2 by force
+                   thus ?thesis using 3 8 9 10 13 pred3_sub1_def by blast
+                 qed
+                 thus "pred3_sub2 st2 s2 st2" using 3 pred3_sub1_def[of s2 st2] by blast
+               qed
+             next
+               case (3 s5)
+               then show ?case 
+                 apply (simp only: pred3_def)
+               proof
+                 from 3(3) 
+                 have 4:"pred3_sub1 s2 s5 \<Longrightarrow> pred3_sub2 st2 s2 s5" using pred3_def by blast
+                 assume 5: "pred3_sub1 s2 (predEnv s5)"
+                 show "pred3_sub2 st2 s2 (predEnv s5)"
+                 proof cases
+                   assume 6: "getVarBool (predEnv s5) ''out_1'' = False \<or>
+                              getVarBool (predEnv s5) ''inp_1'' = True"
+                   have 7: "substate (predEnv s5) st2" using predEnv_substate substate_trans 3 by blast
+                   have 8: "substate s2 (predEnv s5)" using 3(2) substate_eq_or_predEnv prems R3_sub2_prems_def by auto
+                   have "pred3_sub2_prems st2 s2 (predEnv s5) (predEnv s5) \<and> pred3_sub3 (predEnv s5) (predEnv s5)"
+                   proof -
+                     have "toEnvP (predEnv s5)" using predEnvP_or_emptyState[of s5] 
+                     proof
+                       assume "toEnvP (predEnv s5)"
+                       thus ?thesis by assumption
+                     next 
+                       assume "predEnv s5 = emptyState"
+                       thus ?thesis using 8 prems R3_sub2_prems_def by (metis substate.simps(1))
+                     qed
+                     moreover have "substate (predEnv s5) (predEnv s5)" using substate_refl by auto
+                     moreover have "substate (predEnv s5) st2" using 7 by assumption
+                     moreover have "toEnvNum s2 (predEnv s5) \<le> 20" using 1 7 8 toEnvNum3 by auto
+                     moreover have "getVarBool (predEnv s5) ''out_1'' = False \<or>
+                                    getVarBool (predEnv s5) ''inp_1'' = True" using 6 by assumption
+                     moreover have "pred3_sub3 (predEnv s5) (predEnv s5)" using substate_asym pred3_sub3_def by auto
+                     ultimately show ?thesis by auto
+                   qed
+                   thus ?thesis by auto
+                 next
+                   assume 6: "\<not>(getVarBool (predEnv s5) ''out_1'' = False \<or>
+                              getVarBool (predEnv s5) ''inp_1'' = True)"
+                   have "pred3_sub3 s2 s5" using substate_eq_or_predEnv 3 pred3_sub3_def substate_asym substate_trans by blast
+                   obtain s4 where 7:"pred3_sub2_prems st2 s2 s4 s5 \<and> pred3_sub3 s4 s5" using 4 5 6 pred3_sub1_def pred3_sub2_def substate_eq_or_predEnv by blast
+                   have "pred3_sub2_prems st2 s2 s4 (predEnv s5) \<and> pred3_sub3 s4 (predEnv s5)"
+                   proof
+                     show "pred3_sub2_prems st2 s2 s4 (predEnv s5)" using predEnv_substate substate_trans 7 pred3_sub2_prems_def by meson
+                   next
+                     show "pred3_sub3 s4 (predEnv s5)"
+                     proof(simp only: pred3_sub3_def;rule allI;rule impI)
+                       fix s3
+                       assume 8: "toEnvP s3 \<and>
+                                  substate (predEnv s5) s3 \<and>
+                                  substate s3 s4 \<and> s3\<noteq>s4"
+                       then have "s3 = predEnv s5 \<or> substate s5 s3" using 3(1) 7 predEnv_substate_imp_eq_or_substate pred3_sub2_prems_def by blast
+                       then show "getVarBool s3 ''out_1'' = True \<and> getVarBool s3 ''inp_1'' = False" using 6 7 8 pred3_sub3_def by blast
+                     qed
+                   qed
+                   thus ?thesis by auto
+                 qed
+               qed
+             qed
+             thus ?thesis including pred3_defs R3_defs using 2 s5_def substate_refl prems by auto
+           qed
+         qed
+       qed
+     qed
+   qed
+
+end
