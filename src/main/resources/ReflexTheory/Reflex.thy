@@ -1078,41 +1078,66 @@ lemma toEnvNum_predEnv:
   by (metis One_nat_def shiftEnv.simps(1) shiftEnv.simps(2) shift_toEnvNum)
  
 lemma predEnv_toEnvNum:
-"toEnvP s \<and> toEnvP s' \<and> substate s s' \<and>s = predEnv s' \<Longrightarrow> toEnvNum s s' = 1"
+"toEnvP s' \<and> substate s s' \<and>s = predEnv s' \<Longrightarrow> toEnvNum s s' = 1"
   by (metis add_diff_cancel_left' emptyState_substate gtime_predE toEnvNum3)
 
 lemma toEnvP_emptyState:"\<not>toEnvP emptyState" by auto
 
-lemma predEnv_det:"s1 = predEnv s \<and> s2 = predEnv s \<Longrightarrow> s1 = s2"
-  by simp
-
-lemma 
-  assumes "toEnvP s \<and> toEnvP s'"
-    and "substate (predEnv s) s'"
-    and "(predEnv s) \<noteq>s'"
-    and "substate s s'' \<and> substate s' s''"
-  shows "substate s s'"
-  using assms(1) assms(2) assms(3) assms(4) predEnv_substate_imp_eq_or_substate by auto
 
 
-(*
-lemma P2_1_cons_to_predEnv:
-  "P2_1_cons Q s \<Longrightarrow> P2_1_predEnv Q s"
-proof -
-  assume prem1:"P2_1_cons Q s"
-  thus "P2_1_predEnv Q s"
-  proof (simp only: P2_1_cons_def P2_1_predEnv_def; intro allI; intro impI)
-    fix x
-    assume prem2:"toEnvP x \<and> substate x s"
-    have "substate (predEnv x) x" 
-      by (simp add: predEnv_substate)
-    moreover have "toEnvNum (predEnv x) x = 1" using prem2 calculation predEnv_toEnvNum gtime_predE toEnvNum_id
-      by (metis One_nat_def add.commute plus_1_eq_Suc predEnvP_or_emptyState)
-    moreover have "toEnvP (predEnv x)\<or> (predEnv x)=emptyState" using prem1 P2_1_cons_def predEnvP_or_emptyState by auto
-    ultimately show "Q s x (predEnv x)" using prem2 prem1
-      apply (elim disjE)
-      using P2_1_cons_def apply simp
-      using P2_1_cons_def toEnvP_emptyState apply 
-*)
+lemma substate_end:
+"(toEnvP x \<and> substate y x \<and> (predEnv x) = emptyState \<and> x\<noteq>y) \<longrightarrow> (\<not> toEnvP y)"
+  apply (induction x)
+  using toEnvP_emptyState apply auto
+  by (metis substate.simps(1) substate_eq_or_predEnv toEnvP_emptyState)
+ 
+lemma predEnv_inner_substate:
+"toEnvP s1 \<and> toEnvP s2 \<and> substate (predEnv s2) s1 \<and> substate s1 s2 \<Longrightarrow> s1 = s2 \<or> s1 = (predEnv s2)"
+  using substate_asym substate_eq_or_predEnv by auto
+
+lemma substate_order:
+"toEnvP s1 \<and> toEnvP s2 \<and> toEnvP s3 \<and> substate s1 s3 \<and> substate s2 s3 \<and>  toEnvNum s2 s3 \<le> toEnvNum s1 s3 \<Longrightarrow> substate s1 s2"
+  by (metis shift_toEnvNum substate_shift)
+
+lemma substate_of_emptyState:
+"substate s1 s2 \<and> s2 = emptyState \<Longrightarrow> s1 = emptyState"
+  by (meson substate.simps(1))
+
+
+primrec stateContinuous:: "state \<Rightarrow> state \<Rightarrow> process \<Rightarrow> bool" where
+"stateContinuous s emptyState p =
+ (if s = emptyState then True else False)" 
+| "stateContinuous s (toEnv s1) p =
+  (if s = toEnv s1 then True else stateContinuous s s1 p)" 
+| "stateContinuous s (setVarBool s1 v u) p = 
+  (if s = setVarBool s1 v u then True else stateContinuous s s1 p)" 
+| "stateContinuous s (setVarInt s1 v u) p =
+  (if s = setVarInt s1 v u then True else stateContinuous s s1 p)"
+| "stateContinuous s (setVarNat s1 v u) p =
+  (if s = setVarNat s1 v u then True else stateContinuous s s1 p)"
+| "stateContinuous s (setVarReal s1 v u) p =
+  (if s = setVarReal s1 v u then True else stateContinuous s s1 p)"
+| "stateContinuous s (setPstate s1 p1 q) p= 
+  (if p = p1 then False else stateContinuous s s1 p)" 
+| "stateContinuous s (reset s1 p) =
+  (if s = reset s1 p then True else stateContinuous s s1)"
+
+primrec timeContinuous:: "state \<Rightarrow> state \<Rightarrow> process \<Rightarrow> bool" where
+"timeContinuous s emptyState p =
+ (if s = emptyState then True else False)" 
+| "timeContinuous s (toEnv s1) p =
+  (if s = toEnv s1 then True else timeContinuous s s1 p)" 
+| "timeContinuous s (setVarBool s1 v u) p = 
+  (if s = setVarBool s1 v u then True else timeContinuous s s1 p)" 
+| "timeContinuous s (setVarInt s1 v u) p =
+  (if s = setVarInt s1 v u then True else timeContinuous s s1 p)"
+| "timeContinuous s (setVarNat s1 v u) p =
+  (if s = setVarNat s1 v u then True else timeContinuous s s1 p)"
+| "timeContinuous s (setVarReal s1 v u) p =
+  (if s = setVarReal s1 v u then True else timeContinuous s s1 p)"
+| "timeContinuous s (setPstate s1 p q) = 
+  (if p = p1 then False else timeContinuous s s1 p)" 
+| "timeContinuous s (reset s1 p) = 
+  (if p = p1 then False else timeContinuous s s1 p)"
 
 end

@@ -85,14 +85,6 @@ public class VCPrinter {
                 "\"ltime s p mod "+clock+" = 0\"\n" +
                 "  by (induction s) (auto)\n" +
                 "\n" +
-                "lemma ltime_mod:\n" +
-                "assumes \"ltime s0 p < a*"+clock+"\"\n" +
-                "shows \"ltime s0 p ≤ (a*"+clock+"-"+clock+")\"\n" +
-                "proof -\n" +
-                "have\"(ltime s0 p) mod "+clock+" = 0\" by (induction s0) (auto)\n" +
-                "thus ?thesis using assms by (induction a) (auto)\n" +
-                "qed\n" +
-                "\n" +
                 "lemma ltime_div_less:\n" +
                 "assumes \"(ltime s0 p div "+clock+")≤ a\"\n" +
                 "shows \"(ltime s0 p -"+clock+") div "+clock+" < a ∨ ltime s0 p = 0\"\n" +
