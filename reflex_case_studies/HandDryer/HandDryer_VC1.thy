@@ -37,6 +37,7 @@ next
       fix s1 s2
       assume prems: 
         "R1_sub2_prems st4 s1 s2"
+<<<<<<< HEAD
       consider (a) "s2=st4" | (b) "s2\<noteq>st4" using R1_sub2_prems_def by auto
       thus "R1_sub2 st4 s2"
       proof (cases)
@@ -44,11 +45,23 @@ next
         have "R1_sub3_prems st4 s2 s2 \<and> R1_sub3 s2 s2" 
         proof
           from a show "R1_sub3_prems st4 s2 s2" using R1_sub3_prems_def assms by auto
+=======
+      thus "R1_sub2 st4 s2"
+      proof (simp only:R1_sub2_prems_def; cases)
+        assume 1:"s2=st4"
+        have "R1_sub3_prems st4 s2 s2 \<and> R1_sub3 s2 s2" 
+        proof
+          from 1 show "R1_sub3_prems st4 s2 s2" using R1_sub3_prems_def assms by auto
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
         next show "R1_sub3 s2 s2" using R1_sub3_def R1_sub4_prems_def substate_asym by auto
         qed
         thus ?thesis using R1_sub2_def by blast
       next
+<<<<<<< HEAD
         case b
+=======
+        assume 1: "s2\<noteq>st4"
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
         then have 2: "substate s2 st0" using prems assms R1_sub2_prems_def by (simp split: if_splits)
         then obtain "R1_sub2 st0 s2" including R1_defs using assms prems inv1_def by auto
         then obtain s4 where 3:"R1_sub3_prems st0 s2 s4 \<and> R1_sub3 s2 s4" using R1_sub2_def by auto
@@ -79,6 +92,7 @@ next
     proof (simp only:R2_sub1_def; rule allI;rule allI;rule impI)
       fix s1 s2
       assume prems:"R2_sub2_prems st4 s1 s2"
+<<<<<<< HEAD
       consider (a) "s2=st4" | (b) "s2\<noteq>st4" using R2_sub2_prems_def by auto
       thus "getVarBool s2 ''out_1'' = False"
       proof (cases)
@@ -86,6 +100,14 @@ next
         thus ?thesis using assms prems R2_sub2_prems_def by auto
       next
         case b
+=======
+      thus "getVarBool s2 ''out_1'' = False"
+      proof (simp only: R2_sub2_prems_def; cases)
+        assume 1: "s2=st4"
+        thus ?thesis using assms prems R2_sub2_prems_def by auto
+      next
+        assume 2: "s2\<noteq>st4"
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
         thus ?thesis using assms prems R2_def R2_sub1_def R2_sub2_prems_def inv2_def substate.simps toEnvP.simps by metis
       qed
     qed
@@ -232,6 +254,7 @@ next
     show "R4_sub1 st4"
     proof (simp only:R4_sub1_def;intro allI; rule impI)
       fix s1 s2
+<<<<<<< HEAD
       assume prems: "R4_sub2_prems st4 s1 s2"
       consider (a) "s2=st4" | (b) "s2\<noteq>st4" using R4_sub2_prems_def by auto
       thus "getVarBool s2 ''out_1'' = True"
@@ -240,6 +263,16 @@ next
         thus ?thesis using assms by auto
       next
         case b
+=======
+      assume prems: 
+        "R4_sub2_prems st4 s1 s2"
+      thus "getVarBool s2 ''out_1'' = True"
+      proof (cases)
+        assume 1:"s2=st4"
+        thus ?thesis using assms by auto
+      next
+        assume 1: "s2\<noteq>st4"
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
         then have 2: "substate s2 st0" using prems assms R4_sub2_prems_def by (simp split: if_splits)
         thus ?thesis using R4_def R4_sub1_def R4_sub2_prems_def base_inv inv4_def prems by metis
       qed

@@ -47,6 +47,7 @@ lemma ltime_le_toEnvNum:
          apply(auto)
   done
 
+<<<<<<< HEAD
 (*
 definition R1 where "R1 s ≡ toEnvP s ∧
 (∀ s1 s2. substate s1 s2 ∧ substate s2 s ∧ toEnvP s1 ∧ toEnvP s2 ∧ toEnvNum s1 s2 = 1 ∧
@@ -79,4 +80,6 @@ P1   4. При нажатии одной из кнопок выбора темп
 P2_1 5. Блокировка автоматического кипячения воды привключении термолота  в сеть. (Если кнопка кипячения не нажата, то нагрев не включится.)
 *)
 
+=======
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 end

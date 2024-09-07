@@ -37,6 +37,7 @@ qed
 definition P1f:: "(state\<Rightarrow>state\<Rightarrow>bool)\<Rightarrow>state\<Rightarrow>bool" where
 "P1f A s \<equiv>\<forall>s1. toEnvP s1 \<and> substate s1 s \<longrightarrow> A s s1"
 
+
 lemma P1f_lemma:
   fixes A1 :: "state\<Rightarrow>state\<Rightarrow>bool"
   assumes "toEnvP s \<and> toEnvP s' \<and> s= predEnv s'"
@@ -366,6 +367,7 @@ qed
 definition P5_B_wrap:
 "P5_B_wrap B \<equiv> \<lambda> x y. toEnvP (predEnv y) \<and> B x y (predEnv y)"
 
+
 lemma P5_1_bridge_P4_1:
 "P5_1_predEnv A B s = P4_1 A (P5_B_wrap B) s"
 proof
@@ -385,6 +387,7 @@ lemma P5_1_lemma:
           (\<exists>y. toEnvP y \<and> substate y x  \<and> (P5_B_wrap B) x y))"
   shows "P5_1_cons A B s'" using assms P5_1_bridge AB_before_inter substate_eq_or_predEnv P5_B_wrap P5_1_bridge_P4_1 P4_1_lemma 
   by force
+
 
 
 (*
@@ -441,6 +444,7 @@ lemma P6_lemma:
   shows "P6_cons A B C s'"
   using P6_bridge_P4_1 P4_1_lemma assms AB_before_inter P6_bridge P6_bridge
     by (smt (verit, ccfv_threshold) substate_trans)
+
 
 (*
 (\<forall>x. toEnvP x \<and> substate x s' \<and> A s' x \<and> \<not> A s x \<longrightarrow> 

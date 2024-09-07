@@ -9,8 +9,13 @@ lemma extra:
  and st1_if:"(getVarBool st1 ''inp_1'')=False"
  and st1_Work_timeout:"2000>(ltime st1 ''Dryer'')"
  and st2:"(st2=(toEnv st1))"
+<<<<<<< HEAD
 shows "(extraInv st2)" by sorry
 (*using assms extraInv_def apply auto
+=======
+shows "(extraInv st2)"
+using assms extraInv_def apply auto
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 proof -
   have 1:"ltime st0 ''Dryer'' > 0" using assms extraInv_def by auto
   have 2:"toEnvP st0 \<and> substate st0 st0" using assms extraInv_def substate_refl by auto
@@ -34,7 +39,11 @@ next
   assume prems:"ltime st0 ''Dryer'' < 2000"
   have "2000=(20*100::nat)\<and>1900=(20*100-100::nat)" by auto
   thus "ltime st0 ''Dryer'' \<le> 1900" using ltime_mod prems by presburger
+<<<<<<< HEAD
 qed*)
+=======
+qed
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 
 lemma
  assumes base_inv:"(inv1 st0)"
@@ -43,6 +52,7 @@ lemma
  and st1_if:"(getVarBool st1 ''inp_1'')=False"
  and st1_Work_timeout:"2000>(ltime st1 ''Dryer'')"
  and st2:"(st2=(toEnv st1))"
+<<<<<<< HEAD
  and st_final:"st_final = st2"
 shows "(inv1 st_final)"
 proof (simp add: inv1_def; intro conjI)
@@ -61,6 +71,39 @@ next
       apply(auto simp only: R1_A_def)
       done
     ultimately show ?thesis using P8_lemma P8_to_R1 by blast
+=======
+shows "(inv1 st2)"
+proof (simp only: inv1_def; rule conjI)
+  show "extraInv st2" using assms inv1_def extra by auto
+next
+  show "R1 st2"
+  proof (simp add: R1_def;rule conjI)
+    show "toEnvP st2" using assms by simp
+  next
+    show "R1_sub1 st2"
+    proof (simp add:R1_sub1_def; intro allI;rule impI)
+      fix s1 s2
+      assume prems:"R1_sub2_prems st2 s1 s2"
+      thus "R1_sub2 st2 s2"
+      proof (simp only: R1_sub2_prems_def; cases)
+        assume 1:"s2=st2"
+        have "R1_sub3_prems st2 s2 s2 \<and> R1_sub3 s2 s2"
+        proof
+          show "R1_sub3_prems st2 s2 s2" using 1 assms R1_sub2_prems_def R1_sub2_prems_def prems by auto
+        next
+          show "R1_sub3 s2 s2" using 1 assms R1_sub3_def R1_sub4_prems_def substate_asym by blast
+        qed
+        thus ?thesis using R1_sub2_def by blast
+      next
+        assume 2:"s2\<noteq>st2"
+        then have "substate s2 st0" using prems assms R1_sub2_prems_def substate.simps
+        by (metis toEnvP.simps(3) toEnvP.simps(7))
+        then obtain "R1_sub2 st0 s2" using assms prems inv1_def R1_def R1_sub1_def R1_sub2_prems_def by meson
+        then obtain s4 where "R1_sub3_prems st0 s2 s4 \<and> R1_sub3 s2 s4" using R1_sub2_def by auto
+        thus ?thesis using assms R1_sub2_def R1_sub3_prems_def substate.simps by metis
+      qed
+    qed
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
   qed
 qed
 
@@ -71,6 +114,7 @@ lemma
  and st1_if:"(getVarBool st1 ''inp_1'')=False"
  and st1_Work_timeout:"2000>(ltime st1 ''Dryer'')"
  and st2:"(st2=(toEnv st1))"
+<<<<<<< HEAD
  and st_final:"st_final=st2"
 shows "(inv2 st_final)"
 proof (simp add: inv2_def; intro conjI)
@@ -83,6 +127,55 @@ next
     moreover have "R2_A st_final st0" using assms R2_A_def by simp
     ultimately show ?thesis using P2_1_to_R2 P2_1_lemma by blast
   qed
+=======
+shows "(inv2 st2)"
+proof (simp add: inv2_def; intro conjI)
+  show "extraInv st2" using extra assms inv2_def by auto
+next
+  show "R2 st2"
+  proof (simp add: R2_def;intro conjI)
+    show "toEnvP st2" using assms by simp
+  next
+    show "R2_sub1 st2"
+    proof (simp only:R2_sub1_def; rule allI;rule allI;rule impI)
+      fix s1 s2
+      assume prems:"R2_sub2_prems st2 s1 s2"
+      thus "getVarBool s2 ''out_1'' = False"
+      proof (simp only: R2_sub2_prems_def; cases)
+        assume 1: "s2=st2"
+        have ex:"extraInv st2" using extra assms inv2_def by auto
+        then have "getVarBool st2 ''out_1'' = True" 
+        proof -
+          have 0:"getPstate st2 ''Dryer'' = ''Work''" using assms by auto
+          have 1:"ltime st2 ''Dryer'' > 0" using assms extraInv_def by auto
+          have 2:"toEnvP st2 \<and> substate st2 st2" using assms extraInv_def substate_refl by auto
+          have 3:"(toEnvNum st2 st2*100 +100) \<le> ltime st2 ''Dryer''"
+          proof -
+            have "0 \<noteq> ltime st2 ''Dryer''" using assms extraInv_def by auto
+            then have "ltime st2 ''Dryer'' \<ge> 100"
+               apply(induction st2;auto)
+               done
+            thus ?thesis using toEnvNum_id by auto
+          qed
+          from le_imp_less_or_eq[OF this] show  "getVarBool st2 ''out_1'' = True" 
+          proof 
+            assume "(toEnvNum st2 st2*100 +100) < ltime st2 ''Dryer''"
+            thus ?thesis using 0 2 extraInv_def ex by auto 
+          next
+            assume "(toEnvNum st2 st2*100 +100) = ltime st2 ''Dryer''"
+            thus ?thesis using 0 2 ex extraInv_def by auto
+          qed
+        qed
+        from this show ?thesis 
+        by (smt (z3) "1" One_nat_def R2_def R2_sub2_prems_def base_inv getVarBool.simps(2) getVarBool.simps(3) assms inv2_def predEnv.simps(2) predEnv.simps(3) prems shiftEnv.simps(2) shift_toEnvNum  toEnvNum_id)
+      next
+        assume 2: "s2\<noteq>st2"
+        thus ?thesis using assms prems R2_def R2_sub1_def R2_sub2_prems_def inv2_def 
+        by (metis (no_types, lifting) substate.simps(2) substate.simps(3) toEnvP.simps(3))
+      qed
+    qed
+  qed 
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 qed
 
 lemma
@@ -92,6 +185,7 @@ lemma
  and st1_if:"(getVarBool st1 ''inp_1'')=False"
  and st1_Work_timeout:"2000>(ltime st1 ''Dryer'')"
  and st2:"(st2=(toEnv st1))"
+<<<<<<< HEAD
  and st_final:"st_final=st2"
 shows "(inv4 st_final)"
 proof (simp add: inv4_def; intro conjI)
@@ -104,6 +198,31 @@ next
     moreover have "P2_1_cons R4_A st0" using extra1 R4_to_P2_1 by auto
     moreover have "R4_A st_final st0" using R4_A_def assms by auto
     ultimately show ?thesis using P2_1_lemma P2_1_to_R4 by auto
+=======
+shows "(inv4 st2)"
+proof (simp add: inv4_def; intro conjI)
+  show "extraInv st2" using assms extra inv4_def by simp
+next
+  show "R4 st2"
+  proof (simp add: R4_def;intro conjI)
+    show "toEnvP st2" using assms by simp
+  next
+    show "R4_sub1 st2"
+    proof (simp only:R4_sub1_def;intro allI; rule impI)
+      fix s1 s2
+      assume prems: 
+        "R4_sub2_prems st2 s1 s2"
+      thus "getVarBool s2 ''out_1'' = True"
+      proof (cases)
+        assume 1:"s2=st2"
+        thus ?thesis using assms prems R4_sub2_prems_def by auto
+      next
+        assume 1: "s2\<noteq>st2"
+        then have 2: "substate s2 st0" using prems assms R4_sub2_prems_def by (simp split: if_splits)
+        thus ?thesis using R4_def R4_sub1_def R4_sub2_prems_def base_inv inv4_def prems by metis
+      qed
+    qed
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
   qed
 qed
 
