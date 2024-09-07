@@ -40,6 +40,7 @@ lemma ltime_le_toEnvNum:
          apply(auto)
   done
 
+
 lemma toEnvNum_getPstate:
 "toEnvNum s s' < ltime s' p div 100 \<Longrightarrow> getPstate s p = getPstate s' p"
   apply (induction s' arbitrary:s)
@@ -51,23 +52,6 @@ done
 lemma inter_toEnvNum_getPstate:
 "toEnvNum s s' < ltime s' p div 100 \<and> substate s s'' \<and> substate s'' s'\<Longrightarrow> toEnvNum s'' s' < ltime s' p div 100"
   using toEnvNum3 by fastforce
-
-(*
-lemma
-"toEnvP s \<and> toEnvP s' \<and> timeContinuous s s' p \<and> s1\<noteq>s \<and> s1\<noteq>s' \<and> substate s s1 \<and> substate s1 s'\<Longrightarrow>
-   \<not>(\<exists>s2. s1 = (reset s2 p) \<or> s1 = (setPstate s2 p name))"
-  apply  
-*)
-
-(*
-lemma 
-"toEnvP s \<and> toEnvP s' \<and> timeContinuous s s' p \<Longrightarrow>
-  toEnvNum s s' = ltime s' p div 100 - ltime s p div 100"
-  apply (induction s' arbitrary:s)
-         apply auto
-  apply try
-*)
-
 
 
 lemma ltime_after_toEnvNum:
@@ -162,7 +146,6 @@ P8   3) Если руки убрали, то не более чем через 1
 P2_1 4) Если руки имеются и тепловентилятор включен, он не выключится. 
 P2 (Но вообще паттерна нет) 5) Время непрерывной работы тепловентилятора не более часа
 *)
-
 subsection "Requirement 1"
 
 definition R1_sub4_prems where
@@ -268,6 +251,7 @@ definition R1_C where
   s3 \<noteq> s4 \<longrightarrow>
   getVarBool s3 ''inp_1'' = True"
 
+
 lemma R1_to_P8:"R1_full s\<Longrightarrow> P8_cons R1_A R1_B R1_C s"
   apply (simp only:R1_full_def P8_cons_def R1_A_def R1_B_def R1_C_def SMT.verit_bool_simplify(4))
   by auto
@@ -325,6 +309,7 @@ definition R2_A where
   getVarBool s1 ''out_1'' = False \<and>
   getVarBool s2 ''inp_1'' = False \<longrightarrow>
   getVarBool s2 ''out_1'' = False"
+
 
 lemma R2_to_P2_1:
 "R2_full s \<Longrightarrow> P2_1_cons R2_A s"
@@ -410,6 +395,7 @@ toEnvP s \<and>
         (getVarBool s4 ''out_1'' = False \<or> getVarBool s4 ''inp_1'' = True) \<and>
         (\<forall>s3. toEnvP s3 \<and> substate s2 s3 \<and> substate s3 s4 \<and> s3 \<noteq> s4 \<longrightarrow>
            getVarBool s3 ''out_1'' = True \<and> getVarBool s3 ''inp_1'' = False)))"
+
 
 definition inv3 where "inv3 s \<equiv> R3_full s \<and> extraInv s"
 
@@ -523,6 +509,7 @@ definition R5 where
 "R5 s \<equiv>
 toEnvP s \<and>
 R5_sub1 s"
+
 
 definition R5_full where
 "R5_full s \<equiv>

@@ -47,6 +47,7 @@ lemma ltime_le_toEnvNum:
          apply(auto)
   done
 
+<<<<<<< HEAD
 (*
 definition R1 where "R1 s ≡ toEnvP s ∧
 (∀ s1 s2. substate s1 s2 ∧ substate s2 s ∧ toEnvP s1 ∧ toEnvP s2 ∧ toEnvNum s1 s2 = 1 ∧
@@ -97,4 +98,6 @@ definition R3 where
           getVarBool s2 ''fridgeDoor'' = True)))"
 
 
+=======
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 end

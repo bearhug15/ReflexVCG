@@ -1086,15 +1086,6 @@ lemma toEnvP_emptyState:"\<not>toEnvP emptyState" by auto
 lemma predEnv_det:"s1 = predEnv s \<and> s2 = predEnv s \<Longrightarrow> s1 = s2"
   by simp
 
-lemma 
-  assumes "toEnvP s \<and> toEnvP s'"
-    and "substate (predEnv s) s'"
-    and "(predEnv s) \<noteq>s'"
-    and "substate s s'' \<and> substate s' s''"
-  shows "substate s s'"
-  using assms(1) assms(2) assms(3) assms(4) predEnv_substate_imp_eq_or_substate by auto
-
-
 lemma next_state_exists:
 "toEnvP s0 \<and> toEnvP s1 \<and> substate s0 s1 \<and> s0 \<noteq>s1 \<Longrightarrow> \<exists>s2. toEnvP s2 \<and> substate s2 s1 \<and> s0 = predEnv s2"
   by sorry
@@ -1125,14 +1116,10 @@ primrec timeContinuous:: "state \<Rightarrow> state \<Rightarrow> process \<Righ
 lemma timeContinuous_id:
 "toEnvP s \<Longrightarrow> timeContinuous s s p"
   by (metis timeContinuous.simps(2) toEnvP.elims(2))
-(*
-lemma timeContinuous_trans:
-"toEnvP s \<and> toEnvP s' \<and> toEnvP s'' \<and> timeContinuous s s' p \<and> timeContinuous s' s'' p \<Longrightarrow>
-timeContinuous s s'' p"
-  by 
-*)
+
 lemma substate_toEnvNum:
 "substate s s' \<Longrightarrow> toEnvNum emptyState s \<le> toEnvNum emptyState s'"
   by (simp add: emptyState_substate toEnvNum3)
+
 
 end

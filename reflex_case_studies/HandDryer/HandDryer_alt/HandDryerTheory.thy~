@@ -40,6 +40,7 @@ lemma ltime_le_toEnvNum:
          apply(auto)
   done
 
+<<<<<<< HEAD
 lemma toEnvNum_getPstate:
 "toEnvNum s s' < ltime s' p div 100 \<Longrightarrow> getPstate s p = getPstate s' p"
   apply (induction s' arbitrary:s)
@@ -89,6 +90,21 @@ definition extra1 where
      (toEnvNum s1 s2+1) < ltime s2 ''Dryer'' div 100\<longrightarrow>
         getVarBool s1 ''inp_1'' = False \<and>
         getVarBool s1 ''out_1'' = True)))"
+=======
+
+definition extra1 where
+"extra1 s = 
+(\<forall>s2. toEnvP s2 \<and> substate s2 s \<and> getPstate s2 ''Dryer'' = ''Work'' \<longrightarrow>
+(0 < ltime s2 ''Dryer'' \<and> ltime s2 ''Dryer'' \<le> 2000 \<and>
+(\<forall> s1. toEnvP s1 \<and> substate s1 s2 \<and>
+ (toEnvNum s1 s2+1) = ltime s2 ''Dryer'' div 100 \<longrightarrow>
+getVarBool s1 ''inp_1'' = True \<and>
+ getVarBool s1 ''out_1'' = True) \<and>
+(\<forall> s1. toEnvP s1 \<and> substate s1 s2 \<and>
+ (toEnvNum s1 s2+1) < ltime s2 ''Dryer'' div 100\<longrightarrow>
+getVarBool s1 ''inp_1'' = False \<and>
+ getVarBool s1 ''out_1'' = True)))"
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 
 definition extra2 where
 "extra2 s =
@@ -97,6 +113,7 @@ definition extra2 where
   ((\<forall> s2. toEnvP s2 \<and> substate s2 s1 \<longrightarrow> 
       getPstate s2 ''Dryer'' = ''Wait'') \<or>
   (\<exists> s2. toEnvP s2 \<and> substate s2 s1 \<and>
+<<<<<<< HEAD
     getPstate s2 ''Dryer'' = ''Work'' \<and> ltime s2 ''Dryer'' div 100 \<ge>20 \<and>
     (\<forall> s3. toEnvP s3 \<and> substate s2 s3 \<and> substate s3 s1 \<and>
       s3\<noteq>s2 \<longrightarrow> getPstate s3 ''Dryer'' = ''Wait''))))"
@@ -125,15 +142,32 @@ definition extra5 where
   substate s1 s2 \<and> substate s2 s \<and> 
   getPstate s2 ''Dryer'' = ''Work'' \<and> getPstate s1 ''Dryer'' = ''Work'' \<and>
   (toEnvNum s1 s2+1) > ltime s2 ''Dryer'' div 100 \<longrightarrow>
-    (\<exists> s3. toEnvP s3 \<and> substate s1 s3 \<and> substate s3 s2))"
+    ((\<exists> s3. toEnvP s3 \<and> substate s1 s3 \<and> substate s3 s2 \<and>
+      getVarBool s3 ''inp_1'' = True \<and>
+      (\<forall> s4. toEnvP s4 \<and> substate s1 s4 \<and> substate s4 s3 \<and> s4 \<noteq> s3 \<longrightarrow>
+        getVarBool s3 ''inp_1'' = False \<and> getVarBool s3 ''out_1'' = True)) \<or>
+    (\<exists> s3 s4. toEnvP s3 \<and> toEnvP s4 \<and> 
+      substate s1 s3 \<and> substate s3 s4 \<and> substate s4 s2 \<and>
+      toEnvNum s3 s4 = 1 \<and> getPstate s3 ''Dryer'' = ''Work'' \<and>
+      getPstate s4 ''Dryer'' = ''Wait'')))"
 
+=======
+    getPstate s2 ''Dryer'' = ''Work'' \<and> ltime s2 ''Dryer'' \<ge>2000 \<and>
+    (\<forall> s3. toEnvP s3 \<and> substate s2 s3 \<and> substate s3 s1 \<and>
+      s3\<noteq>s2 \<longrightarrow> getPstate s3 ''Dryer'' = ''Wait''))))"
+
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 definition extraInv where
 "extraInv s \<equiv>
 toEnvP s \<and>
 extra1 s \<and>
 extra2 s \<and>
+<<<<<<< HEAD
 extra3 s \<and>
 extra4 s \<and>
+extra5 s \<and>
+=======
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 (\<forall> s1. toEnvP s1 \<and> substate s1 s \<and> 
 getPstate s1 ''Dryer'' = ''Wait'' \<longrightarrow>
  getVarBool s1 ''out_1'' = False) \<and>
@@ -146,6 +180,7 @@ getPstate s1 ''Dryer'' = ''Work'' \<longrightarrow>
 getPstate s1 ''Dryer'' = ''Wait'' \<or>
 getPstate s1 ''Dryer'' = ''Work'')"
 
+<<<<<<< HEAD
 
 (*
 P8   1) Тепловентилятор должен включиться за время, приемлемое с точки зрения пользователя (не позже 0.2 секунды), после того, как под ним появляются руки. 
@@ -155,6 +190,8 @@ P2_1 4) Если руки имеются и тепловентилятор вк�
 P2 (Но вообще паттерна нет) 5) Время непрерывной работы тепловентилятора не более часа
 *)
 
+=======
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 subsection "Requirement 1"
 
 definition R1_sub4_prems where
@@ -260,11 +297,19 @@ definition R1_C where
   s3 \<noteq> s4 \<longrightarrow>
   getVarBool s3 ''inp_1'' = True"
 
+<<<<<<< HEAD
 lemma R1_to_P8:"R1_full s\<Longrightarrow> P8_cons R1_A R1_B R1_C s"
   apply (simp only:R1_full_def P8_cons_def R1_A_def R1_B_def R1_C_def SMT.verit_bool_simplify(4))
   by auto
 
 lemma P8_to_R1:"toEnvP s \<and> P8_cons R1_A R1_B R1_C s \<Longrightarrow> R1_full s"
+=======
+lemma R1_A:"R1_full s\<Longrightarrow> P8_cons R1_A R1_B R1_C s"
+  apply (simp only:R1_full_def P8_cons_def R1_A_def R1_B_def R1_C_def SMT.verit_bool_simplify(4))
+  by auto
+
+lemma A_R1:"toEnvP s \<and> P8_cons R1_A R1_B R1_C s \<Longrightarrow> R1_full s"
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
   apply (simp only:R1_full_def P8_cons_def R1_A_def R1_B_def R1_C_def SMT.verit_bool_simplify(4))
   by auto
 
@@ -318,11 +363,19 @@ definition R2_A where
   getVarBool s2 ''inp_1'' = False \<longrightarrow>
   getVarBool s2 ''out_1'' = False"
 
+<<<<<<< HEAD
 lemma R2_to_P2_1:
 "R2_full s \<Longrightarrow> P2_1_cons R2_A s"
   using R2_full_def P2_1_cons_def R2_A_def by auto
 
 lemma P2_1_to_R2:
+=======
+lemma R2_A:
+"R2_full s \<Longrightarrow> P2_1_cons R2_A s"
+  using R2_full_def P2_1_cons_def R2_A_def by auto
+
+lemma A_R2:
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 "toEnvP s \<and> P2_1_cons R2_A s \<Longrightarrow> R2_full s"
   using R2_full_def P2_1_cons_def R2_A_def by auto
 
@@ -403,8 +456,11 @@ toEnvP s \<and>
         (\<forall>s3. toEnvP s3 \<and> substate s2 s3 \<and> substate s3 s4 \<and> s3 \<noteq> s4 \<longrightarrow>
            getVarBool s3 ''out_1'' = True \<and> getVarBool s3 ''inp_1'' = False)))"
 
+<<<<<<< HEAD
 definition inv3 where "inv3 s \<equiv> R3_full s \<and> extraInv s"
 
+=======
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 definition R3_A where
 "R3_A s s2 s1 \<equiv>
   20 \<le> toEnvNum s2 s \<and>
@@ -466,6 +522,7 @@ declare R4_sub1_def [simp]
 declare R4_sub2_prems_def [simp]
 end
 
+<<<<<<< HEAD
 definition R4_full where
 "R4_full s \<equiv> toEnvP s \<and>
     (\<forall>s1 s2.
@@ -493,6 +550,8 @@ lemma P2_1_to_R4:
 "toEnvP s \<and> P2_1_cons R4_A s \<Longrightarrow> R4_full s"
   using R4_full_def P2_1_cons_def R4_A_def by auto
 
+=======
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 subsection "Requirement 5"
 
 definition R5_sub2 where
@@ -516,6 +575,7 @@ definition R5 where
 toEnvP s \<and>
 R5_sub1 s"
 
+<<<<<<< HEAD
 definition R5_full where
 "R5_full s \<equiv>
 toEnvP s \<and>  
@@ -527,6 +587,17 @@ toEnvP s \<and>
       getVarBool s2 ''out_1'' = False))"
 
 definition inv5 where "inv5 s \<equiv> R5_full s \<and> extraInv s"
+=======
+
+
+definition inv3 where "inv3 s \<equiv> R3 s \<and> extraInv s"
+
+
+definition inv4 where "inv4 s \<equiv> R4 s \<and> extraInv s"
+
+
+definition inv5 where "inv5 s \<equiv> R5 s \<and> extraInv s"
+>>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 
 
 definition pred3_sub1 where
