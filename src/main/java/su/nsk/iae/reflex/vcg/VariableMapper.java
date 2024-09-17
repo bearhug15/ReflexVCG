@@ -1,7 +1,10 @@
 package su.nsk.iae.reflex.vcg;
 
+import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.misc.Pair;
+import su.nsk.iae.reflex.antlr.ReflexParser;
 import su.nsk.iae.reflex.expression.types.ExprType;
+import su.nsk.iae.reflex.expression.types.TypeUtils;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,11 +17,88 @@ public class VariableMapper {
 
     HashMap<Pair<String,String>,Pair<String,ExprType>> enums;
 
-    public VariableMapper() {
+    public VariableMapper(ReflexParser.ProgramContext ctx) {
         variables = new HashMap<>();
         constants = new HashMap<>();
         enums = new HashMap<>();
         globalVariables = new HashSet<>();
+
+        prepareVariableMapper(ctx,0);
+    }
+
+    public void prepareVariableMapper(ReflexParser.ProgramContext ctx,int stateCount){
+        for (ReflexParser.GlobalVariableContext variable: ctx.globalVars){
+            if(variable.programVariable()!=null){
+                ReflexParser.ProgramVariableContext progVariable = variable.programVariable();
+                String name = progVariable.name.getText();
+                this.addGlobalVariable(name,"_"+name, TypeUtils.defineType(progVariable.varType.getText()));
+            }else{
+                ReflexParser.PhysicalVariableContext physVariable = variable.physicalVariable();
+                String name = physVariable.name.getText();
+                ReflexParser.PortMappingContext pmap = physVariable.mapping;
+                String portId = pmap.portId.getText();
+                String qualName = portId;
+                if (pmap.bit!=null){
+                    qualName += "_"+pmap.bit.getText();
+                }
+                this.addGlobalVariable(
+                        name,
+                        qualName,
+                        TypeUtils.defineType(physVariable.varType.getText()));
+            }
+        }
+        for (ReflexParser.ConstContext con: ctx.consts){
+            ExpressionVisitor vis = new ExpressionVisitor(this,"_",stateName(stateCount));
+            ExprGenRes res = vis.visitExpression(con.expression());
+            this.addConstant(
+                    con.name.getText(),
+                    res.expr.toString(),
+                    TypeUtils.defineType(con.varType.getText()));
+        }
+
+        for (ReflexParser.ProcessContext process: ctx.processes){
+            for(ReflexParser.ProcessVariableContext variable: process.variables){
+                String processName = process.name.getText();
+                if(variable.programVariable()!=null){
+                    ReflexParser.ProgramVariableContext progVariable = variable.programVariable();
+                    String name = progVariable.name.getText();
+                    this.addVariable(
+                            processName,
+                            name,
+                            constructProcessVariableName(processName,name),
+                            TypeUtils.defineType(progVariable.varType.getText()));
+                }else{
+                    ReflexParser.PhysicalVariableContext physVariable = variable.physicalVariable();
+                    String name = physVariable.name.getText();
+                    ReflexParser.PortMappingContext pmap = physVariable.mapping;
+                    String portId = pmap.portId.getText();
+                    String qualName = portId;
+                    if (pmap.bit!=null){
+                        qualName += "_"+pmap.bit.getText();
+                    }
+                    this.addVariable(
+                            processName,
+                            name,
+                            qualName,
+                            TypeUtils.defineType(physVariable.varType.getText()));
+                }
+            }
+        }
+
+        for (ReflexParser.ProcessContext process: ctx.processes){
+            for(ReflexParser.ImportedVariableListContext imported: process.imports){
+                String providerProcess = imported.processID.getText();
+                String acceptorProcess = process.name.getText();
+                for (Token id: imported.variables){
+                    String name=id.getText();
+                    this.addVariable(
+                            acceptorProcess,
+                            name,
+                            this.mapVariable(providerProcess,name),
+                            this.variableType(providerProcess,name));
+                }
+            }
+        }
     }
 
     public String mapVariable(String process, String variable){
@@ -75,4 +155,13 @@ public class VariableMapper {
     public boolean is_global(String variable){
         return globalVariables.contains(variable);
     }
+
+    private String constructProcessVariableName(String processName,String variable){
+        return "_p_"+processName+"_v_"+variable;
+    }
+
+    private String stateName(int stateCount){
+        return "st"+stateCount;
+    }
+
 }

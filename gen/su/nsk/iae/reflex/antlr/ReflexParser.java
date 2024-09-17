@@ -427,7 +427,9 @@ public class ReflexParser extends Parser {
 		@Override public int getRuleIndex() { return RULE_process; }
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitProcess(this);
+			if ( visitor instanceof ReflexVisitor ) {
+				return ((ReflexVisitor<? extends T>)visitor).visitProcess(this);
+			}
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -567,7 +569,9 @@ public class ReflexParser extends Parser {
 		@Override public int getRuleIndex() { return RULE_state; }
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitState(this);
+			if ( visitor instanceof ReflexVisitor ) {
+				return ((ReflexVisitor<? extends T>)visitor).visitState(this);
+			}
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -1121,7 +1125,9 @@ public class ReflexParser extends Parser {
 		@Override public int getRuleIndex() { return RULE_timeoutFunction; }
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitTimeoutFunction(this);
+			if ( visitor instanceof ReflexVisitor ) {
+					return ((ReflexVisitor<? extends T>)visitor).visitTimeoutFunction(this);
+			}
 			else return visitor.visitChildren(this);
 		}
 	}

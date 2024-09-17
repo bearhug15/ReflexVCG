@@ -2,8 +2,11 @@ package su.nsk.iae.reflex.vcg;
 
 
 
+import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.misc.Pair;
+import su.nsk.iae.reflex.antlr.ReflexParser;
 import su.nsk.iae.reflex.expression.types.ExprType;
+import su.nsk.iae.reflex.expression.types.TypeUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -16,7 +19,7 @@ public class ProgramMetaData {
     String clockValue;
     Map<String, ExprType> inputVariablesNames;
 
-
+    HashMap<String, ReflexParser.ProcessContext> processNameMapper=new HashMap<>();
 
     public String getClockValue() {
         return clockValue;
@@ -25,14 +28,82 @@ public class ProgramMetaData {
     public void setClockValue(String clockValue) {
         this.clockValue = clockValue;
     }
-
-
-    public ProgramMetaData(){
+    public ProgramMetaData(ReflexParser.ProgramContext ctx,VariableMapper mapper){
         processes = new ArrayList<>();
         initializer = new HashMap<>();
         inputVariablesNames = new HashMap<>();
-    }
 
+        for (ReflexParser.GlobalVariableContext variable: ctx.globalVars){
+            if (variable.programVariable() == null) {
+                ReflexParser.PhysicalVariableContext physVariable = variable.physicalVariable();
+                ReflexParser.PortMappingContext pmap = physVariable.mapping;
+                String portId = pmap.portId.getText();
+                String qualName = portId;
+                if (pmap.bit!=null){
+                    qualName += "_"+pmap.bit.getText();
+                }
+                for (ReflexParser.PortContext port:ctx.ports){
+                    if (port.name.getText().equals(portId) && port.varType.getText().equals("input")){
+                        this.addInputVariable(qualName,TypeUtils.defineType(physVariable.varType.getText()));
+                    }
+                }
+            }
+        }
+
+        for (ReflexParser.ProcessContext process: ctx.processes){
+            for(ReflexParser.ProcessVariableContext variable: process.variables){
+                if (variable.programVariable() == null) {
+                    ReflexParser.PhysicalVariableContext physVariable = variable.physicalVariable();
+                    ReflexParser.PortMappingContext pmap = physVariable.mapping;
+                    String portId = pmap.portId.getText();
+                    String qualName = portId;
+                    if (pmap.bit!=null){
+                        qualName += "_"+pmap.bit.getText();
+                    }
+                    for (ReflexParser.PortContext port:ctx.ports){
+                        if (port.name.getText().equals(portId) && port.varType.getText().equals("input")){
+                            this.addInputVariable(qualName,TypeUtils.defineType(physVariable.varType.getText()));
+                        }
+                    }
+                }
+            }
+        }
+
+        String replacedState="#";
+        String state = replacedState;
+        for (ReflexParser.GlobalVariableContext variable: ctx.globalVars){
+            if(variable.programVariable()!=null){
+                ReflexParser.ProgramVariableContext programVariable = variable.programVariable();
+                String variableName = programVariable.name.getText();
+                String processName = ctx.processes.get(0).name.getText();
+                if(programVariable.expression()!=null){
+                    ExpressionVisitor vis = new ExpressionVisitor(mapper,processName,state);
+                    ExprGenRes res = vis.visitExpression(programVariable.expression());
+                    ExprType ty = mapper.variableType(processName,variableName);
+                    state = StringUtils.constructSetter(ty,state,mapper.mapVariable(processName,variableName),res.getExpr().toString());
+                }else{
+                    ExprType ty = mapper.variableType(processName,variableName);
+                    state = StringUtils.constructSetter(ty,state,mapper.mapVariable(processName,variableName),ty.defaultValue());
+                }
+            }
+        }
+        for(ReflexParser.ProcessContext procCtx: ctx.processes){
+            List<String> stateNames= procCtx.states.stream()
+                    .map(stateCtx->stateCtx.name.getText()).toList();
+            this.addProcess(procCtx.name.getText(),stateNames);
+            this.addInitializer(replacedState,procCtx.name.getText(),initializeProcess(procCtx,replacedState, mapper));
+        }
+
+        ReflexParser.ClockDefinitionContext clockCtx = ctx.clock;
+        String value;
+        if (clockCtx.intValue != null){
+            value = StringUtils.parseInteger(clockCtx.intValue.getText());
+        } else{
+            value = StringUtils.parseTime(clockCtx.timeValue.getText());
+        }
+        this.setClockValue(value);
+
+    }
     public String nextState(String processName, String stateName){
         Pair<String,List<String>> process = processes.stream()
                 .filter(proc -> proc.a.equals(processName))
@@ -49,7 +120,6 @@ public class ProgramMetaData {
         }
         return process.b.get(idx+1);
     }
-
     public void addProcess(String processName, List<String> stateNames){
         processes.add(new Pair<>(processName,stateNames));
     }
@@ -93,6 +163,14 @@ public class ProgramMetaData {
         return process.b.get(idx);
     }
 
+    public String firstState(String processName){
+        Pair<String,List<String>> process = processes.stream()
+                .filter(proc -> proc.a.equals(processName))
+                .findFirst()
+                .orElse(null);
+        assert process != null;
+        return process.b.get(0);
+    }
     @Override
     public boolean equals(Object obj) {
         if (!(obj instanceof ProgramMetaData other))return false;
@@ -113,5 +191,48 @@ public class ProgramMetaData {
     }
     public Map<String,ExprType> getInputVariablesNames(){
         return inputVariablesNames;
+    }
+
+    public boolean isFirstProcess(String processName){
+        return processName.equals(processes.get(0).a);
+    }
+
+    public boolean isFirstState(String processName, String stateName){
+        return processes.stream()
+                .anyMatch(process ->
+                        (processName.equals(process.a) && stateName.equals(process.b.get(0))));
+    }
+
+    public void addProcess(ReflexParser.ProcessContext process){
+        processNameMapper.put(process.name.getText(),process);
+    }
+
+    public void addProcessByName(ReflexParser.ProcessContext process, String name){
+        processNameMapper.put(name,process);
+    }
+
+    public ReflexParser.ProcessContext getProcessByName(String name){
+        return processNameMapper.get(name);
+    }
+
+    private String initializeProcess(ReflexParser.ProcessContext ctx,String stateReplace, VariableMapper mapper){
+        String processName = ctx.name.getText();
+        String state = stateReplace;
+        for(ReflexParser.ProcessVariableContext variable: ctx.variables){
+            if (variable.programVariable()!=null){
+                ReflexParser.ProgramVariableContext programVariable = variable.programVariable();
+                String variableName = programVariable.name.getText();
+                if(programVariable.expression()!=null){
+                    ExpressionVisitor vis = new ExpressionVisitor(mapper,processName,state);
+                    ExprGenRes res = vis.visitExpression(programVariable.expression());
+                    ExprType ty = mapper.variableType(processName,variableName);
+                    state = StringUtils.constructSetter(ty,state,mapper.mapVariable(processName,variableName),res.getExpr().toString());
+                }else{
+                    ExprType ty = mapper.variableType(processName,variableName);
+                    state = StringUtils.constructSetter(ty,state,mapper.mapVariable(processName,variableName),ty.defaultValue());
+                }
+            }
+        }
+        return state;
     }
 }

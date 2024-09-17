@@ -2,7 +2,7 @@ package su.nsk.iae.reflex.staticAnalysis.attributes;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 
-public interface Attributed {
+public interface IAttributed {
     ParserRuleContext getAttributedContext();
     AttributedContextType getContextType();
 }

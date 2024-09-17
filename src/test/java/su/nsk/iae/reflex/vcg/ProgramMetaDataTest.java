@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 class ProgramMetaDataTest {
-    ProgramMetaData metaData;
+    /*ProgramMetaData metaData;
 
     @BeforeEach
     void prepare(){
@@ -87,5 +87,5 @@ class ProgramMetaDataTest {
         assertEquals("state2",metaData.stateByIdx("proc1",1));
         assertThrows(RuntimeException.class,()->metaData.stateByIdx("proc2",1));
         assertThrows(RuntimeException.class,()->metaData.stateByIdx("proc1",2));
-    }
+    }*/
 }

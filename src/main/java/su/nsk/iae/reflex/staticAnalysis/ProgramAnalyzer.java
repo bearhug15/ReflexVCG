@@ -1,7 +1,9 @@
-package su.nsk.iae.reflex.vcg;
+package su.nsk.iae.reflex.staticAnalysis;
 
 import su.nsk.iae.reflex.antlr.ReflexBaseVisitor;
 import su.nsk.iae.reflex.antlr.ReflexParser;
+import su.nsk.iae.reflex.vcg.ProcessStateTraces;
+import su.nsk.iae.reflex.vcg.ProgramMetaData;
 
 import java.util.List;
 

@@ -10,41 +10,50 @@ import su.nsk.iae.reflex.expression.SymbolicExpression;
 import su.nsk.iae.reflex.expression.VariableExpression;
 import su.nsk.iae.reflex.expression.types.*;
 import su.nsk.iae.reflex.formulas.*;
+//import su.nsk.iae.reflex.staticAnalysis.ProgramAnalyzer;
+import su.nsk.iae.reflex.staticAnalysis.ProgramAnalyzer2;
+import su.nsk.iae.reflex.staticAnalysis.RuleChecker;
+import su.nsk.iae.reflex.staticAnalysis.attributes.*;
 
 import java.io.FileInputStream;
 import java.nio.file.Path;
 import java.util.*;
 
-public class VCGenerator extends ReflexBaseVisitor<Void> {
+public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
 
     VariableMapper mapper;
     ConjuctionFormula formula;
 
+    ArrayDeque<IAttributed> path;
     Integer stateCount;
     String currentProcess;
     String currentState;
     ProgramMetaData metaData;
+    RuleChecker checker;
 
     Stack<BranchPoint> branchStack;
     VCPrinter printer;
-    ProcessStateTraces traces;
+    //ProcessStateTraces traces;
     HashMap<String,Integer> ifCounter;
+
+    AttributeCollector collector;
 
     Integer conditionsGenerated;
     public VCGenerator(){
         stateCount = 0;
         formula = new ConjuctionFormula();
-        mapper = new VariableMapper();
+        path = new ArrayDeque<>();
+        mapper = null;
         branchStack = new Stack<>();
-        metaData= new ProgramMetaData();
-        traces = new ProcessStateTraces();
+        metaData = null;
+        checker = null;
+        //traces = new ProcessStateTraces();
         ifCounter = new HashMap<>();
         conditionsGenerated = 0;
     }
 
     public void test(){
         //String sourceName = source.getFileName().toString();
-        printer = new VCPrinter(Path.of("./"),"test",metaData);
         CharStream inputStream = CharStreams.fromString("program Dryer {\n" +
                 "clock 100;\n" +
                 "input inp 0x00 0x00 8;\n" +
@@ -75,8 +84,12 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            prepareVariableMapper(context);
-            prepareMetaData(context);
+            mapper = new VariableMapper(context);
+            metaData = new ProgramMetaData(context,mapper);
+            printer = new VCPrinter(Path.of("./"),"test",metaData);
+            checker = new RuleChecker(metaData);
+            ProgramAnalyzer2 analyzer2 = new ProgramAnalyzer2(metaData);
+            collector = analyzer2.generateAttributes(context);
 
             visitProgram(context);
             visitStack();
@@ -89,7 +102,7 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
 
     public void generateVC(Path source, Path destination){
         String sourceName = source.getFileName().toString();
-        printer = new VCPrinter(destination,sourceName,metaData);
+
 
         try {
             System.out.println("Starting program parsing.");
@@ -100,10 +113,13 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            prepareVariableMapper(context);
-            prepareMetaData(context);
+            mapper = new VariableMapper(context);
+            metaData = new ProgramMetaData(context,mapper);
+            printer = new VCPrinter(destination,sourceName,metaData);
+            checker = new RuleChecker(metaData);
             System.out.println("Completed program parsing. Starting program analysis.");
-            analyzeProgram(context);
+            ProgramAnalyzer2 analyzer2 = new ProgramAnalyzer2(metaData);
+            collector = analyzer2.generateAttributes(context);
             System.out.println("Completed program analysis. Starting verification conditions generation.");
             visitProgram(context);
             visitStack();
@@ -115,151 +131,10 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
 
     }
 
-    private void analyzeProgram(ReflexParser.ProgramContext ctx){
+    /*private void analyzeProgram(ReflexParser.ProgramContext ctx){
         ProgramAnalyzer analyzer = new ProgramAnalyzer(traces,metaData);
         analyzer.visitProgram(ctx);
-    }
-
-    private void prepareVariableMapper(ReflexParser.ProgramContext ctx){
-        for (ReflexParser.GlobalVariableContext variable: ctx.globalVars){
-            if(variable.programVariable()!=null){
-                ReflexParser.ProgramVariableContext progVariable = variable.programVariable();
-                String name = progVariable.name.getText();
-                mapper.addGlobalVariable(name,"_"+name,TypeUtils.defineType(progVariable.varType.getText()));
-            }else{
-                ReflexParser.PhysicalVariableContext physVariable = variable.physicalVariable();
-                String name = physVariable.name.getText();
-                ReflexParser.PortMappingContext pmap = physVariable.mapping;
-                String portId = pmap.portId.getText();
-                String qualName = portId;
-                if (pmap.bit!=null){
-                    qualName += "_"+pmap.bit.getText();
-                }
-                for (ReflexParser.PortContext port:ctx.ports){
-                    if (port.name.getText().equals(portId) && port.varType.getText().equals("input")){
-                        metaData.addInputVariable(qualName,TypeUtils.defineType(physVariable.varType.getText()));
-                    }
-                }
-                mapper.addGlobalVariable(
-                        name,
-                        qualName,
-                        TypeUtils.defineType(physVariable.varType.getText()));
-            }
-        }
-        for (ReflexParser.ConstContext con: ctx.consts){
-            ExpressionVisitor vis = new ExpressionVisitor(mapper,"_",stateName());
-            ExprGenRes res = vis.visitExpression(con.expression());
-            mapper.addConstant(
-                    con.name.getText(),
-                    res.expr.toString(),
-                    TypeUtils.defineType(con.varType.getText()));
-        }
-
-        for (ReflexParser.ProcessContext process: ctx.processes){
-            for(ReflexParser.ProcessVariableContext variable: process.variables){
-                String processName = process.name.getText();
-                if(variable.programVariable()!=null){
-                    ReflexParser.ProgramVariableContext progVariable = variable.programVariable();
-                    String name = progVariable.name.getText();
-                    mapper.addVariable(
-                            processName,
-                            name,
-                            constructProcessVariableName(processName,name),
-                            TypeUtils.defineType(progVariable.varType.getText()));
-                }else{
-                    ReflexParser.PhysicalVariableContext physVariable = variable.physicalVariable();
-                    String name = physVariable.name.getText();
-                    ReflexParser.PortMappingContext pmap = physVariable.mapping;
-                    String portId = pmap.portId.getText();
-                    String qualName = portId;
-                    if (pmap.bit!=null){
-                        qualName += "_"+pmap.bit.getText();
-                    }
-                    for (ReflexParser.PortContext port:ctx.ports){
-                        if (port.name.getText().equals(portId) && port.varType.getText().equals("input")){
-                            metaData.addInputVariable(qualName,TypeUtils.defineType(physVariable.varType.getText()));
-                        }
-                    }
-                    mapper.addVariable(
-                            processName,
-                            name,
-                            qualName,
-                            TypeUtils.defineType(physVariable.varType.getText()));
-                }
-            }
-        }
-
-        for (ReflexParser.ProcessContext process: ctx.processes){
-            for(ReflexParser.ImportedVariableListContext imported: process.imports){
-                String providerProcess = imported.processID.getText();
-                String acceptorProcess = process.name.getText();
-                for (Token id: imported.variables){
-                    String name=id.getText();
-                    mapper.addVariable(
-                            acceptorProcess,
-                            name,
-                            mapper.mapVariable(providerProcess,name),
-                            mapper.variableType(providerProcess,name));
-                }
-            }
-        }
-    }
-    private void prepareMetaData(ReflexParser.ProgramContext ctx){
-        String replacedState="#";
-        String state = replacedState;
-        for (ReflexParser.GlobalVariableContext variable: ctx.globalVars){
-            if(variable.programVariable()!=null){
-                ReflexParser.ProgramVariableContext programVariable = variable.programVariable();
-                String variableName = programVariable.name.getText();
-                String processName = ctx.processes.get(0).name.getText();
-                if(programVariable.expression()!=null){
-                    ExpressionVisitor vis = new ExpressionVisitor(mapper,processName,state);
-                    ExprGenRes res = vis.visitExpression(programVariable.expression());
-                    ExprType ty = mapper.variableType(processName,variableName);
-                    state = StringUtils.constructSetter(ty,state,mapper.mapVariable(processName,variableName),res.getExpr().toString());
-                }else{
-                    ExprType ty = mapper.variableType(processName,variableName);
-                    state = StringUtils.constructSetter(ty,state,mapper.mapVariable(processName,variableName),ty.defaultValue());
-                }
-            }
-        }
-        for(ReflexParser.ProcessContext procCtx: ctx.processes){
-            List<String> stateNames= procCtx.states.stream()
-                    .map(stateCtx->stateCtx.name.getText()).toList();
-            metaData.addProcess(procCtx.name.getText(),stateNames);
-            metaData.addInitializer(replacedState,procCtx.name.getText(),initializeProcess(procCtx,replacedState));
-        }
-
-        ReflexParser.ClockDefinitionContext clockCtx = ctx.clock;
-        String value;
-        if (clockCtx.intValue != null){
-            value = StringUtils.parseInteger(clockCtx.intValue.getText());
-        } else{
-            value = StringUtils.parseTime(clockCtx.timeValue.getText());
-        }
-        metaData.setClockValue(value);
-    }
-
-    private String initializeProcess(ReflexParser.ProcessContext ctx,String stateReplace){
-        String processName = ctx.name.getText();
-        String state = stateReplace;
-        for(ReflexParser.ProcessVariableContext variable: ctx.variables){
-            if (variable.programVariable()!=null){
-                ReflexParser.ProgramVariableContext programVariable = variable.programVariable();
-                String variableName = programVariable.name.getText();
-                if(programVariable.expression()!=null){
-                    ExpressionVisitor vis = new ExpressionVisitor(mapper,processName,state);
-                    ExprGenRes res = vis.visitExpression(programVariable.expression());
-                    ExprType ty = mapper.variableType(processName,variableName);
-                    state = StringUtils.constructSetter(ty,state,mapper.mapVariable(processName,variableName),res.getExpr().toString());
-                }else{
-                    ExprType ty = mapper.variableType(processName,variableName);
-                    state = StringUtils.constructSetter(ty,state,mapper.mapVariable(processName,variableName),ty.defaultValue());
-                }
-            }
-        }
-        return state;
-    }
+    }*/
 
     private Void initializeInputVariables(){
         for (Map.Entry<String,ExprType> variable: metaData.getInputVariablesNames().entrySet()){
@@ -270,7 +145,7 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         return null;
     }
     @Override
-    public Void visitProgram(ReflexParser.ProgramContext ctx) {
+    public GenReturn visitProgram(ReflexParser.ProgramContext ctx) {
         List<String> processNames = metaData.processNames();
         formula.addConjunct(new StateFormula(stateName(),(new StateType(stateName())).defaultValue()));
         for(String processName: processNames){
@@ -296,7 +171,9 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         formula.addConjunct(new RawFormula("base_inv",inv(stateName())));
         initializeInputVariables();
         for(ReflexParser.ProcessContext cont: ctx.processes){
-            visitProcess(cont);
+            GenReturn ret = visitProcess(cont);
+            if (ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
         }
         toE = toEnv(stateName());
         stateCount++;
@@ -304,75 +181,95 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         ImplicationFormula f2 = buildImplication(formula);
         finishVC(f2);
 
-        return null;
+        return new GenReturn(ReturnType.Normal);
     }
 
     @Override
-    public Void visitProcess(ReflexParser.ProcessContext ctx) {
+    public GenReturn visitProcess(ReflexParser.ProcessContext ctx) {
         currentProcess = ctx.name.getText();
-
-        if (traces.isReachable(currentProcess,"error")) {
-            branchStack.push(new BranchPoint(
-                    formula.peekLastConjunct(),
-                    ctx,
-                    -2,
-                    stateCount,
-                    currentProcess,
-                    currentState));
+        IAttributed last;
+        if (path.isEmpty()){
+            last =null;
+        } else{
+            last = path.getLast();
         }
-        if (traces.isReachable(currentProcess,"stop")) {
-            branchStack.push(new BranchPoint(
-                    formula.peekLastConjunct(),
-                    ctx,
-                    -1,
-                    stateCount,
-                    currentProcess,
-                    currentState));
-        }
+        branchStack.push(new BranchPoint(
+                formula.peekLastConjunct(),
+                last,
+                ctx,
+                -2,
+                stateCount,
+                currentProcess,
+                currentState));
+        branchStack.push(new BranchPoint(
+                formula.peekLastConjunct(),
+                last,
+                ctx,
+                -1,
+                stateCount,
+                currentProcess,
+                currentState));
         for(int i=ctx.states.size()-1;i>0;i--){
-            if (traces.isReachable(currentProcess,ctx.state(i).name.getText())) {
+            //
                 branchStack.push(new BranchPoint(
                         formula.peekLastConjunct(),
+                        last,
                         ctx,
                         i,
                         stateCount,
                         currentProcess,
                         currentState));
-            }
+            //}
         }
+
         formula.addConjunct(new EqualityFormula(
                 stateProcessStateName(currentProcess),
                 true,
                 new RawExpression(getPstate(stateName(),currentProcess)),
                 new RawExpression("''"+metaData.stateByIdx(currentProcess,0)+"''")));
-        visitState(ctx.states.get(0));
+        GenReturn ret = visitState(ctx.states.get(0));
+        if (ret.getReturnType().equals(ReturnType.ImpossibleVC))
+            return ret;
         if(formula.isMarkedReset()) {
             String setP = setPstate(stateName(), currentProcess, metaData.startState(currentProcess));
             stateCount++;
             formula.addConjunct(new StateFormula(stateName(), setP));
         }
-        return null;
+        return new GenReturn(ReturnType.Normal);
     }
 
     @Override
-    public Void visitState(ReflexParser.StateContext ctx) {
+    public GenReturn visitState(ReflexParser.StateContext ctx) {
         currentState = ctx.name.getText();
-        visitStatementSeq(ctx.stateFunction);
+
+        ProcessAttributes attr1 = (ProcessAttributes)collector.getAttributes(ctx.getParent());
+        attr1.setState(currentState);
+        path.push(attr1);
+
+        if(!checker.checkRules(path,attr1))return new GenReturn(ReturnType.ImpossibleVC);
+
+        StateAttributes attr2 = (StateAttributes)collector.getAttributes(ctx);
+        path.push(attr2);
+
+
+        GenReturn ret = visitStatementSeq(ctx.stateFunction);
+        if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+            return ret;
 
         if (ctx.func !=null){
-            visitTimeoutFunction( ctx.func);
+            ret = visitTimeoutFunction(ctx.func);
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
         }
         formula.addConjunct(new UnmarkSetState());
-        return null;
+        return new GenReturn(ReturnType.Normal);
     }
 
     @Override
-    public Void visitTimeoutFunction(ReflexParser.TimeoutFunctionContext ctx) {
-        if (formula.isMarkedReset() || formula.isMarkedSetState()){
-            return null;
-        }
+    public GenReturn visitTimeoutFunction(ReflexParser.TimeoutFunctionContext ctx) {
         branchStack.push(new BranchPoint(
                 formula.peekLastConjunct(),
+                path.getLast(),
                 ctx,
                 1,
                 stateCount,
@@ -380,8 +277,10 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
                 currentState));
         SymbolicExpression exp;
         if(ctx.timeAmountOrRef().time!=null){
+            if(!checker.checkTimeout(path))return new GenReturn(ReturnType.ImpossibleVC);
             exp = new ConstantExpression(ctx.timeAmountOrRef().time.getText(),new TimeType());
         } else if (ctx.timeAmountOrRef().intTime!=null){
+            if(!checker.checkTimeout(path))return new GenReturn(ReturnType.ImpossibleVC);
             exp = new ConstantExpression(ctx.timeAmountOrRef().intTime.getText(),new IntType());
         } else{
             String id = ctx.timeAmountOrRef().ref.getText();
@@ -392,9 +291,11 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
                 subExp.actuate(stateName());
                 exp = subExp;
             }else if (mapper.is_const(id)){
+                if(!checker.checkTimeout(path))return new GenReturn(ReturnType.ImpossibleVC);
                 t= mapper.constantType(id);
                 exp = new ConstantExpression(mapper.constantValue(id),t);
             } else{
+                if(!checker.checkTimeout(path))return new GenReturn(ReturnType.ImpossibleVC);
                 t = new IntType();
                 VariableExpression subExp = new VariableExpression(ctx.timeAmountOrRef().ref.getText(),t,true);
                 subExp.actuate(stateName());
@@ -407,12 +308,11 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
                 exp.toString(),
                 ltime(stateName(),currentProcess)
         ));
-        visitStatement(ctx.body);
-        return null;
+        return visitStatement(ctx.body);
     }
 
     @Override
-    public Void visitExprSt(ReflexParser.ExprStContext ctx) {
+    public GenReturn visitExprSt(ReflexParser.ExprStContext ctx) {
         ReflexParser.ExpressionContext e=ctx.expression();
         ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,stateName());
         ExprGenRes res = vis.visitExpression(e);
@@ -427,27 +327,31 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         stateCount++;
         Formula stateConj = new StateFormula(stateName(),newState);
         formula.addConjunct(stateConj);
-        return null;
+        return new GenReturn(ReturnType.Normal);
     }
 
     @Override
-    public Void visitStatementSeq(ReflexParser.StatementSeqContext ctx) {
+    public GenReturn visitStatementSeq(ReflexParser.StatementSeqContext ctx) {
         for(ReflexParser.StatementContext cont:ctx.statements){
-            visitStatement(cont);
+            GenReturn ret = visitStatement(cont);
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
         }
-        return null;
+        return new GenReturn(ReturnType.Normal);
     }
 
     @Override
-    public Void visitCompoundStatement(ReflexParser.CompoundStatementContext ctx) {
+    public GenReturn visitCompoundStatement(ReflexParser.CompoundStatementContext ctx) {
         for(ReflexParser.StatementContext cont:ctx.statements){
-            visitStatement(cont);
+            GenReturn ret = visitStatement(cont);
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
         }
-        return null;
+        return new GenReturn(ReturnType.Normal);
     }
 
     @Override
-    public Void visitIfElseSt(ReflexParser.IfElseStContext ctx) {
+    public GenReturn visitIfElseSt(ReflexParser.IfElseStContext ctx) {
         ReflexParser.ExpressionContext e=ctx.ifElseStat().cond;
         ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,stateName());
         ExprGenRes res = vis.visitExpression(e);
@@ -467,21 +371,23 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         }
         branchStack.push(new BranchPoint(
                 formula.peekLastConjunct(),
+                path.getLast(),
                 ctx,
                 1,
                 stateCount,
                 currentProcess,
                 currentState));
 
+        IfElseCore attr1 = (IfElseCore)collector.getAttributes(ctx.ifElseStat());
+        path.push(attr1.getTrueAttributes());
 
         formula.addConjunct(new EqualityFormula(stateIfName(),true, exp,new ConstantExpression("True",new BoolType())));
 
-        visitStatement(ctx.ifElseStat().then);
-        return null;
+        return visitStatement(ctx.ifElseStat().then);
     }
 
     @Override
-    public Void visitSwitchSt(ReflexParser.SwitchStContext ctx) {
+    public GenReturn visitSwitchSt(ReflexParser.SwitchStContext ctx) {
         ReflexParser.ExpressionContext e=ctx.switchStat().expr;
         ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,stateName());
         ExprGenRes res = vis.visitExpression(e);
@@ -500,20 +406,34 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
             formula.addConjunct(new StateFormula(stateName(),newState));
         }
         int numBranches = ctx.switchStat().options.size();
-        for(int i=numBranches;i>=1;i--){
+        for(int i=numBranches-1;i>=1;i--){
             branchStack.push(new BranchPoint(
                     formula.peekLastConjunct(),
+                    path.getLast(),
                     ctx,
                     i,
                     stateCount,
                     currentProcess,
                     currentState));
         }
+        if (ctx.switchStat().defaultOption!=null) {
+            branchStack.push(new BranchPoint(
+                    formula.peekLastConjunct(),
+                    path.getLast(),
+                    ctx,
+                    -1,
+                    stateCount,
+                    currentProcess,
+                    currentState));
+        }
+        SwitchCaseCore attr1 = (SwitchCaseCore)collector.getAttributes(ctx.switchStat());
+        path.push(attr1.getBranchAttributes().firstElement());
+
         boolean breakDef=false;
         ReflexParser.CaseStatContext baseCase=ctx.switchStat().options.get(0);
         ReflexParser.ExpressionContext e0 = baseCase.option;
         ExpressionVisitor vis0 = new ExpressionVisitor(mapper,currentProcess,stateName());
-        ExprGenRes res0 = vis0.visitExpression(e);
+        ExprGenRes res0 = vis0.visitExpression(e0);
         SymbolicExpression exp0 = res0.getExpr();
         if(!exp0.isActuated()){
             throw new RuntimeException("Using of non constant expression in case");
@@ -521,33 +441,35 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         formula.addConjunct(new EqualityFormula(stateBranchName(0),true,exp,exp0));
         for (int i=0;i<numBranches;i++){
             ReflexParser.CaseStatContext caseI=ctx.switchStat().options.get(i);
-            visitSwitchOptionStatSeq(caseI.switchOptionStatSeq());
+            GenReturn ret = visitSwitchOptionStatSeq(caseI.switchOptionStatSeq());
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
             if(!(caseI.switchOptionStatSeq().break_==null)){
                 breakDef=true;
                 break;
             }
         }
         if(!breakDef && ctx.switchStat().defaultOption!=null){
-            visitSwitchOptionStatSeq(ctx.switchStat().defaultOption.switchOptionStatSeq());
+            GenReturn ret = visitSwitchOptionStatSeq(ctx.switchStat().defaultOption.switchOptionStatSeq());
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
         }
-        return null;
+        return new GenReturn(ReturnType.Normal);
     }
 
     @Override
-    public Void visitSwitchOptionStatSeq(ReflexParser.SwitchOptionStatSeqContext ctx) {
+    public GenReturn visitSwitchOptionStatSeq(ReflexParser.SwitchOptionStatSeqContext ctx) {
         for(ReflexParser.StatementContext cont:ctx.statements){
-            visitStatement(cont);
+            GenReturn ret = visitStatement(cont);
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
         }
-        return null;
+        return new GenReturn(ReturnType.Normal);
     }
 
-    @Override
-    public Void visitDefaultStat(ReflexParser.DefaultStatContext ctx) {
-        return super.visitDefaultStat(ctx);
-    }
 
     @Override
-    public Void visitStartProcStat(ReflexParser.StartProcStatContext ctx) {
+    public GenReturn visitStartProcStat(ReflexParser.StartProcStatContext ctx) {
         String id = ctx.processId.getText();
         if (id.equals(currentProcess)){
             formula.addConjunct(new MarkRestart());
@@ -556,11 +478,11 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
             stateCount++;
             formula.addConjunct(new StateFormula(stateName(),setP));
         }
-        return null;
+        return new GenReturn(ReturnType.Normal);
     }
 
     @Override
-    public Void visitStopProcStat(ReflexParser.StopProcStatContext ctx) {
+    public GenReturn visitStopProcStat(ReflexParser.StopProcStatContext ctx) {
         Token id = ctx.processId;
         String setP;
         if (id==null){
@@ -571,11 +493,11 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         }
         stateCount++;
         formula.addConjunct(new StateFormula(stateName(),setP));
-        return null;
+        return new GenReturn(ReturnType.Normal);
     }
 
     @Override
-    public Void visitErrorProcStat(ReflexParser.ErrorProcStatContext ctx) {
+    public GenReturn visitErrorProcStat(ReflexParser.ErrorProcStatContext ctx) {
         Token id = ctx.processId;
         String setP;
         if (id==null){
@@ -586,26 +508,26 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         }
         stateCount++;
         formula.addConjunct(new StateFormula(stateName(),setP));
-        return null;
+        return new GenReturn(ReturnType.Normal);
     }
 
     @Override
-    public Void visitRestartStat(ReflexParser.RestartStatContext ctx) {
+    public GenReturn visitRestartStat(ReflexParser.RestartStatContext ctx) {
         formula.addConjunct(new MarkRestart());
-        return null;
+        return new GenReturn(ReturnType.Normal);
     }
 
     @Override
-    public Void visitResetStat(ReflexParser.ResetStatContext ctx) {
+    public GenReturn visitResetStat(ReflexParser.ResetStatContext ctx) {
         String res = reset(stateName(),currentProcess);
         formula.addConjunct(new MarkSetState());
         stateCount++;
         formula.addConjunct(new StateFormula(stateName(),res));
-        return null;
+        return new GenReturn(ReturnType.Normal);
     }
 
     @Override
-    public Void visitSetStateStat(ReflexParser.SetStateStatContext ctx) {
+    public GenReturn visitSetStateStat(ReflexParser.SetStateStatContext ctx) {
         Token id = ctx.stateId;
         String nextProcessStateName;
         if (id == null){
@@ -617,12 +539,12 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         stateCount++;
         formula.addConjunct(new StateFormula(stateName(),setP));
         formula.addConjunct(new MarkSetState());
-        return null;
+        return new GenReturn(ReturnType.Normal);
     }
 
-    public Void visitStatement(ReflexParser.StatementContext ctx){
+    public GenReturn visitStatement(ReflexParser.StatementContext ctx){
         if (ctx instanceof ReflexParser.EmptyStContext){
-            return null;
+            return new GenReturn(ReturnType.Normal);
         }
         if (ctx instanceof ReflexParser.StartProcessStContext){
             return visitStartProcessSt((ReflexParser.StartProcessStContext)ctx);
@@ -657,47 +579,48 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         throw new RuntimeException("Trying to visit unknown statement");
     }
 
-    private void visitRest(RuleContext ctx, ParserRuleContext childCtx){
+    private GenReturn visitRest(RuleContext ctx, ParserRuleContext childCtx) {
         if (ctx instanceof ReflexParser.CompoundStContext){
-            visitCompoundStRest((ReflexParser.CompoundStContext)ctx,childCtx);
+            return visitCompoundStRest((ReflexParser.CompoundStContext)ctx,childCtx);
         }
         if (ctx instanceof ReflexParser.CompoundStatementContext){
-            visitCompoundStatementRest((ReflexParser.CompoundStatementContext)ctx,childCtx);
+            return visitCompoundStatementRest((ReflexParser.CompoundStatementContext)ctx,childCtx);
         }
         if (ctx instanceof ReflexParser.StatementSeqContext){
-            visitStatementSeqRest((ReflexParser.StatementSeqContext)ctx,childCtx);
+            return visitStatementSeqRest((ReflexParser.StatementSeqContext)ctx,childCtx);
         }
         if (ctx instanceof ReflexParser.IfElseStContext){
-            visitIfElseStRest((ReflexParser.IfElseStContext)ctx,childCtx);
+            return visitIfElseStRest((ReflexParser.IfElseStContext)ctx,childCtx);
         }
         if (ctx instanceof ReflexParser.IfElseStatContext){
-            visitIfElseStRest((ReflexParser.IfElseStContext)ctx.parent,childCtx);
+            return visitIfElseStRest((ReflexParser.IfElseStContext)ctx.parent,childCtx);
         }
         if (ctx instanceof ReflexParser.SwitchOptionStatSeqContext){
-            visitSwitchOptionStatSeqRest((ReflexParser.SwitchOptionStatSeqContext)ctx,childCtx);
+            return visitSwitchOptionStatSeqRest((ReflexParser.SwitchOptionStatSeqContext)ctx,childCtx);
         }
         if (ctx instanceof ReflexParser.CaseStatContext){
-            visitSwitchStRest((ReflexParser.SwitchStContext)ctx.parent.parent,childCtx);
+            return visitSwitchStRest((ReflexParser.SwitchStContext)ctx.parent.parent,childCtx);
         }
         if (ctx instanceof ReflexParser.DefaultStatContext){
             ParserRuleContext newChild = (ReflexParser.SwitchStContext)ctx.parent.parent;
-            visitRest(newChild.parent,newChild);
+            return visitRest(newChild.parent,newChild);
         }
         if (ctx instanceof ReflexParser.TimeoutFunctionContext){
-            visitRest(ctx.parent,(ReflexParser.TimeoutFunctionContext)ctx);
+            return visitRest(ctx.parent,(ReflexParser.TimeoutFunctionContext)ctx);
         }
         if (ctx instanceof ReflexParser.StateContext){
-            visitStateRest((ReflexParser.StateContext)ctx,childCtx);
+            return visitStateRest((ReflexParser.StateContext)ctx,childCtx);
         }
         if (ctx instanceof ReflexParser.ProcessContext){
-            visitProcessRest((ReflexParser.ProcessContext)ctx,childCtx);
+            return visitProcessRest((ReflexParser.ProcessContext)ctx,childCtx);
         }
         if (ctx instanceof ReflexParser.ProgramContext){
-            visitProgramRest((ReflexParser.ProgramContext)ctx,childCtx);
+            return visitProgramRest((ReflexParser.ProgramContext)ctx,childCtx);
         }
+        throw new RuntimeException("No branch in visitRest");
     }
 
-    private void visitCompoundStRest(ReflexParser.CompoundStContext ctx, ParserRuleContext childCtx){
+    private GenReturn visitCompoundStRest(ReflexParser.CompoundStContext ctx, ParserRuleContext childCtx) {
         List<ReflexParser.StatementContext> sts = ctx.compoundStatement().statements;
         int i=0;
         for(;i<sts.size();i++){
@@ -707,16 +630,17 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         }
         i++;
         for(;i<sts.size();i++){
-            visitStatement(sts.get(i));
+            GenReturn ret = visitStatement(sts.get(i));
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
         }
-
-        visitRest(ctx.parent,ctx);
+        return visitRest(ctx.parent,ctx);
     }
-    private void visitCompoundStatementRest(ReflexParser.CompoundStatementContext ctx, ParserRuleContext childCtx){
-        visitCompoundStRest((ReflexParser.CompoundStContext)ctx.parent,childCtx);
+    private GenReturn visitCompoundStatementRest(ReflexParser.CompoundStatementContext ctx, ParserRuleContext childCtx){
+        return visitCompoundStRest((ReflexParser.CompoundStContext)ctx.parent,childCtx);
     }
 
-    private void visitStatementSeqRest(ReflexParser.StatementSeqContext ctx,ParserRuleContext childCtx){
+    private GenReturn visitStatementSeqRest(ReflexParser.StatementSeqContext ctx,ParserRuleContext childCtx) {
         List<ReflexParser.StatementContext> sts = ctx.statements;
         int i=0;
         for(;i<sts.size();i++){
@@ -726,19 +650,21 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         }
         i++;
         for(;i<sts.size();i++){
-            visitStatement(sts.get(i));
+            GenReturn ret = visitStatement(sts.get(i));
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
         }
 
-        visitRest(ctx.parent,ctx);
+        return visitRest(ctx.parent,ctx);
     }
-    private void visitIfElseStRest(ReflexParser.IfElseStContext ctx, ParserRuleContext childCtx){
-        visitRest(ctx.parent,ctx);
+    private GenReturn visitIfElseStRest(ReflexParser.IfElseStContext ctx, ParserRuleContext childCtx){
+        return visitRest(ctx.parent,ctx);
     }
-    private void visitIfElseStatRest(ReflexParser.IfElseStatContext ctx, ParserRuleContext childCtx){
-        visitRest(ctx.parent.parent,ctx);
+    private GenReturn visitIfElseStatRest(ReflexParser.IfElseStatContext ctx, ParserRuleContext childCtx){
+        return visitRest(ctx.parent.parent,ctx);
     }
 
-    private void visitSwitchOptionStatSeqRest(ReflexParser.SwitchOptionStatSeqContext ctx, ParserRuleContext childCtx){
+    private GenReturn visitSwitchOptionStatSeqRest(ReflexParser.SwitchOptionStatSeqContext ctx, ParserRuleContext childCtx){
         List<ReflexParser.StatementContext> sts = ctx.statements;
         int i=0;
         for(;i<sts.size();i++){
@@ -748,12 +674,14 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         }
         i++;
         for(;i<sts.size();i++){
-            visitStatement(sts.get(i));
+            GenReturn ret = visitStatement(sts.get(i));
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
         }
 
-        visitRest(ctx.parent,ctx);
+        return visitRest(ctx.parent,ctx);
     }
-    private void visitSwitchStRest(ReflexParser.SwitchStContext ctx, ParserRuleContext childCtx){
+    private GenReturn visitSwitchStRest(ReflexParser.SwitchStContext ctx, ParserRuleContext childCtx) {
         List<ReflexParser.CaseStatContext> cases = ctx.switchStat().options;
         int i=0;
         for(;i<cases.size();i++){
@@ -762,41 +690,53 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
             }
         }
         if (cases.get(i).switchOptionStatSeq().break_!=null){
-            visitRest(ctx.parent,ctx);
+            GenReturn ret = visitRest(ctx.parent,ctx);
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
         }
         boolean breakDef = false;
         i++;
         for(;i<cases.size();i++){
-            visitSwitchOptionStatSeq(cases.get(i).switchOptionStatSeq());
+            GenReturn ret = visitSwitchOptionStatSeq(cases.get(i).switchOptionStatSeq());
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
             if (cases.get(i).switchOptionStatSeq().break_!=null){
                 breakDef=true;
                 break;
             }
         }
         if(!breakDef && ctx.switchStat().defaultOption!=null){
-            visitSwitchOptionStatSeq(ctx.switchStat().defaultOption.switchOptionStatSeq());
+            GenReturn ret = visitSwitchOptionStatSeq(ctx.switchStat().defaultOption.switchOptionStatSeq());
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
         }
+
+        return visitRest(ctx.parent.parent,ctx);
     }
 
-    private void visitTimeoutRest(ReflexParser.TimeoutFunctionContext ctx, ParserRuleContext childCtx){
-        visitTimeoutFunction(ctx);
-        visitRest(ctx.parent.parent,ctx);
+    private GenReturn visitTimeoutRest(ReflexParser.TimeoutFunctionContext ctx, ParserRuleContext childCtx) {
+        GenReturn ret = visitTimeoutFunction(ctx);
+        if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+            return ret;
+        return visitRest(ctx.parent.parent,ctx);
     }
 
-    private void visitStateRest(ReflexParser.StateContext ctx, ParserRuleContext childCtx){
+    private GenReturn visitStateRest(ReflexParser.StateContext ctx, ParserRuleContext childCtx) {
         if (ctx.timeoutFunction()!=null){
-            visitTimeoutRest(ctx.timeoutFunction(),null);
+            GenReturn ret = visitTimeoutRest(ctx.timeoutFunction(),null);
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
         }
         formula.addConjunct(new UnmarkSetState());
-        visitProcessRest((ReflexParser.ProcessContext)ctx.parent,ctx);
+        return visitProcessRest((ReflexParser.ProcessContext)ctx.parent,ctx);
     }
 
-    private void visitProcessRest(ReflexParser.ProcessContext ctx, ParserRuleContext childCtx){
+    private GenReturn visitProcessRest(ReflexParser.ProcessContext ctx, ParserRuleContext childCtx) {
         formula.addConjunct(new UnmarkReset());
-        visitProgramRest((ReflexParser.ProgramContext)ctx.parent,ctx);
+        return visitProgramRest((ReflexParser.ProgramContext)ctx.parent,ctx);
     }
 
-    private void visitProgramRest(ReflexParser.ProgramContext ctx, ParserRuleContext childCtx){
+    private GenReturn visitProgramRest(ReflexParser.ProgramContext ctx, ParserRuleContext childCtx) {
         List<ReflexParser.ProcessContext> processes = ctx.processes;
         int i=0;
         for (;i<processes.size();i++){
@@ -806,79 +746,116 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         }
         i++;
         for(;i<processes.size();i++){
-            visitProcess(processes.get(i));
+            GenReturn ret =  visitProcess(processes.get(i));
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
         }
+
+        return new GenReturn(ReturnType.Normal);
     }
 
-    private void visitMiss(BranchPoint point){
+    private GenReturn visitMiss(BranchPoint point) {
         this.stateCount = point.stateCount;
         this.currentProcess = point.processName;
         this.currentState = point.stateName;
         this.formula.trimByFormula(point.formula);
+
+        if (point.attributed!=null){
+            ArrayList<IAttributed> buff= new ArrayList<>(this.path);
+            buff.subList(0,buff.indexOf(point.attributed)+1);
+            this.path = new ArrayDeque<>(buff);
+        }else{
+            this.path.clear();
+        }
+
         if(point.ifCtx!=null){
-            visitIfElseMiss(point.ifCtx,point.branch);
+                return visitIfElseMiss(point.ifCtx,point.branch);
         }
         else if(point.switchCtx!=null){
-            visitSwitchMiss(point.switchCtx,point.branch);
+                return visitSwitchMiss(point.switchCtx,point.branch);
         }
         else if(point.timeoutCtx!=null){
-            visitTimeoutMiss(point.timeoutCtx,point.branch);
+                return visitTimeoutMiss(point.timeoutCtx,point.branch);
         }
         else if(point.processCtx!=null){
-            visitProcessMiss(point.processCtx,point.branch);
+                return visitProcessMiss(point.processCtx,point.branch);
         }
         else{
             throw new RuntimeException("undefined branch point");
         }
     }
 
-    private void visitIfElseMiss(ReflexParser.IfElseStContext ctx, int i){
+    private GenReturn visitIfElseMiss(ReflexParser.IfElseStContext ctx, int i)  {
         ReflexParser.ExpressionContext e=ctx.ifElseStat().cond;
         ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,stateName());
         ExprGenRes res = vis.visitExpression(e);
         SymbolicExpression exp = res.getExpr();
         exp.actuate(stateName());
         if (i==1){
-            formula.addConjunct(new EqualityFormula(stateIfName(), true, exp, new RawExpression("False")));
-            if (ctx.ifElseStat().else_!=null) {
-                visitStatement(ctx.ifElseStat().else_);
+            IfElseCore attr1 = (IfElseCore)collector.getAttributes(ctx.ifElseStat());
+            //If no FalseAttributes then no else branch
+            if(attr1.getFalseAttributes()!=null){
+                path.push(attr1.getFalseAttributes());
+                formula.addConjunct(new EqualityFormula(stateIfName(), true, exp, new RawExpression("False")));
+                GenReturn ret = visitStatement(ctx.ifElseStat().else_);
+                if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                    return ret;
             }
         }else{
+            IfElseCore attr1 = (IfElseCore)collector.getAttributes(ctx.ifElseStat());
+            path.push(attr1.getTrueAttributes());
             formula.addConjunct(new EqualityFormula(stateIfName(),true,exp,new RawExpression("True")));
-            visitStatement(ctx.ifElseStat().then);
+            GenReturn ret = visitStatement(ctx.ifElseStat().then);
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
         }
-        visitRest(ctx.parent,ctx);
+        return visitRest(ctx.parent,ctx);
     }
-    private void visitSwitchMiss(ReflexParser.SwitchStContext ctx, int i){
+    private GenReturn visitSwitchMiss(ReflexParser.SwitchStContext ctx, int i) {
         ReflexParser.ExpressionContext e=ctx.switchStat().expr;
         ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,stateName());
         ExprGenRes res = vis.visitExpression(e);
         SymbolicExpression exp = res.getExpr();
         exp.actuate(stateName());
         boolean breakDef=false;
-        for(int j=0;j<i;j++){
-            SymbolicExpression subExp = vis.visitExpression(ctx.switchStat().options.get(j).option).expr;
-            formula.addConjunct(new EqualityFormula(stateBranchName(j)+"_neg",false,exp,subExp));
-        }
-        SymbolicExpression subExp = vis.visitExpression(ctx.switchStat().options.get(i).option).expr;
-        formula.addConjunct(new EqualityFormula(stateBranchName(i)+"_neg",false,exp,subExp));
-        for (;i<ctx.switchStat().options.size();i++){
-            ReflexParser.CaseStatContext caseI=ctx.switchStat().options.get(i);
-            visitSwitchOptionStatSeq(caseI.switchOptionStatSeq());
-            if(!(caseI.switchOptionStatSeq().break_==null)){
-                breakDef=true;
-                break;
+        if(i!=-1) {
+            SwitchCaseCore attr1 = (SwitchCaseCore)collector.getAttributes(ctx.switchStat());
+            path.push(attr1.getBranchAttributes().get(i));
+            for (int j = 0; j < i; j++) {
+                SymbolicExpression subExp = vis.visitExpression(ctx.switchStat().options.get(j).option).expr;
+                formula.addConjunct(new EqualityFormula(stateBranchName(j) + "_neg", false, exp, subExp));
             }
+            SymbolicExpression subExp = vis.visitExpression(ctx.switchStat().options.get(i).option).expr;
+            formula.addConjunct(new EqualityFormula(stateBranchName(i) + "_neg", false, exp, subExp));
+            for (; i < ctx.switchStat().options.size(); i++) {
+                ReflexParser.CaseStatContext caseI = ctx.switchStat().options.get(i);
+                GenReturn ret = visitSwitchOptionStatSeq(caseI.switchOptionStatSeq());
+                if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                    return ret;
+                if (!(caseI.switchOptionStatSeq().break_ == null)) {
+                    breakDef = true;
+                    break;
+                }
+            }
+            if (!breakDef && ctx.switchStat().defaultOption != null) {
+                GenReturn ret = visitSwitchOptionStatSeq(ctx.switchStat().defaultOption.switchOptionStatSeq());
+                if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                    return ret;
+            }
+        }else{
+            SwitchCaseCore attr1 = (SwitchCaseCore)collector.getAttributes(ctx.switchStat());
+            path.push(attr1.getDefaultBranchAttributes());
+            for (int j = 0; j < ctx.switchStat().options.size(); j++) {
+                SymbolicExpression subExp = vis.visitExpression(ctx.switchStat().options.get(j).option).expr;
+                formula.addConjunct(new EqualityFormula(stateBranchName(j) + "_neg", false, exp, subExp));
+            }
+            GenReturn ret = visitSwitchOptionStatSeq(ctx.switchStat().defaultOption.switchOptionStatSeq());
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
         }
-        if(!breakDef && ctx.switchStat().defaultOption!=null){
-            visitSwitchOptionStatSeq(ctx.switchStat().defaultOption.switchOptionStatSeq());
-        }
-        visitRest(ctx.parent,ctx);
+        return visitRest(ctx.parent,ctx);
     }
-    private void visitTimeoutMiss(ReflexParser.TimeoutFunctionContext ctx, int i){
-        if (formula.isMarkedReset() || formula.isMarkedSetState()){
-            visitRest(ctx.parent.parent,ctx);
-        }
+    private GenReturn visitTimeoutMiss(ReflexParser.TimeoutFunctionContext ctx, int i)  {
         SymbolicExpression exp;
         if(ctx.timeAmountOrRef().time!=null){
             exp = new ConstantExpression(ctx.timeAmountOrRef().time.getText(),new TimeType());
@@ -904,13 +881,16 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
         }
 
         if (i==0){
+            if(!checker.checkTimeout(path))return new GenReturn(ReturnType.ImpossibleVC);
             formula.addConjunct(new GreaterFormula(
                     stateTimeoutName(currentState),
                     false,
                     exp.toString(),
                     ltime(stateName(),currentProcess)
             ));
-            visitStatement(ctx.body);
+            GenReturn ret = visitStatement(ctx.body);
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
         }else{
             formula.addConjunct(new GreaterFormula(
                     stateTimeoutName(currentState),
@@ -919,17 +899,27 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
                     ltime(stateName(),currentProcess)
             ));
         }
-        visitRest(ctx.parent.parent,ctx);
+        return visitRest(ctx.parent.parent,ctx);
     }
-    private void visitProcessMiss(ReflexParser.ProcessContext ctx, int i){
+    private GenReturn visitProcessMiss(ReflexParser.ProcessContext ctx, int i) {
         String processName = ctx.name.getText();
         if (i==-2){
+            ProcessAttributes attr1 = (ProcessAttributes)collector.getAttributes(ctx);
+            attr1.setState("error");
+            path.push(attr1);
+            if(!checker.checkRules(path,attr1))return new GenReturn(ReturnType.ImpossibleVC);
+
             formula.addConjunct(new EqualityFormula(
                     stateProcessStateName(currentProcess),
                     true,
                     new RawExpression(getPstate(stateName(),currentProcess)),
                     new RawExpression("''error''")));
         }else if (i==-1){
+            ProcessAttributes attr1 = (ProcessAttributes)collector.getAttributes(ctx);
+            attr1.setState("break");
+            path.push(attr1);
+            if(!checker.checkRules(path,attr1))return new GenReturn(ReturnType.ImpossibleVC);
+
             formula.addConjunct(new EqualityFormula(
                     stateProcessStateName(currentProcess),
                     true,
@@ -941,24 +931,28 @@ public class VCGenerator extends ReflexBaseVisitor<Void> {
                     true,
                     new RawExpression(getPstate(stateName(),currentProcess)),
                     new RawExpression("''"+metaData.stateByIdx(currentProcess,i)+"''")));
-            visitState(ctx.states.get(i));
+            GenReturn ret = visitState(ctx.states.get(i));
+            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+                return ret;
             if(formula.isMarkedReset()) {
                 String setP = setPstate(stateName(), processName, "''"+metaData.startState(processName)+"''");
                 stateCount++;
                 formula.addConjunct(new StateFormula(stateName(), setP));
             }
         }
-        visitRest(ctx.parent,ctx);
+        return visitRest(ctx.parent,ctx);
     }
 
     private void visitStack(){
         while (!branchStack.isEmpty()){
-            visitMiss(branchStack.pop());
-            String toE = toEnv(stateName());
-            stateCount++;
-            formula.addConjunct(new StateFormula(stateName(),toE));
-            ImplicationFormula f = buildImplication(formula);
-            finishVC(f);
+            GenReturn ret = visitMiss(branchStack.pop());
+            if(ret.getReturnType().equals(ReturnType.Normal)){
+                String toE = toEnv(stateName());
+                stateCount++;
+                formula.addConjunct(new StateFormula(stateName(),toE));
+                ImplicationFormula f = buildImplication(formula);
+                finishVC(f);
+            }
         }
     }
 

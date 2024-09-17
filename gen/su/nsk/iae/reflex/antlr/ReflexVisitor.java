@@ -2,6 +2,7 @@
 package su.nsk.iae.reflex.antlr;
 import org.antlr.v4.runtime.tree.ParseTreeVisitor;
 
+import su.nsk.iae.reflex.antlr.ReflexParser;
 /**
  * This interface defines a complete generic visitor for a parse tree produced
  * by {@link ReflexParser}.
