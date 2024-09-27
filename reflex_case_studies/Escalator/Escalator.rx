@@ -1,4 +1,5 @@
 program Escalator{
+	clock 100;
 	input inp 0x00 0x00 8;
 	output out 0x00 0x01 8;
 	

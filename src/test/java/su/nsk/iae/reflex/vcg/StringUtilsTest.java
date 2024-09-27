@@ -74,6 +74,7 @@ class StringUtilsTest {
     void parseTime() {
         assertEquals(String.valueOf(24*60*60*1000),StringUtils.parseTime("0t1d"));
         assertEquals(String.valueOf(3*60*60*1000+60*1000+10),StringUtils.parseTime("0t3h1m10ms"));
+        assertEquals(String.valueOf(3*60*60*1000+60*1000+3*1000+10),StringUtils.parseTime("0t3h1m3s10ms"));
         assertEquals(String.valueOf(3*1000+5),StringUtils.parseTime("0t3s5ms"));
     }
 }

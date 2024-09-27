@@ -55,76 +55,44 @@ public class StringUtils {
         return value.substring(0, 1).toUpperCase() + value.substring(1);
     }
     public static String parseTime(String value){
+        value = value.toUpperCase();
         int days=0;
         int idx =2;
         int nextIdx= value.indexOf('D');
-        if (nextIdx ==-1){
-            nextIdx = value.indexOf('d');
-            if (nextIdx!=-1){
-                days = Integer.valueOf(value.substring(idx,nextIdx));
-                idx = nextIdx+1;
-            }
-        }else{
+        if (nextIdx !=-1){
             days = Integer.valueOf(value.substring(idx,nextIdx));
             idx = nextIdx+1;
         }
 
-
         int hours =0;
         nextIdx= value.indexOf('H');
-        if (nextIdx ==-1){
-            nextIdx = value.indexOf('h');
-            if (nextIdx!=-1){
-                hours = Integer.valueOf(value.substring(idx,nextIdx));
-                idx = nextIdx+1;
-            }
-        }else{
+        if (nextIdx !=-1){
             hours = Integer.valueOf(value.substring(idx,nextIdx));
             idx = nextIdx+1;
         }
 
         int minute =0;
         nextIdx= value.indexOf('M');
-        if (nextIdx ==-1){
-            nextIdx = value.indexOf('m');
-            if (nextIdx!=-1 && value.charAt(nextIdx+1)!='s'){
+        if (nextIdx !=-1){
+            if (nextIdx+1== value.length() ||  value.charAt(nextIdx+1)!='S'){
                 minute = Integer.valueOf(value.substring(idx,nextIdx));
                 idx = nextIdx+1;
             }
-        }else{
-            if (value.charAt(nextIdx+1)!='S'){
-                minute = Integer.valueOf(value.substring(idx,nextIdx));
-                idx = nextIdx+1;
-            }
-
         }
 
         int second =0;
         nextIdx= value.indexOf('S');
-        if (nextIdx ==-1){
-            nextIdx = value.indexOf('s');
-            if (nextIdx!=-1 && value.charAt(nextIdx-1)!='m'){
+        if (nextIdx !=-1){
+            if (value.charAt(nextIdx-1)!='M'){
                 second = Integer.valueOf(value.substring(idx,nextIdx));
-                idx = nextIdx+1;
-            }
-        }else{
-            if (value.charAt(nextIdx-1)!='M') {
-                second = Integer.valueOf(value.substring(idx, nextIdx));
                 idx = nextIdx+1;
             }
         }
 
         int milisecond =0;
         nextIdx= value.indexOf("MS");
-        if (nextIdx ==-1){
-            nextIdx = value.indexOf("ms");
-            if (nextIdx!=-1){
-                milisecond = Integer.valueOf(value.substring(idx,nextIdx));
-                idx = nextIdx+1;
-            }
-        }else{
+        if (nextIdx !=-1){
             milisecond = Integer.valueOf(value.substring(idx,nextIdx));
-            idx = nextIdx+1;
         }
 
         int res = days*24*60*60*1000
