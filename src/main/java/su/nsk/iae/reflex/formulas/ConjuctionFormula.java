@@ -82,7 +82,7 @@ public class ConjuctionFormula implements Formula{
             throw new RuntimeException("Formula from stack not found");
         }
     }
-     public boolean isMarkedSetState(){
+     /*public boolean isMarkedSetState(){
          Iterator<Formula> iter = formulas.descendingIterator();
          while (iter.hasNext()){
              Formula formula = iter.next();
@@ -94,7 +94,7 @@ public class ConjuctionFormula implements Formula{
              }
          }
          return false;
-     }
+     }*/
     public boolean isMarkedReset(){
         Iterator<Formula> iter = formulas.descendingIterator();
         while (iter.hasNext()){

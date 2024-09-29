@@ -83,12 +83,12 @@ public class SwitchCaseAttributes implements IAttributed {
 
     @Override
     public ParserRuleContext getAttributedContext() {
-        return null;
+        return attributedContext;
     }
 
     @Override
     public AttributedContextType getContextType() {
-        return null;
+        return AttributedContextType.SwitchCase;
     }
 
     public HashMap<ReflexParser.ProcessContext, ChangeType> getProcChange() {

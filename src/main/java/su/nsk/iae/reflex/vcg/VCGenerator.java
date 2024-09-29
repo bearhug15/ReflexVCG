@@ -11,6 +11,7 @@ import su.nsk.iae.reflex.expression.VariableExpression;
 import su.nsk.iae.reflex.expression.types.*;
 import su.nsk.iae.reflex.formulas.*;
 //import su.nsk.iae.reflex.staticAnalysis.ProgramAnalyzer;
+import su.nsk.iae.reflex.staticAnalysis.AttributedPath;
 import su.nsk.iae.reflex.staticAnalysis.ProgramAnalyzer2;
 import su.nsk.iae.reflex.staticAnalysis.RuleChecker;
 import su.nsk.iae.reflex.staticAnalysis.attributes.*;
@@ -24,7 +25,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
     VariableMapper mapper;
     ConjuctionFormula formula;
 
-    ArrayDeque<IAttributed> path;
+    AttributedPath path;
     Integer stateCount;
     String currentProcess;
     String currentState;
@@ -42,7 +43,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
     public VCGenerator(){
         stateCount = 0;
         formula = new ConjuctionFormula();
-        path = new ArrayDeque<>();
+        path = new AttributedPath();
         mapper = null;
         branchStack = new Stack<>();
         metaData = null;
@@ -50,54 +51,6 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         //traces = new ProcessStateTraces();
         ifCounter = new HashMap<>();
         conditionsGenerated = 0;
-    }
-
-    public void test(){
-        //String sourceName = source.getFileName().toString();
-        CharStream inputStream = CharStreams.fromString("program Dryer {\n" +
-                "clock 100;\n" +
-                "input inp 0x00 0x00 8;\n" +
-                "output out 0x00 0x01 8;\n" +
-                "const bool ON = true;\n" +
-                "const bool OFF = false;\n" +
-                "const time TIMEOUT = 0t2s;\n" +
-                "process Dryer {\n" +
-                "bool hands_under_dryer = inp[1];\n" +
-                "bool dryer_control = out[1];\n" +
-                "state Wait {\n" +
-                "if (hands_under_dryer) {\n" +
-                "dryer_control = ON;\n" +
-                "set state Work;\n" +
-                "}\n" +
-                "}\n" +
-                "state Work {\n" +
-                "if (hands_under_dryer) reset timer;timeout (TIMEOUT) {\n" +
-                "dryer_control = OFF;\n" +
-                "set state Wait;\n" +
-                "}\n" +
-                "}\n" +
-                "}\n" +
-                "}");
-        try {
-            ReflexLexer lexer = new ReflexLexer(inputStream);
-            CommonTokenStream tokenStream = new CommonTokenStream(lexer);
-            ReflexParser parser = new ReflexParser(tokenStream);
-            ReflexParser.ProgramContext context = parser.program();
-
-            mapper = new VariableMapper(context);
-            metaData = new ProgramMetaData(context,mapper);
-            printer = new VCPrinter(Path.of("./"),"test",metaData);
-            checker = new RuleChecker(metaData);
-            ProgramAnalyzer2 analyzer2 = new ProgramAnalyzer2(metaData);
-            collector = analyzer2.generateAttributes(context);
-
-            visitProgram(context);
-            visitStack();
-
-        }catch (Exception e){
-            throw new RuntimeException(e);
-        }
-
     }
 
     public void generateVC(Path source, Path destination){
@@ -188,11 +141,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
     public GenReturn visitProcess(ReflexParser.ProcessContext ctx) {
         currentProcess = ctx.name.getText();
         IAttributed last;
-        if (path.isEmpty()){
-            last =null;
-        } else{
-            last = path.getLast();
-        }
+        last = path.peekLast();
         branchStack.push(new BranchPoint(
                 formula.peekLastConjunct(),
                 last,
@@ -244,12 +193,12 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
 
         ProcessAttributes attr1 = (ProcessAttributes)collector.getAttributes(ctx.getParent());
         attr1.setState(currentState);
-        path.push(attr1);
+        path.add (attr1);
 
         if(!checker.checkRules(path,attr1))return new GenReturn(ReturnType.ImpossibleVC);
 
         StateAttributes attr2 = (StateAttributes)collector.getAttributes(ctx);
-        path.push(attr2);
+        path.add(attr2);
 
 
         GenReturn ret = visitStatementSeq(ctx.stateFunction);
@@ -261,7 +210,6 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
             if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
                 return ret;
         }
-        formula.addConjunct(new UnmarkSetState());
         return new GenReturn(ReturnType.Normal);
     }
 
@@ -269,7 +217,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
     public GenReturn visitTimeoutFunction(ReflexParser.TimeoutFunctionContext ctx) {
         branchStack.push(new BranchPoint(
                 formula.peekLastConjunct(),
-                path.getLast(),
+                path.peekLast(),
                 ctx,
                 1,
                 stateCount,
@@ -371,7 +319,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         }
         branchStack.push(new BranchPoint(
                 formula.peekLastConjunct(),
-                path.getLast(),
+                path.peekLast(),
                 ctx,
                 1,
                 stateCount,
@@ -379,7 +327,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
                 currentState));
 
         IfElseCore attr1 = (IfElseCore)collector.getAttributes(ctx.ifElseStat());
-        path.push(attr1.getTrueAttributes());
+        path.add(attr1.getTrueAttributes());
 
         formula.addConjunct(new EqualityFormula(stateIfName(),true, exp,new ConstantExpression("True",new BoolType())));
 
@@ -409,7 +357,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         for(int i=numBranches-1;i>=1;i--){
             branchStack.push(new BranchPoint(
                     formula.peekLastConjunct(),
-                    path.getLast(),
+                    path.peekLast(),
                     ctx,
                     i,
                     stateCount,
@@ -419,7 +367,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         if (ctx.switchStat().defaultOption!=null) {
             branchStack.push(new BranchPoint(
                     formula.peekLastConjunct(),
-                    path.getLast(),
+                    path.peekLast(),
                     ctx,
                     -1,
                     stateCount,
@@ -427,7 +375,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
                     currentState));
         }
         SwitchCaseCore attr1 = (SwitchCaseCore)collector.getAttributes(ctx.switchStat());
-        path.push(attr1.getBranchAttributes().firstElement());
+        path.add(attr1.getBranchAttributes().firstElement());
 
         boolean breakDef=false;
         ReflexParser.CaseStatContext baseCase=ctx.switchStat().options.get(0);
@@ -487,7 +435,6 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         String setP;
         if (id==null){
             setP = setPstate(stateName(),currentProcess,"''stop''");
-            formula.addConjunct(new MarkSetState());
         }else{
             setP = setPstate(stateName(),id.getText(),"''stop''");
         }
@@ -502,7 +449,6 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         String setP;
         if (id==null){
             setP = setPstate(stateName(),currentProcess,"''error''");
-            formula.addConjunct(new MarkSetState());
         }else{
             setP = setPstate(stateName(),id.getText(),"''error''");
         }
@@ -520,7 +466,6 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
     @Override
     public GenReturn visitResetStat(ReflexParser.ResetStatContext ctx) {
         String res = reset(stateName(),currentProcess);
-        formula.addConjunct(new MarkSetState());
         stateCount++;
         formula.addConjunct(new StateFormula(stateName(),res));
         return new GenReturn(ReturnType.Normal);
@@ -538,7 +483,6 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         String setP = setPstate(stateName(),currentProcess,nextProcessStateName);
         stateCount++;
         formula.addConjunct(new StateFormula(stateName(),setP));
-        formula.addConjunct(new MarkSetState());
         return new GenReturn(ReturnType.Normal);
     }
 
@@ -616,6 +560,9 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         }
         if (ctx instanceof ReflexParser.ProgramContext){
             return visitProgramRest((ReflexParser.ProgramContext)ctx,childCtx);
+        }
+        if (ctx instanceof ReflexParser.TimeoutFunctionContext){
+            return visitTimeoutRest((ReflexParser.TimeoutFunctionContext)ctx,childCtx);
         }
         throw new RuntimeException("No branch in visitRest");
     }
@@ -723,11 +670,10 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
 
     private GenReturn visitStateRest(ReflexParser.StateContext ctx, ParserRuleContext childCtx) {
         if (ctx.timeoutFunction()!=null){
-            GenReturn ret = visitTimeoutRest(ctx.timeoutFunction(),null);
+            GenReturn ret = visitTimeoutFunction(ctx.timeoutFunction());
             if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
                 return ret;
         }
-        formula.addConjunct(new UnmarkSetState());
         return visitProcessRest((ReflexParser.ProcessContext)ctx.parent,ctx);
     }
 
@@ -759,14 +705,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         this.currentProcess = point.processName;
         this.currentState = point.stateName;
         this.formula.trimByFormula(point.formula);
-
-        if (point.attributed!=null){
-            ArrayList<IAttributed> buff= new ArrayList<>(this.path);
-            buff.subList(0,buff.indexOf(point.attributed)+1);
-            this.path = new ArrayDeque<>(buff);
-        }else{
-            this.path.clear();
-        }
+        path.trimBy(point.attributed);
 
         if(point.ifCtx!=null){
                 return visitIfElseMiss(point.ifCtx,point.branch);
@@ -795,15 +734,17 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
             IfElseCore attr1 = (IfElseCore)collector.getAttributes(ctx.ifElseStat());
             //If no FalseAttributes then no else branch
             if(attr1.getFalseAttributes()!=null){
-                path.push(attr1.getFalseAttributes());
+                path.add(attr1.getFalseAttributes());
                 formula.addConjunct(new EqualityFormula(stateIfName(), true, exp, new RawExpression("False")));
                 GenReturn ret = visitStatement(ctx.ifElseStat().else_);
                 if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
                     return ret;
+            } else{
+                formula.addConjunct(new EqualityFormula(stateIfName(), true, exp, new RawExpression("False")));
             }
         }else{
             IfElseCore attr1 = (IfElseCore)collector.getAttributes(ctx.ifElseStat());
-            path.push(attr1.getTrueAttributes());
+            path.add(attr1.getTrueAttributes());
             formula.addConjunct(new EqualityFormula(stateIfName(),true,exp,new RawExpression("True")));
             GenReturn ret = visitStatement(ctx.ifElseStat().then);
             if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
@@ -820,7 +761,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         boolean breakDef=false;
         if(i!=-1) {
             SwitchCaseCore attr1 = (SwitchCaseCore)collector.getAttributes(ctx.switchStat());
-            path.push(attr1.getBranchAttributes().get(i));
+            path.add(attr1.getBranchAttributes().get(i));
             for (int j = 0; j < i; j++) {
                 SymbolicExpression subExp = vis.visitExpression(ctx.switchStat().options.get(j).option).expr;
                 formula.addConjunct(new EqualityFormula(stateBranchName(j) + "_neg", false, exp, subExp));
@@ -844,7 +785,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
             }
         }else{
             SwitchCaseCore attr1 = (SwitchCaseCore)collector.getAttributes(ctx.switchStat());
-            path.push(attr1.getDefaultBranchAttributes());
+            path.add(attr1.getDefaultBranchAttributes());
             for (int j = 0; j < ctx.switchStat().options.size(); j++) {
                 SymbolicExpression subExp = vis.visitExpression(ctx.switchStat().options.get(j).option).expr;
                 formula.addConjunct(new EqualityFormula(stateBranchName(j) + "_neg", false, exp, subExp));
@@ -880,16 +821,16 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
             }
         }
 
-        if (i==0){
-            if(!checker.checkTimeout(path))return new GenReturn(ReturnType.ImpossibleVC);
+        if (i==0) {
+            if (!checker.checkTimeout(path)) return new GenReturn(ReturnType.ImpossibleVC);
             formula.addConjunct(new GreaterFormula(
                     stateTimeoutName(currentState),
                     false,
                     exp.toString(),
-                    ltime(stateName(),currentProcess)
+                    ltime(stateName(), currentProcess)
             ));
             GenReturn ret = visitStatement(ctx.body);
-            if(ret.getReturnType().equals(ReturnType.ImpossibleVC))
+            if (ret.getReturnType().equals(ReturnType.ImpossibleVC))
                 return ret;
         }else{
             formula.addConjunct(new GreaterFormula(
@@ -906,7 +847,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         if (i==-2){
             ProcessAttributes attr1 = (ProcessAttributes)collector.getAttributes(ctx);
             attr1.setState("error");
-            path.push(attr1);
+            path.add(attr1);
             if(!checker.checkRules(path,attr1))return new GenReturn(ReturnType.ImpossibleVC);
 
             formula.addConjunct(new EqualityFormula(
@@ -917,7 +858,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         }else if (i==-1){
             ProcessAttributes attr1 = (ProcessAttributes)collector.getAttributes(ctx);
             attr1.setState("break");
-            path.push(attr1);
+            path.add(attr1);
             if(!checker.checkRules(path,attr1))return new GenReturn(ReturnType.ImpossibleVC);
 
             formula.addConjunct(new EqualityFormula(
@@ -943,7 +884,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         return visitRest(ctx.parent,ctx);
     }
 
-    private void visitStack(){
+    public void visitStack(){
         while (!branchStack.isEmpty()){
             GenReturn ret = visitMiss(branchStack.pop());
             if(ret.getReturnType().equals(ReturnType.Normal)){

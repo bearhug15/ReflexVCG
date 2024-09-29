@@ -5,6 +5,7 @@ import su.nsk.iae.reflex.staticAnalysis.attributes.*;
 import su.nsk.iae.reflex.vcg.ProgramMetaData;
 
 import java.util.Deque;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Stack;
 
@@ -14,29 +15,39 @@ public class RuleChecker {
         this.metaData = metaData;
     }
 
-    public boolean checkTimeout(Deque<IAttributed> path){
-        for (IAttributed attr: path){
+    public boolean checkTimeout(AttributedPath path){
+        Iterator<IAttributed> iter =path.getPath().descendingIterator();
+        while (iter.hasNext()){
+            IAttributed attr = iter.next();
             switch (attr.getContextType()){
                 case Process:{
                     return true;
                 }
                 case IfElse:{
                     IfElseAttributes newAttr = (IfElseAttributes) attr;
-                    if(newAttr.isReset()) return false;
+                    if(newAttr.isReset()){
+                        return false;
+                    }else{
+                        break;
+                    }
                 }
                 case SwitchCase:{
                     SwitchCaseAttributes newAttr = (SwitchCaseAttributes) attr;
-                    if(newAttr.isReset()) return false;
+                    if(newAttr.isReset()){
+                        return false;
+                    }else{
+                        break;
+                    }
                 }
             }
         }
         return true;
     }
 
-    public boolean checkRules(Deque<IAttributed> path, IAttributed attr){
+    public boolean checkRules(AttributedPath path, IAttributed attr){
         switch (attr.getContextType()){
             case Process: {
-                for (IAttributed pattr: path) {
+                for (IAttributed pattr: path.getPath()) {
                     if (!checkRulesProcessAttributes(pattr,(ProcessAttributes) attr)) return false;
                 }
                 return true;

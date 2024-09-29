@@ -10,7 +10,7 @@ lemma
  and st4:"(st4=(setVarBool st3 ''inp_5'' inp_5))"
  and st5:"(st5=(setVarBool st4 ''inp_4'' inp_4))"
  and st5_Ctrl_state:"(getPstate st5 ''Ctrl'')=''goDown''"
- and st5_if13:"(getVarBool st5 ''inp_4'')=True"
+ and st5_if14:"(getVarBool st5 ''inp_4'')=True"
  and st6:"(st6=(setPstate st5 ''Ctrl'' ''emergency''))"
  and st6_goDown_timeout:"120000>(ltime st6 ''Ctrl'')"
  and st7:"(st7=(toEnv st6))"

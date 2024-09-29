@@ -12,6 +12,7 @@ lemma
  and st5_Ctrl_state:"(getPstate st5 ''Ctrl'')=''goUp''"
  and st5_if9:"(getVarBool st5 ''inp_4'')=False"
  and st5_if11:"(getVarBool st5 ''inp_5'')=False"
+ and st5_if13:"((getVarBool st5 ''inp_1'') \<or> (getVarBool st5 ''inp_2''))=False"
  and st5_goUp_timeout:"120000>(ltime st5 ''Ctrl'')"
  and st6:"(st6=(toEnv st5))"
  and st_final:"(st_final=st6)"

@@ -30,14 +30,12 @@ class ConjuctionFormulaTest {
         test3 = new ConjuctionFormula();
         LinkedList<Formula> fs3 = new LinkedList<>();
         fs3.add(new RawFormula("f1","val1"));
-        fs3.add(new MarkSetState());
         fs3.add(new MarkRestart());
         test3.formulas = fs3;
 
         test4 = new ConjuctionFormula();
         LinkedList<Formula> fs4 = new LinkedList<>();
         fs4.add(new RawFormula("f1","val1"));
-        fs4.add(new MarkSetState());
         fs4.add(new MarkRestart());
         fs4.add(new UnmarkReset());
         test4.formulas = fs4;
@@ -89,12 +87,6 @@ class ConjuctionFormulaTest {
         assertEquals(List.of(new RawFormula("f1","val1")),test1.formulas);
     }
 
-    @Test
-    void isMarkedSetState() {
-        assertFalse(test2.isMarkedSetState());
-        assertTrue(test3.isMarkedSetState());
-        assertTrue(test4.isMarkedSetState());
-    }
 
     @Test
     void isMarkedReset() {

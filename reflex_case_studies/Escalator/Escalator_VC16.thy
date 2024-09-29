@@ -13,6 +13,7 @@ lemma
  and st6:"(st6=(setVarBool st5 ''out_1'' False))"
  and st7:"(st7=(setVarBool st6 ''out_2'' False))"
  and st7_if1:"(getVarBool st7 ''inp_4'')=False"
+ and st7_if3:"(getVarBool st7 ''inp_5'')=False"
  and st7_stuckState_timeout:"1000>(ltime st7 ''Ctrl'')"
  and st8:"(st8=(toEnv st7))"
  and st_final:"(st_final=st8)"
