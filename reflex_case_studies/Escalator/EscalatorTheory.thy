@@ -39,7 +39,7 @@ lemma ltime_le_toEnvNum:
          apply(auto)
   done
 lemma toEnvNum_getPstate:
-"toEnvNum s s' < ltime s' p div 100 \<Rightarrow> getPstate s p = getPstate s' p"
+"toEnvNum s s' < ltime s' p div 100 \<Longrightarrow> getPstate s p = getPstate s' p"
   apply (induction s' arbitrary:s)
   apply auto
   apply (metis Suc_eq_plus1 getPstate.simps(2) not_less_eq)
@@ -47,6 +47,6 @@ lemma toEnvNum_getPstate:
 done
 
 lemma inter_toEnvNum_getPstate:
-"toEnvNum s s' < ltime s' p div 100 ∧ substate s s'' ∧ substate s'' s'\<Rightarrow> toEnvNum s'' s' < ltime s' p div 100"
+"toEnvNum s s' < ltime s' p div 100 ∧ substate s s'' ∧ substate s'' s'\<Longrightarrow> toEnvNum s'' s' < ltime s' p div 100"
   using toEnvNum3 by fastforce
 end

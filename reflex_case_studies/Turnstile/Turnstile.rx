@@ -1,0 +1,77 @@
+program Turnsile{
+	clock 100; 
+	bool passed;
+	input inp 0x00 0x00 24;
+	output out 0x00 0x03 24;
+	bool PdOut = inp[0];
+	bool paid = inp[1];
+	bool opened = inp[2];
+	bool open  = out[0];
+	bool rst = out[1];
+	bool enter = out[2];
+	
+	process Init {
+		state init {
+			start Controller;
+			start EntranceController;
+			stop;
+		}
+	}
+	process Controller{
+		state isClosed{
+			if (paid){
+				open = true;
+				passed = false;
+				set next state;
+			}			
+		}
+		state minimalOpened{
+			if (PdOut){
+				passed = true;
+			}
+			
+			timeout 0t1s{
+				if (passed) {
+					open = false;
+					set state isClosed;
+				} else {
+					set next state;
+				}
+			}
+		}
+		state isOpened{
+			if (PdOut){
+				open = false;
+				set state isClosed;
+			}
+			timeout 0t9s{
+				open = false;
+				set state isClosed;
+			}
+		}
+	}
+	process EntranceController{
+		state isClosed{
+			if (opened){
+				enter = true;
+				set next state;
+			}
+		}
+		state isOpened{
+			if (!opened){
+				enter = false;
+				rst = true;
+				start Unlocker;
+				set state isClosed;
+			}
+		}
+	}
+	process Unlocker{
+		state unlock{
+			timeout 0t1s{
+				rst = false;
+				stop;
+			}
+		}
+	}
+}

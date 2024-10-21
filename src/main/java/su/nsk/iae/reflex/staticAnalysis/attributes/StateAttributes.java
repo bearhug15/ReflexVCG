@@ -15,7 +15,7 @@ public class StateAttributes implements IAttributed {
     boolean reset = false;
     boolean stateChange = false;
 
-    ReflexParser.StateContext setState = null;
+    String setState = null;
 
     public StateAttributes(ReflexParser.ProcessContext process, ReflexParser.StateContext attributedContext){
         rootProcess = process;
@@ -51,11 +51,11 @@ public class StateAttributes implements IAttributed {
         this.stateChange = stateChange;
     }
 
-    public ReflexParser.StateContext getSetState() {
+    public String getSetState() {
         return setState;
     }
 
-    public void setSetState(ReflexParser.StateContext setState) {
+    public void setSetState(String setState) {
         this.setState = setState;
     }
 

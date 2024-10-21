@@ -3,14 +3,14 @@ program Escalator{
 	input inp 0x00 0x00 8;
 	output out 0x00 0x01 8;
 	
-	bool userAtTop = inp[1];
-	bool userAtBottom = inp[2];
-	bool directionSwitch = inp[3];
-	bool alarmButton = inp[4];
-	bool stuck = inp[5];
+	bool userAtTop = inp[0];
+	bool userAtBottom = inp[1];
+	bool directionSwitch = inp[2];
+	bool alarmButton = inp[3];
+	bool stuck = inp[4];
 	
-	bool up = out[1];
-	bool down = out[2];
+	bool up = out[0];
+	bool down = out[1];
 	
 	const bool UP = true;
 	const bool DOWN = false;

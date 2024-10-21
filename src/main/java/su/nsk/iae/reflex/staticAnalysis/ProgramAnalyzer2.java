@@ -161,7 +161,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         switch (attributesContainers.peek().getContextType()){
             case IfElse:{
                 IfElseAttributes attr = (IfElseAttributes)attributesContainers.peek();
-                if(ctx.processId.getText().equals(currentProcess.name.getText())){
+                if(ctx.processId!=null || ctx.processId.getText().equals(currentProcess.name.getText())){
                     attr.addProcessChange(metaData.getProcessByName(ctx.processId.getText()),ChangeType.Start);
                     attr.setReset(true);
                     attr.setStateChange(true);
@@ -171,7 +171,17 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
             } break;
             case SwitchCase:{
                 SwitchCaseAttributes attr = (SwitchCaseAttributes)attributesContainers.peek();
-                if(ctx.processId.getText().equals(currentProcess.name.getText())){
+                if(ctx.processId!=null || ctx.processId.getText().equals(currentProcess.name.getText())){
+                    attr.addProcessChange(metaData.getProcessByName(ctx.processId.getText()),ChangeType.Start);
+                    attr.setReset(true);
+                    attr.setStateChange(true);
+                }else{
+                    attr.addProcessChange(metaData.getProcessByName(ctx.processId.getText()),ChangeType.Start);
+                }
+            } break;
+            case State:{
+                StateAttributes attr = (StateAttributes)attributesContainers.peek();
+                if(ctx.processId!=null || ctx.processId.getText().equals(currentProcess.name.getText())){
                     attr.addProcessChange(metaData.getProcessByName(ctx.processId.getText()),ChangeType.Start);
                     attr.setReset(true);
                     attr.setStateChange(true);
@@ -188,11 +198,12 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         switch (attributesContainers.peek().getContextType()){
             case IfElse:{
                 IfElseAttributes attr = (IfElseAttributes)attributesContainers.peek();
-                if (ctx.processId.getText()==null || ctx.processId.getText().equals(currentProcess.name.getText())){
+                if (ctx.processId==null || ctx.processId.getText().equals(currentProcess.name.getText())){
                     attr.addProcessChange(currentProcess,ChangeType.Stop);
                     attr.setReset(true);
                     attr.setStateChange(true);
                     ((ProcessAttributes)collector.getAttributes(currentProcess)).setReachS(true);
+
                 }else{
                     attr.addProcessChange(metaData.getProcessByName(ctx.processId.getText()),ChangeType.Stop);
                     ((ProcessAttributes)collector.getAttributes(metaData.getProcessByName(ctx.processId.getText()))).setReachS(true);
@@ -200,7 +211,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
             } break;
             case SwitchCase:{
                 SwitchCaseAttributes attr = (SwitchCaseAttributes)attributesContainers.peek();
-                if (ctx.processId.getText()==null || ctx.processId.getText().equals(currentProcess.name.getText())){
+                if (ctx.processId==null || ctx.processId.getText().equals(currentProcess.name.getText())){
                     attr.addProcessChange(currentProcess,ChangeType.Stop);
                     attr.setReset(true);
                     attr.setStateChange(true);
@@ -210,6 +221,19 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
                     ((ProcessAttributes)collector.getAttributes(metaData.getProcessByName(ctx.processId.getText()))).setReachS(true);
                 }
             } break;
+            case State: {
+                StateAttributes attr = (StateAttributes)attributesContainers.peek();
+                if (ctx.processId==null || ctx.processId.getText().equals(currentProcess.name.getText())){
+                    attr.addProcessChange(currentProcess,ChangeType.Stop);
+                    attr.setReset(true);
+                    attr.setStateChange(true);
+                    ((ProcessAttributes)collector.getAttributes(currentProcess)).setReachS(true);
+
+                }else{
+                    attr.addProcessChange(metaData.getProcessByName(ctx.processId.getText()),ChangeType.Stop);
+                    ((ProcessAttributes)collector.getAttributes(metaData.getProcessByName(ctx.processId.getText()))).setReachS(true);
+                }
+            }break;
         }
         return null;
     }
@@ -219,7 +243,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         switch (attributesContainers.peek().getContextType()){
             case IfElse:{
                 IfElseAttributes attr = (IfElseAttributes)attributesContainers.peek();
-                if (ctx.processId.getText()==null || ctx.processId.getText().equals(currentProcess.name.getText())){
+                if (ctx.processId==null || ctx.processId.getText().equals(currentProcess.name.getText())){
                     attr.addProcessChange(currentProcess,ChangeType.Error);
                     attr.setReset(true);
                     attr.setStateChange(true);
@@ -231,7 +255,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
             } break;
             case SwitchCase:{
                 SwitchCaseAttributes attr = (SwitchCaseAttributes)attributesContainers.peek();
-                if (ctx.processId.getText()==null || ctx.processId.getText().equals(currentProcess.name.getText())){
+                if (ctx.processId==null || ctx.processId.getText().equals(currentProcess.name.getText())){
                     attr.addProcessChange(currentProcess,ChangeType.Error);
                     attr.setReset(true);
                     attr.setStateChange(true);
@@ -241,6 +265,19 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
                     ((ProcessAttributes)collector.getAttributes(metaData.getProcessByName(ctx.processId.getText()))).setReachE(true);
                 }
             } break;
+            case State: {
+                StateAttributes attr = (StateAttributes)attributesContainers.peek();
+                if (ctx.processId.getText()==null || ctx.processId.getText().equals(currentProcess.name.getText())){
+                    attr.addProcessChange(currentProcess,ChangeType.Stop);
+                    attr.setReset(true);
+                    attr.setStateChange(true);
+                    ((ProcessAttributes)collector.getAttributes(currentProcess)).setReachS(true);
+
+                }else{
+                    attr.addProcessChange(metaData.getProcessByName(ctx.processId.getText()),ChangeType.Stop);
+                    ((ProcessAttributes)collector.getAttributes(metaData.getProcessByName(ctx.processId.getText()))).setReachS(true);
+                }
+            }break;
         }
         return null;
     }
@@ -260,6 +297,12 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
                 attr.setReset(true);
                 attr.setStateChange(true);
             } break;
+            case State: {
+                StateAttributes attr = (StateAttributes)attributesContainers.peek();
+                attr.addProcessChange(currentProcess,ChangeType.Start);
+                attr.setReset(true);
+                attr.setStateChange(true);
+            }break;
         }
         return null;
     }
@@ -275,6 +318,10 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
                 SwitchCaseAttributes attr = (SwitchCaseAttributes)attributesContainers.peek();
                 attr.setReset(true);
             } break;
+            case State: {
+                StateAttributes attr = (StateAttributes)attributesContainers.peek();
+                attr.setReset(true);
+            }break;
         }
         return null;
     }
@@ -300,6 +347,15 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
                     attr.setSetState(metaData.nextState(currentProcess.name.getText(),currentState.name.getText()));
                 }
             } break;
+            case State: {
+                StateAttributes attr = (StateAttributes)attributesContainers.peek();
+                attr.setReset(true);
+                if (ctx.stateId!=null){
+                    attr.setSetState(ctx.stateId.getText());
+                } else{
+                    attr.setSetState(metaData.nextState(currentProcess.name.getText(),currentState.name.getText()));
+                }
+            }break;
         }
         return super.visitSetStateStat(ctx);
     }

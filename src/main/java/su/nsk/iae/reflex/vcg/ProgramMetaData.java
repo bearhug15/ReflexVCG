@@ -90,6 +90,7 @@ public class ProgramMetaData {
         for(ReflexParser.ProcessContext procCtx: ctx.processes){
             List<String> stateNames= procCtx.states.stream()
                     .map(stateCtx->stateCtx.name.getText()).toList();
+            this.addProcess(procCtx);
             this.addProcess(procCtx.name.getText(),stateNames);
             this.addInitializer(replacedState,procCtx.name.getText(),initializeProcess(procCtx,replacedState, mapper));
         }

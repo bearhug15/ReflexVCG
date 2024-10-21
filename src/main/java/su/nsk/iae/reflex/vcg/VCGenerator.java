@@ -859,7 +859,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
             ProcessAttributes attr1 = (ProcessAttributes)collector.getAttributes(ctx);
             attr1.setState("break");
             path.add(attr1);
-            if(!checker.checkRules(path,attr1))return new GenReturn(ReturnType.ImpossibleVC);
+            if(!checker.checkRules(path,attr1)) return new GenReturn(ReturnType.ImpossibleVC);
 
             formula.addConjunct(new EqualityFormula(
                     stateProcessStateName(currentProcess),

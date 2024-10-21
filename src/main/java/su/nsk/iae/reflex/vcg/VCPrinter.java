@@ -99,7 +99,7 @@ public class VCPrinter {
                 "         apply(auto)\n" +
                 "  done\n");
         builder.append("lemma toEnvNum_getPstate:\n" +
-                "\"toEnvNum s s' < ltime s' p div "+clock+" \\<Rightarrow> getPstate s p = getPstate s' p\"\n" +
+                "\"toEnvNum s s' < ltime s' p div "+clock+" \\<Longrightarrow> getPstate s p = getPstate s' p\"\n" +
                 "  apply (induction s' arbitrary:s)\n" +
                 "  apply auto\n" +
                 "  apply (metis Suc_eq_plus1 getPstate.simps(2) not_less_eq)\n" +
@@ -107,7 +107,7 @@ public class VCPrinter {
                 "done\n" +
                 "\n" +
                 "lemma inter_toEnvNum_getPstate:\n" +
-                "\"toEnvNum s s' < ltime s' p div "+clock+" ∧ substate s s'' ∧ substate s'' s'\\<Rightarrow> toEnvNum s'' s' < ltime s' p div "+clock+"\"\n" +
+                "\"toEnvNum s s' < ltime s' p div "+clock+" ∧ substate s s'' ∧ substate s'' s'\\<Longrightarrow> toEnvNum s'' s' < ltime s' p div "+clock+"\"\n" +
                 "  using toEnvNum3 by fastforce");
         builder.append("\nend\n");
         fileName = fileName+".thy";

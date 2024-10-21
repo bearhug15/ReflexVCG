@@ -6,16 +6,16 @@ program Fridge{
     const bool CLOSED = false;
 	const time OPEN_DOOR_TIME_LIMIT = 0t30s;
 	
-	bool fridgeTempGreaterMin = inp[1];
-	bool fridgeTempGreaterMax = inp[2];
-	bool freezerTempGreaterMin = inp[3];
-	bool freezerTempGreaterMax = inp[4];
-	bool fridgeDoor = inp[5];
+	bool fridgeTempGreaterMin = inp[0];
+	bool fridgeTempGreaterMax = inp[1];
+	bool freezerTempGreaterMin = inp[2];
+	bool freezerTempGreaterMax = inp[3];
+	bool fridgeDoor = inp[4];
 	
-	bool fridgeCompressor = out[1];
-	bool freezerCompressor = out[2];
-	bool lightning = out[3];
-	bool doorSignal = out[4];
+	bool fridgeCompressor = out[0];
+	bool freezerCompressor = out[1];
+	bool lighting = out[2];
+	bool doorSignal = out[3];
 	
 	process Init{
 		state begin{
@@ -29,14 +29,14 @@ program Fridge{
 	process FridgrDoorController{
 		state closed{
 			if (fridgeDoor){
-				lightning = true;
+				lighting = true;
 				set next state;
 			}
 		}
 		
 		state open{
 			if (fridgeDoor == CLOSED){
-				lightning = false;
+				lighting = false;
 				set state closed;
 			}
 			timeout OPEN_DOOR_TIME_LIMIT {
@@ -47,7 +47,7 @@ program Fridge{
 		
 		state longOpen{
 			if (fridgeDoor == CLOSED){
-				lightning = false;
+				lighting = false;
 				doorSignal = false;
 				set state closed;
 			}

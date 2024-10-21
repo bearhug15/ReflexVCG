@@ -209,4 +209,105 @@ class VCGeneratorTest {
         }
     }
 */
+
+    @Test
+    void turnstile(){
+        CharStream inputStream = CharStreams.fromString("program Turnsile{\n" +
+                "\tclock 100; \n" +
+                "\tbool passed;\n" +
+                "\tinput inp 0x00 0x00 24;\n" +
+                "\toutput out 0x00 0x03 24;\n" +
+                "\tbool PdOut = inp[0];\n" +
+                "\tbool paid = inp[1];\n" +
+                "\tbool opened = inp[2];\n" +
+                "\tbool open  = out[0];\n" +
+                "\tbool rst = out[1];\n" +
+                "\tbool enter = out[2];\n" +
+                "\t\n" +
+                "\tprocess Init {\n" +
+                "\t\tstate init {\n" +
+                "\t\t\tstart Controller;\n" +
+                "\t\t\tstart EntranceController;\n" +
+                "\t\t\tstop;\n" +
+                "\t\t}\n" +
+                "\t}\n" +
+                "\tprocess Controller{\n" +
+                "\t\tstate isClosed{\n" +
+                "\t\t\tif (paid){\n" +
+                "\t\t\t\topen = true;\n" +
+                "\t\t\t\tpassed = false;\n" +
+                "\t\t\t\tset next state;\n" +
+                "\t\t\t}\t\t\t\n" +
+                "\t\t}\n" +
+                "\t\tstate minimalOpened{\n" +
+                "\t\t\tif (PdOut){\n" +
+                "\t\t\t\tpassed = true;\n" +
+                "\t\t\t}\n" +
+                "\t\t\t\n" +
+                "\t\t\ttimeout 0t1s{\n" +
+                "\t\t\t\tif (passed) {\n" +
+                "\t\t\t\t\topen = false;\n" +
+                "\t\t\t\t\tset state isClosed;\n" +
+                "\t\t\t\t} else {\n" +
+                "\t\t\t\t\tset next state;\n" +
+                "\t\t\t\t}\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t\tstate isOpened{\n" +
+                "\t\t\tif (PdOut){\n" +
+                "\t\t\t\topen = false;\n" +
+                "\t\t\t\tset state isClosed;\n" +
+                "\t\t\t}\n" +
+                "\t\t\ttimeout 0t9s{\n" +
+                "\t\t\t\topen = false;\n" +
+                "\t\t\t\tset state isClosed;\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t}\n" +
+                "\tprocess EntranceController{\n" +
+                "\t\tstate isClosed{\n" +
+                "\t\t\tif (opened){\n" +
+                "\t\t\t\tenter = true;\n" +
+                "\t\t\t\tset next state;\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t\tstate isOpened{\n" +
+                "\t\t\tif (!opened){\n" +
+                "\t\t\t\tenter = false;\n" +
+                "\t\t\t\trst = true;\n" +
+                "\t\t\t\tstart Unlocker;\n" +
+                "\t\t\t\tset state isClosed;\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t}\n" +
+                "\tprocess Unlocker{\n" +
+                "\t\tstate unlock{\n" +
+                "\t\t\ttimeout 0t1s{\n" +
+                "\t\t\t\trst = false;\n" +
+                "\t\t\t\tstop;\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t}\n" +
+                "}");
+        VCGenerator generator = new VCGenerator();
+        try {
+            ReflexLexer lexer = new ReflexLexer(inputStream);
+            CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+            ReflexParser parser = new ReflexParser(tokenStream);
+            ReflexParser.ProgramContext context = parser.program();
+
+            generator.mapper = new VariableMapper(context);
+            generator.metaData = new ProgramMetaData(context,generator.mapper);
+            generator.printer = new VCPrinter(Path.of("./src/test/testResult"),"test",generator.metaData);
+            generator.checker = new RuleChecker(generator.metaData);
+            ProgramAnalyzer2 analyzer2 = new ProgramAnalyzer2(generator.metaData);
+            generator.collector = analyzer2.generateAttributes(context);
+
+            generator.visitProgram(context);
+            generator.visitStack();
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+        System.out.println("VC conditions generated: " + generator.conditionsGenerated);
+    }
 }

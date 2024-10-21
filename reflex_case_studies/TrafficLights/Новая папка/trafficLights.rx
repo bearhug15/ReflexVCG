@@ -1,0 +1,53 @@
+program Controller{
+	clock 100;
+	input button 0x00 0x00 8;
+	output light 0x00 0x01 8;
+	bool bpressed;
+	
+	const bool green = true;
+	const bool red = false;
+	const bool pressed = true;
+	const bool not_pressed = false;
+	const time minimal_red_time = 0t10s;
+	const time red_to_green = 0t5s;
+	const time green_time_limit = 0t30s;
+	
+	process Controller{
+		bool button = button[];
+		bool light = light[];
+		
+		state minimalRed{
+			if (button){
+				bpressed = true;
+			}
+			timeout minimal_red_time {
+				set next state;
+			}
+		}
+		
+		state redAfterMinimalRed{
+			if (bpressed || button){
+				set next state;
+			}
+		}
+		
+		state redToGreen{
+			timeout red_to_green {
+				light = green;
+				bpressed = false;
+				set next state;
+			}
+		}
+		
+		state green{
+			timeout green_time_limit{
+				light = red;
+				set state minimalRed;
+			}
+		}
+		
+	
+	}
+
+
+}
