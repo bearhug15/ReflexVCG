@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.expression;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.expression.types.ExprType;
 
 public class ConstantExpression implements SymbolicExpression{
@@ -17,14 +18,14 @@ public class ConstantExpression implements SymbolicExpression{
     }
 
     @Override
-    public void actuate(String programState) {}
+    public void actuate(String programState, IStatementCreator creator) {}
 
     @Override
     public boolean isActuated() {
         return true;
     }
 
-    public String toString(){
+    public String toString(IStatementCreator creator){
         return value;
     }
 }

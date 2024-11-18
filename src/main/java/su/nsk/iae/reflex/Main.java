@@ -30,7 +30,7 @@ public class Main {
         if (destination==null) destination="./";
 
         VCGenerator generator = new VCGenerator();
-        generator.generateVC(Path.of(source),Path.of(destination));
+        //generator.generateVC(Path.of(source),Path.of(destination));
 
         /*
         VCGenerator generator = new VCGenerator();

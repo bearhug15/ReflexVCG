@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.expression;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.expression.types.ExprType;
 
 public class VariableExpression implements SymbolicExpression{
@@ -13,14 +14,14 @@ public class VariableExpression implements SymbolicExpression{
         this.isMarked = is_marked;
     }
 
-    public String toString(){
+    public String toString(IStatementCreator creator){
         if (isMarked) {
             throw new RuntimeException("Trying toString on not actuated variable");
         }
         return variable;
     }
 
-    public void actuate(String programState){
+    public void actuate(String programState, IStatementCreator creator){
         if (isMarked){
             variable = "("+type.takeGetter()+" "+programState+" ''"+variable+"'')";
             isMarked = false;

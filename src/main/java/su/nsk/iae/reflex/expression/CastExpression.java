@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.expression;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.expression.types.ExprType;
 
 public class CastExpression implements SymbolicExpression{
@@ -18,8 +19,8 @@ public class CastExpression implements SymbolicExpression{
     }
 
     @Override
-    public void actuate(String programState) {
-        expr.actuate(programState);
+    public void actuate(String programState, IStatementCreator creator) {
+        expr.actuate(programState, creator);
     }
 
     @Override
@@ -28,14 +29,14 @@ public class CastExpression implements SymbolicExpression{
     }
 
     @Override
-    public String toString() {
+    public String toString(IStatementCreator creator) {
         if (expr.exprType() == null){
-            return "("+type.toString()+" "+expr.toString()+")";
+            return "("+type.toString(creator)+" "+expr.toString(creator)+")";
         }
-        if (type.toString().equals(expr.exprType().toString())){
-            return expr.toString();
+        if (type.toString(creator).equals(expr.exprType().toString(creator))){
+            return expr.toString(creator);
         }else{
-            return "("+type.toString()+" "+expr.toString()+")";
+            return "("+type.toString(creator)+" "+expr.toString(creator)+")";
         }
     }
 }

@@ -1,8 +1,9 @@
 package su.nsk.iae.reflex.expression.types;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
+
 public class RealType implements ExprType{
-    @Override
-    public String toString(){
+    public String toString(IStatementCreator creator){
         return "real";
     }
     public String takeGetter(){

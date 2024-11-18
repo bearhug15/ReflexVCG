@@ -1,23 +1,12 @@
 package su.nsk.iae.reflex.vcg;
 
-import org.antlr.v4.runtime.*;
+import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.AttributeCollector;
 import su.nsk.iae.reflex.antlr.ReflexBaseVisitor;
-import su.nsk.iae.reflex.antlr.ReflexLexer;
-import su.nsk.iae.reflex.antlr.ReflexParser;
-import su.nsk.iae.reflex.expression.ConstantExpression;
-import su.nsk.iae.reflex.expression.RawExpression;
-import su.nsk.iae.reflex.expression.SymbolicExpression;
-import su.nsk.iae.reflex.expression.VariableExpression;
-import su.nsk.iae.reflex.expression.types.*;
 import su.nsk.iae.reflex.formulas.*;
 //import su.nsk.iae.reflex.staticAnalysis.ProgramAnalyzer;
-import su.nsk.iae.reflex.staticAnalysis.AttributedPath;
-import su.nsk.iae.reflex.staticAnalysis.ProgramAnalyzer2;
-import su.nsk.iae.reflex.staticAnalysis.RuleChecker;
-import su.nsk.iae.reflex.staticAnalysis.attributes.*;
+import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.AttributedPath;
+import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.RuleChecker;
 
-import java.io.FileInputStream;
-import java.nio.file.Path;
 import java.util.*;
 
 public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
@@ -53,7 +42,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         conditionsGenerated = 0;
     }
 
-    public void generateVC(Path source, Path destination){
+    /*public void generateVC(Path source, Path destination){
         String sourceName = source.getFileName().toString();
 
 
@@ -79,15 +68,8 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
             System.out.println("Completed verification conditions generation. Conditions generated: " + conditionsGenerated );
         }catch (Exception e){
             System.out.println("Generation aborted due an error:");
-            throw new RuntimeException(e);
-        }
+            throw new RuntimeException(e)
 
-    }
-
-    /*private void analyzeProgram(ReflexParser.ProgramContext ctx){
-        ProgramAnalyzer analyzer = new ProgramAnalyzer(traces,metaData);
-        analyzer.visitProgram(ctx);
-    }*/
 
     private Void initializeInputVariables(){
         for (Map.Entry<String,ExprType> variable: metaData.getInputVariablesNames().entrySet()){
@@ -236,7 +218,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
             if (mapper.is_variable(currentProcess,id)){
                 t= mapper.variableType(currentProcess,id);
                 VariableExpression subExp = new VariableExpression(ctx.timeAmountOrRef().ref.getText(),t,true);
-                subExp.actuate(stateName());
+                subExp.actuate(stateName(), );
                 exp = subExp;
             }else if (mapper.is_const(id)){
                 if(!checker.checkTimeout(path))return new GenReturn(ReturnType.ImpossibleVC);
@@ -246,7 +228,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
                 if(!checker.checkTimeout(path))return new GenReturn(ReturnType.ImpossibleVC);
                 t = new IntType();
                 VariableExpression subExp = new VariableExpression(ctx.timeAmountOrRef().ref.getText(),t,true);
-                subExp.actuate(stateName());
+                subExp.actuate(stateName(), );
                 exp = subExp;
             }
         }
@@ -306,7 +288,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         SymbolicExpression exp = res.getExpr();
         String newState = res.getState();
         Formula domain = res.getDomain();
-        exp.actuate(newState);
+        exp.actuate(newState, );
         domain = domain.trim();
         if (!(domain instanceof TrueFormula)){
             ImplicationFormula implFormula = new ImplicationFormula(formula,domain);
@@ -342,7 +324,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         SymbolicExpression exp = res.getExpr();
         String newState = res.getState();
         Formula domain = res.getDomain();
-        exp.actuate(newState);
+        exp.actuate(newState, );
         domain = domain.trim();
         if (!(domain instanceof TrueFormula)){
             ImplicationFormula implFormula = new ImplicationFormula(formula,domain);
@@ -729,7 +711,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,stateName());
         ExprGenRes res = vis.visitExpression(e);
         SymbolicExpression exp = res.getExpr();
-        exp.actuate(stateName());
+        exp.actuate(stateName(), );
         if (i==1){
             IfElseCore attr1 = (IfElseCore)collector.getAttributes(ctx.ifElseStat());
             //If no FalseAttributes then no else branch
@@ -757,7 +739,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
         ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,stateName());
         ExprGenRes res = vis.visitExpression(e);
         SymbolicExpression exp = res.getExpr();
-        exp.actuate(stateName());
+        exp.actuate(stateName(), );
         boolean breakDef=false;
         if(i!=-1) {
             SwitchCaseCore attr1 = (SwitchCaseCore)collector.getAttributes(ctx.switchStat());
@@ -808,7 +790,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
             if (mapper.is_variable(currentProcess,id)){
                 t= mapper.variableType(currentProcess,id);
                 VariableExpression subExp = new VariableExpression(ctx.timeAmountOrRef().ref.getText(),t,true);
-                subExp.actuate(stateName());
+                subExp.actuate(stateName(), );
                 exp = subExp;
             }else if (mapper.is_const(id)){
                 t= mapper.constantType(id);
@@ -816,7 +798,7 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
             } else{
                 t = new IntType();
                 VariableExpression subExp = new VariableExpression(ctx.timeAmountOrRef().ref.getText(),t,true);
-                subExp.actuate(stateName());
+                subExp.actuate(stateName(), );
                 exp = subExp;
             }
         }
@@ -947,5 +929,5 @@ public class VCGenerator extends ReflexBaseVisitor<GenReturn> {
     public void finishVC(ImplicationFormula formula){
         conditionsGenerated++;
         printer.printVC(formula);
-    }
+    }*/
 }

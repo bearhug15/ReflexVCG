@@ -2,7 +2,7 @@ package su.nsk.iae.reflex.vcg;
 
 import su.nsk.iae.reflex.antlr.ReflexParser;
 import su.nsk.iae.reflex.formulas.Formula;
-import su.nsk.iae.reflex.staticAnalysis.attributes.IAttributed;
+import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.IAttributed;
 
 public class BranchPoint {
     Formula formula;

@@ -1,21 +1,23 @@
 package su.nsk.iae.reflex.formulas;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
+
 import java.util.List;
 
 public class TrueFormula implements Formula{
     @Override
-    public List<String> toStrings() {
+    public List<String> toStrings(IStatementCreator creator) {
         return List.of("True");
     }
 
     @Override
-    public String toNamedString() {
+    public String toNamedString(IStatementCreator creator) {
         return "true:\"True\"";
     }
 
     @Override
-    public List<String> toNamedStrings() {
-        return List.of(this.toNamedString());
+    public List<String> toNamedStrings(IStatementCreator creator) {
+        return List.of(this.toNamedString(creator));
     }
 
     @Override
@@ -24,7 +26,7 @@ public class TrueFormula implements Formula{
     }
 
     @Override
-    public String toString() {
+    public String toString(IStatementCreator creator) {
         return "True";
     }
     @Override

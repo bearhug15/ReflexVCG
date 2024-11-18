@@ -1,6 +1,6 @@
 package su.nsk.iae.reflex.formulas;
 
-import su.nsk.iae.reflex.expression.ConstantExpression;
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.expression.ops.BinaryOp;
 
 import java.util.List;
@@ -13,22 +13,22 @@ public class StateFormula implements Formula{
         this.value = value;
     }
     @Override
-    public String toString(){
+    public String toString(IStatementCreator creator){
         return "("+state+ BinaryOp.Eq+value+")";
     }
     @Override
-    public List<String> toStrings() {
-        return List.of(toString());
+    public List<String> toStrings(IStatementCreator creator) {
+        return List.of(toString(creator));
     }
 
     @Override
-    public String toNamedString() {
+    public String toNamedString(IStatementCreator creator) {
         return state+":\"("+state+ BinaryOp.Eq+value+")\"";
     }
 
     @Override
-    public List<String> toNamedStrings() {
-        return List.of(toNamedString());
+    public List<String> toNamedStrings(IStatementCreator creator) {
+        return List.of(toNamedString(creator));
     }
 
     @Override

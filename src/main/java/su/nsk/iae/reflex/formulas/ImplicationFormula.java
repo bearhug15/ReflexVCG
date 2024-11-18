@@ -1,9 +1,9 @@
 package su.nsk.iae.reflex.formulas;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.expression.ops.BinaryOp;
 
 import java.util.List;
-import java.util.StringJoiner;
 
 public class ImplicationFormula implements Formula{
     Formula left;
@@ -14,25 +14,25 @@ public class ImplicationFormula implements Formula{
     }
 
     @Override
-    public String toString(){
-        String leftS = left.toString();
-        String rightS = right.toString();
+    public String toString(IStatementCreator creator){
+        String leftS = left.toString(creator);
+        String rightS = right.toString(creator);
         return "("+leftS+ BinaryOp.Implication+rightS +")";
     }
     @Override
-    public List<String> toStrings() {
-        List<String> strings = left.toStrings();
-        strings.add(right.toString());
+    public List<String> toStrings(IStatementCreator creator) {
+        List<String> strings = left.toStrings(creator);
+        strings.add(right.toString(creator));
         return strings;
     }
 
     @Override
-    public String toNamedString() {
+    public String toNamedString(IStatementCreator creator) {
         throw new RuntimeException("Trying to make named string for implication");
     }
 
     @Override
-    public List<String> toNamedStrings() {
+    public List<String> toNamedStrings(IStatementCreator creator) {
         throw new RuntimeException("Trying to make named string for implication");
     }
 

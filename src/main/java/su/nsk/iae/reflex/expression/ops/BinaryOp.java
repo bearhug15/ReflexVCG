@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.expression.ops;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.expression.types.ExprType;
 
 public enum BinaryOp {
@@ -15,7 +16,7 @@ public enum BinaryOp {
         this.op = op;
     }
 
-    public String toString(){
+    public String toString(IStatementCreator creator){
         return op;
     }
 

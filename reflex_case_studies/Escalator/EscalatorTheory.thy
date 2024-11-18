@@ -26,15 +26,15 @@ lemma ltime_mult:
   by (induction s) (auto)
 
 lemma ltime_div_less:
-assumes "(ltime s0 p div 100)≤ a"
-shows "(ltime s0 p -100) div 100 < a ∨ ltime s0 p = 0"
+assumes "(ltime s0 p div 100)\<le> a"
+shows "(ltime s0 p -100) div 100 < a \<or> ltime s0 p = 0"
 proof -
 have"(ltime s0 p) mod 100 = 0" by (induction s0) (auto)
 thus ?thesis using assms by (induction a) (auto)
 qed
 
 lemma ltime_le_toEnvNum: 
-"ltime s p div 100 ≤ toEnvNum emptyState s"
+"ltime s p div 100 \<le> toEnvNum emptyState s"
   apply(induction s)
          apply(auto)
   done
@@ -47,6 +47,6 @@ lemma toEnvNum_getPstate:
 done
 
 lemma inter_toEnvNum_getPstate:
-"toEnvNum s s' < ltime s' p div 100 ∧ substate s s'' ∧ substate s'' s'\<Longrightarrow> toEnvNum s'' s' < ltime s' p div 100"
+"toEnvNum s s' < ltime s' p div 100 \<and> substate s s'' \<and> substate s'' s'\<Longrightarrow> toEnvNum s'' s' < ltime s' p div 100"
   using toEnvNum3 by fastforce
 end

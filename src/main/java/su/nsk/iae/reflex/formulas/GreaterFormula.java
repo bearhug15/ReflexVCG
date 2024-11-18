@@ -1,6 +1,6 @@
 package su.nsk.iae.reflex.formulas;
 
-import su.nsk.iae.reflex.expression.SymbolicExpression;
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.expression.ops.BinaryOp;
 
 import java.util.ArrayList;
@@ -20,7 +20,7 @@ public class GreaterFormula implements Formula{
     }
 
     @Override
-    public String toString(){
+    public String toString(IStatementCreator creator){
         if (isGreater){
             return "("+leftSide + (BinaryOp.More) +rightSide+")";
         }else{
@@ -29,14 +29,14 @@ public class GreaterFormula implements Formula{
 
     }
     @Override
-    public List<String> toStrings() {
+    public List<String> toStrings(IStatementCreator creator) {
         ArrayList<String> arr= new ArrayList<>();
         arr.add(toString());
         return arr;
     }
 
     @Override
-    public String toNamedString() {
+    public String toNamedString(IStatementCreator creator) {
         if (isGreater){
             return name + ":\""+ leftSide + (BinaryOp.More) +rightSide + "\"";
         }else{
@@ -45,9 +45,9 @@ public class GreaterFormula implements Formula{
     }
 
     @Override
-    public List<String> toNamedStrings() {
+    public List<String> toNamedStrings(IStatementCreator creator) {
         ArrayList<String> arr= new ArrayList<>();
-        arr.add(toNamedString());
+        arr.add(toNamedString(creator));
         return arr;
     }
 

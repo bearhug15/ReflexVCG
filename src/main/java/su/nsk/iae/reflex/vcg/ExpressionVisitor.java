@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.vcg;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexBaseVisitor;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 import su.nsk.iae.reflex.expression.*;
@@ -14,11 +15,13 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
     final VariableMapper mapper;
     final String process;
     final String state;
+    final IStatementCreator creator;
 
-    ExpressionVisitor(VariableMapper mapper, String processName, String state){
+    public ExpressionVisitor(VariableMapper mapper, String processName, String state, IStatementCreator creator){
         this.mapper = mapper;
         this.process = processName;
         this.state = state;
+        this.creator = creator;
     }
 
     @Override
@@ -112,13 +115,13 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         ExprType type = mapper.variableType(process,id);
         String get;
         if (op.equals("++")){
-            get = StringUtils.constructGetter(type,state,variable)+"+("+type.toString()+"1)";
+            get = StringUtils.constructGetter(type,state,variable)+"+("+type.toString(creator)+"1)";
         } else{
-            get =StringUtils.constructGetter(type,state,variable)+"-("+type.toString()+"1)";
+            get =StringUtils.constructGetter(type,state,variable)+"-("+type.toString(creator)+"1)";
         }
         String newState = StringUtils.constructSetter(type,state,variable,get);
         SymbolicExpression expr = new VariableExpression(variable,type,true);
-        expr.actuate(state);
+        expr.actuate(state, creator);
         return new ExprGenRes(expr,newState,new TrueFormula());
     }
 
@@ -131,9 +134,9 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         ExprType type = mapper.variableType(process,id);
         String get;
         if (op.equals("++")){
-            get = StringUtils.constructGetter(type,state,variable)+"+("+type.toString()+"1)";
+            get = StringUtils.constructGetter(type,state,variable)+"+("+type.toString(creator)+"1)";
         } else{
-            get =StringUtils.constructGetter(type,state,variable)+"-("+type.toString()+"1)";
+            get =StringUtils.constructGetter(type,state,variable)+"-("+type.toString(creator)+"1)";
         }
         String newState = StringUtils.constructSetter(type,state,variable,get);
         SymbolicExpression expr = new VariableExpression(variable,type,true);
@@ -166,7 +169,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         SymbolicExpression expr = res.getExpr();
         String newState = res.getState();
         Formula domain = res.getDomain();
-        expr.actuate(newState);
+        expr.actuate(newState,creator);
         SymbolicExpression newExpr = new CastExpression(castType,expr);
         return new ExprGenRes(newExpr,newState,domain);
     }
@@ -183,7 +186,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         String newState1 = res1.getState();
         Formula domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1)).visitExpression(ctx2);
+        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
         Formula domain2 = res2.getDomain();
@@ -194,11 +197,11 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         ExprType cast = TypeUtils.castType(expr1.exprType(),expr2.exprType(),binOp);
         ExprType resType = TypeUtils.resultType(expr1.exprType(),expr2.exprType(),binOp);
 
-        expr1.actuate(newState2);
+        expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
             expr1 = new CastExpression(cast,expr1);
         }
-        expr2.actuate(newState2);
+        expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
             expr2 = new CastExpression(cast,expr2);
         }
@@ -223,7 +226,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         String newState1 = res1.getState();
         Formula domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1)).visitExpression(ctx2);
+        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
         Formula domain2 = res2.getDomain();
@@ -234,11 +237,11 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         ExprType cast = TypeUtils.castType(expr1.exprType(),expr2.exprType(),binOp);
         ExprType resType = TypeUtils.resultType(expr1.exprType(),expr2.exprType(),binOp);
 
-        expr1.actuate(newState2);
+        expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
             expr1 = new CastExpression(cast,expr1);
         }
-        expr2.actuate(newState2);
+        expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
             expr2 = new CastExpression(cast,expr2);
         }
@@ -263,7 +266,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         String newState1 = res1.getState();
         Formula domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1)).visitExpression(ctx2);
+        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
         Formula domain2 = res2.getDomain();
@@ -274,11 +277,11 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         ExprType cast = TypeUtils.castType(expr1.exprType(),expr2.exprType(),binOp);
         ExprType resType = TypeUtils.resultType(expr1.exprType(),expr2.exprType(),binOp);
 
-        expr1.actuate(newState2);
+        expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
             expr1 = new CastExpression(cast,expr1);
         }
-        expr2.actuate(newState2);
+        expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
             expr2 = new CastExpression(cast,expr2);
         }
@@ -303,7 +306,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         String newState1 = res1.getState();
         Formula domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1)).visitExpression(ctx2);
+        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
         Formula domain2 = res2.getDomain();
@@ -314,11 +317,11 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         ExprType cast = TypeUtils.castType(expr1.exprType(),expr2.exprType(),binOp);
         ExprType resType = TypeUtils.resultType(expr1.exprType(),expr2.exprType(),binOp);
 
-        expr1.actuate(newState2);
+        expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
             expr1 = new CastExpression(cast,expr1);
         }
-        expr2.actuate(newState2);
+        expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
             expr2 = new CastExpression(cast,expr2);
         }
@@ -343,7 +346,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         String newState1 = res1.getState();
         Formula domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1)).visitExpression(ctx2);
+        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
         Formula domain2 = res2.getDomain();
@@ -354,11 +357,11 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         ExprType cast = TypeUtils.castType(expr1.exprType(),expr2.exprType(),binOp);
         ExprType resType = TypeUtils.resultType(expr1.exprType(),expr2.exprType(),binOp);
 
-        expr1.actuate(newState2);
+        expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
             expr1 = new CastExpression(cast,expr1);
         }
-        expr2.actuate(newState2);
+        expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
             expr2 = new CastExpression(cast,expr2);
         }
@@ -397,7 +400,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         String newState1 = res1.getState();
         Formula domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1)).visitExpression(ctx2);
+        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
         Formula domain2 = res2.getDomain();
@@ -408,11 +411,11 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         ExprType cast = TypeUtils.castType(expr1.exprType(),expr2.exprType(),binOp);
         ExprType resType = TypeUtils.resultType(expr1.exprType(),expr2.exprType(),binOp);
 
-        expr1.actuate(newState2);
+        expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
             expr1 = new CastExpression(cast,expr1);
         }
-        expr2.actuate(newState2);
+        expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
             expr2 = new CastExpression(cast,expr2);
         }
@@ -437,7 +440,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         String newState1 = res1.getState();
         Formula domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1)).visitExpression(ctx2);
+        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
         Formula domain2 = res2.getDomain();
@@ -448,11 +451,11 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         ExprType cast = TypeUtils.castType(expr1.exprType(),expr2.exprType(),binOp);
         ExprType resType = new BoolType();
 
-        expr1.actuate(newState2);
+        expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
             expr1 = new CastExpression(cast,expr1);
         }
-        expr2.actuate(newState2);
+        expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
             expr2 = new CastExpression(cast,expr2);
         }
@@ -477,7 +480,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         String newState1 = res1.getState();
         Formula domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1)).visitExpression(ctx2);
+        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
         Formula domain2 = res2.getDomain();
@@ -488,11 +491,11 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         ExprType cast = TypeUtils.castType(expr1.exprType(),expr2.exprType(),binOp);
         ExprType resType = new BoolType();
 
-        expr1.actuate(newState2);
+        expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
             expr1 = new CastExpression(cast,expr1);
         }
-        expr2.actuate(newState2);
+        expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
             expr2 = new CastExpression(cast,expr2);
         }
@@ -517,7 +520,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         String newState1 = res1.getState();
         Formula domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1)).visitExpression(ctx2);
+        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
         Formula domain2 = res2.getDomain();
@@ -528,11 +531,11 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         ExprType cast = TypeUtils.castType(expr1.exprType(),expr2.exprType(),binOp);
         ExprType resType = TypeUtils.resultType(expr1.exprType(),expr2.exprType(),binOp);
 
-        expr1.actuate(newState2);
+        expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
             expr1 = new CastExpression(cast,expr1);
         }
-        expr2.actuate(newState2);
+        expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
             expr2 = new CastExpression(cast,expr2);
         }
@@ -555,13 +558,13 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         String newState1 = res1.getState();
         Formula domain1 = res1.getDomain();
 
-        expr1.actuate(newState1);
+        expr1.actuate(newState1, creator);
 
         String variable = mapper.mapVariable(process,id);
         ExprType type = mapper.variableType(process,id);
 
         CastExpression expr = new CastExpression(type,expr1);
-        String newState = StringUtils.constructSetter(type,newState1,variable,expr.toString());
+        String newState = StringUtils.constructSetter(type,newState1,variable,expr.toString(creator));
 
         SymbolicExpression newExpr = new VariableExpression(variable,type,true);
         return new ExprGenRes(newExpr,newState,domain1);
@@ -590,12 +593,12 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         ExprType resType = lastCast;
 
         String getter = StringUtils.constructGetter(resType,newState1,variable);
-        expr1.actuate(newState1);
+        expr1.actuate(newState1, creator);
         SymbolicExpression assignedExpr = new BinaryExpression(binOp,
                 new CastExpression(cast,new ConstantExpression(getter,resType)),
                 new CastExpression(cast,expr1),
                 resType);
-        String newState = StringUtils.constructGetter(resType,newState1,(new CastExpression(lastCast,assignedExpr)).toString());
+        String newState = StringUtils.constructGetter(resType,newState1,(new CastExpression(lastCast,assignedExpr)).toString(creator));
 
         if (binOp.equals(BinaryOp.Div) || binOp.equals(BinaryOp.Mod)) {
             ConjuctionFormula newDomain = new ConjuctionFormula();
@@ -621,7 +624,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         String newState1 = res1.getState();
         Formula domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1)).visitExpression(ctx2);
+        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
         Formula domain2 = res2.getDomain();
@@ -632,11 +635,11 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         ExprType cast = TypeUtils.castType(expr1.exprType(),expr2.exprType(),binOp);
         ExprType resType = new BoolType();
 
-        expr1.actuate(newState2);
+        expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
             expr1 = new CastExpression(cast,expr1);
         }
-        expr2.actuate(newState2);
+        expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
             expr2 = new CastExpression(cast,expr2);
         }

@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.expression.ops;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.expression.types.*;
 
 public class UnInvert implements UnaryOp{
@@ -8,7 +9,7 @@ public class UnInvert implements UnaryOp{
     public UnInvert(ExprType t){
         mirrorValue = t.invertBorder();
     }
-    public String toString(){
+    public String toString(IStatementCreator creator){
         return mirrorValue+"-";
     }
 }

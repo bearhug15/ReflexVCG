@@ -1,7 +1,9 @@
 package su.nsk.iae.reflex.expression.types;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
+
 public class IntType implements ExprType{
-    public String toString(){
+    public String toString(IStatementCreator creator){
         return "int";
     }
     public String takeGetter(){

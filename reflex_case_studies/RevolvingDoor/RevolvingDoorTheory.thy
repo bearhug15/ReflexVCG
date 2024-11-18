@@ -110,7 +110,7 @@ definition extra1 where
           getPstate s4 ''Controller'' = ''motionless'' \<and>
           \<not> getVarBool s5 ''user'')))"
 
-<<<<<<< HEAD
+
 definition extra1s where
 "extra1s s \<equiv>
 (\<forall> s1.
@@ -141,8 +141,6 @@ definition extra1s where
           getPstate s4 ''Controller'' = ''motionless'' \<and>
           \<not> getVarBool s5 ''user'')))"
 
-=======
->>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 definition extra1_Q1::"state\<Rightarrow>bool" where
 "extra1_Q1 s1 \<equiv>
   getPstate s1 ''Controller'' = ''motionless'' \<longrightarrow>
@@ -182,22 +180,10 @@ lemma P2_inv1_Q2_eq_R1:
 *)
 definition extra2 where
 "extra2 s \<equiv>
-<<<<<<< HEAD
 (\<forall> s1. toEnvP s1 \<and> substate s1 s \<and>
   getPstate s1 ''Controller'' = ''rotating'' \<longrightarrow>
   (\<exists> s2 s3. toEnvP s2 \<and> toEnvP s3 \<and> 
     substate s2 s3 \<and> substate s3 s1 \<and> 
-=======
-(\<forall> s1.
-  toEnvP s1 \<and>
-  substate s1 s \<and>
-  getPstate s1 ''Controller'' = ''rotating'' \<longrightarrow>
-  (\<exists> s2 s3.
-    toEnvP s2 \<and> 
-    toEnvP s3 \<and> 
-    substate s2 s3 \<and> 
-    substate s3 s1 \<and> 
->>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
     toEnvNum s2 s3 = 1 \<and>
     toEnvNum s2 s1 = ltime s1 ''Controller'' div 100 \<and>
     ((getPstate s2 ''Controller'' = ''motionless'' \<or> 
@@ -268,11 +254,7 @@ definition extra3_A where
 "extra3_A s s1 \<equiv> getPstate s1 ''Controller'' = ''rotating''"
 
 definition extra3_B where 
-<<<<<<< HEAD
 "extra3_B s1 s3 s2 \<equiv>
-=======
-"extra3_B s2 s3 \<equiv>
->>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 (getPstate s2 ''Controller'' = ''motionless'' \<and> 
 getVarBool s3 ''user'' \<or>
 getPstate s2 ''Controller'' = ''suspended'') \<and> 
@@ -283,11 +265,7 @@ definition extra3_C where
   getPstate s4  ''Controller'' = ''rotating''"
 
 lemma extra3:
-<<<<<<< HEAD
 "extra3 s = P6_cons extra3_A extra3_B extra3_C s" 
-=======
-"extra3 s \<equiv> P6_cons extra3_A extra3_B extra3_C s" 
->>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
   apply (simp only:extra3_def P6_cons_def extra3_A_def extra3_B_def extra3_C_def)
   by presburger
 
@@ -336,11 +314,7 @@ definition extra5_A where
 "extra5_A s s1 \<equiv> getPstate s1 ''Controller'' = ''suspended''"
 
 definition extra5_B where 
-<<<<<<< HEAD
 "extra5_B s1 s3 s2 \<equiv>
-=======
-"extra5_B s2 s3 \<equiv>
->>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 (getPstate s2 ''Controller'' = ''motionless'' \<and> 
   getVarBool s3 ''user'' \<or>
   getPstate s2 ''Controller'' = ''rotating'') \<and> 
@@ -469,7 +443,6 @@ declare extra7_def [simp]
 end
 
 (*
-<<<<<<< HEAD
 P2_1 1. При входе пользователя дверь начинает вращаться, если на перегородки
     не оказывается давление.
 P2_1 2. Вращение продолжается, пока пользователь находится внутри пространства 
@@ -482,20 +455,6 @@ P3   4. Если на секционные перегородки оказыва
 P8   5. Если на секционные перегородки перестали оказывать давление, то не более, 
    чем через SUSPENSION_TIME секунд вращение возобновится.
 P1   6. Запрещена одновременная подача сигналов rotation и brake.
-=======
-1. При входе пользователя дверь начинает вращаться, если на перегородки
-    не оказывается давление.
-2. Вращение продолжается, пока пользователь находится внутри пространства 
-   вращения, если на перегородки не оказывается давление.
-3. Если пользователь покинул пространство вращения, то не более, чем через 
-  DELAY секунд вращение остановится, если за это время пользователи 
-  не появятся вновь.
-4. Если на секционные перегородки оказывается давление, то вращение 
-   приостанавливается не менее, чем на SUSPENSION_TIME секунд.
-5. Если на секционные перегородки перестали оказывать давление, то не более, 
-   чем через SUSPENSION_TIME секунд вращение возобновится.
-6. Запрещена одновременная подача сигналов rotation и brake.
->>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 *)
 
 section "Requirement 1" 
@@ -587,7 +546,6 @@ declare R2_sub1_def [simp]
 declare R2_sub2_prems_def [simp]
 end
 
-<<<<<<< HEAD
 definition R2_full:
 "R2_full s \<equiv>
 toEnvP s \<and>
@@ -602,8 +560,6 @@ toEnvP s \<and>
         \<not> getVarBool s2 ''pressure'' \<longrightarrow>
         getVarBool s2 ''rotation'')"
 
-=======
->>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 definition R2_A2:: "state\<Rightarrow>state\<Rightarrow>bool"where
 "R2_A2 s2 s1 \<equiv> 
   getVarBool s1 ''rotation'' \<and> 
@@ -750,11 +706,7 @@ definition R4_sub2_prems where
   substate s2 s3 \<and> 
   substate s3 s \<and> 
   toEnvNum s1 s2 = 1 \<and> 
-<<<<<<< HEAD
   toEnvNum s2 s3 < 1000 div 100  \<and>
-=======
-  toEnvNum s2 s3 < 10  \<and>
->>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
   getVarBool s1 ''rotation'' \<and> 
   getVarBool s2 ''pressure''"
 
@@ -873,7 +825,6 @@ declare R5_sub4_prems_def [simp]
 declare R5_sub4_def [simp]
 end
 
-<<<<<<< HEAD
 definition R5_full:
 "R5_full s \<equiv>
 toEnvP s \<and>
@@ -897,8 +848,6 @@ toEnvP s \<and>
               \<not> getVarBool s3 ''rotation''\<and> 
               \<not> getVarBool s3 ''pressure'')))"
 
-=======
->>>>>>> c7da1483a357cd17d86ed81087ede1ab76c50480
 section "Requirement 6" 
 
 definition R6_sub1 where

@@ -1,0 +1,120 @@
+program Escalator{
+	clock 100;
+	input inp 0x00 0x00 8;
+	output out 0x00 0x01 8;
+	
+	bool userAtTop = inp[0];
+	bool userAtBottom = inp[1];
+	bool directionSwitch = inp[2];
+	bool alarmButton = inp[3];
+	bool stuck = inp[4];
+	
+	bool up = out[0];
+	bool down = out[1];
+	
+	const bool UP = true;
+	const bool DOWN = false;
+	const time DELAY = 0t2m;
+	const time SUSPENSION_TIME = 0t1s;
+	
+	bool direction;
+	bool moving;
+	
+	process Ctrl{
+		state motionless{
+			if (alarmButton) {
+				set state emergency;
+			} else {
+				if (stuck) {
+					set state stuckState;
+				} else {
+					if (userAtTop || userAtBottom){
+						if (directionSwitch == UP){
+							up = true;
+							moving = true;
+							direction = UP;
+							set state goUp;
+						} else{
+							down = true;
+							moving = true;
+							direction = DOWN;
+							set state goDown;
+						}
+					} else{
+						direction = directionSwitch;
+					}
+				}
+			}
+		}
+		
+		state goUp{
+			if (alarmButton){
+				set state emergency;
+			} else{
+				if (stuck){
+					set state stuckState;
+				} else {
+					if (userAtTop || userAtBottom){
+						reset timer;
+					}
+				}
+			}
+			timeout DELAY{
+				up = false;
+				moving = false;
+				direction = directionSwitch;
+				set state motionless;
+			}
+		}
+		
+		state goDown{
+			if (alarmButton){
+				set state emergency;
+			} else{
+				if (stuck){
+					set state stuckState;
+				} else {
+					if (userAtTop || userAtBottom){
+						reset timer;
+					}
+				}
+			}
+			timeout DELAY{
+				down = false;
+				moving = false;
+				direction = directionSwitch;
+				set state motionless;
+			}
+		}
+		
+		state stuckState{
+			up = false;
+			down = false;
+			if (alarmButton){
+				set state emergency;
+			} else {
+				if (stuck){
+					reset timer;
+				}
+			}
+			timeout SUSPENSION_TIME{
+				if (moving){
+					if (direction == UP){
+						up = true;
+						set state goUp;
+					} else {
+						down = true;
+						set state goDown;
+					}
+				} else {
+					set state motionless;
+				}
+			}
+		}
+		
+		state emergency{
+			up = false;
+			down = false;
+		}
+	}
+}

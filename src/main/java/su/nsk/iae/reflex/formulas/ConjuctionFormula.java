@@ -1,5 +1,7 @@
 package su.nsk.iae.reflex.formulas;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -17,9 +19,9 @@ public class ConjuctionFormula implements Formula{
     }
 
     @Override
-    public String toString() {
+    public String toString(IStatementCreator creator) {
         StringJoiner joiner= new StringJoiner(" \\<and> ");
-        List<String> strings = toStrings();
+        List<String> strings = toStrings(creator);
         for (String str: strings){
             joiner.add(str);
         }
@@ -27,7 +29,7 @@ public class ConjuctionFormula implements Formula{
     }
 
     @Override
-    public List<String> toStrings() {
+    public List<String> toStrings(IStatementCreator creator) {
 
         return formulas.stream().filter(formula ->
                 formula.getClass().equals(ConjuctionFormula.class)
@@ -35,11 +37,11 @@ public class ConjuctionFormula implements Formula{
                         || formula.getClass().equals(GreaterFormula.class)
                         || formula.getClass().equals(ImplicationFormula.class)
                         || formula.getClass().equals(RawFormula.class)
-                        || formula.getClass().equals(StateFormula.class)).map(Formula::toString).toList();
+                        || formula.getClass().equals(StateFormula.class)).map(formula1 -> formula1.toString(creator)).toList();
     }
 
     @Override
-    public List<String> toNamedStrings() {
+    public List<String> toNamedStrings(IStatementCreator creator) {
 
         return formulas.stream()
                 .filter(formula -> formula.getClass().equals(ConjuctionFormula.class)
@@ -48,7 +50,7 @@ public class ConjuctionFormula implements Formula{
                         || formula.getClass().equals(ImplicationFormula.class)
                         || formula.getClass().equals(RawFormula.class)
                         || formula.getClass().equals(StateFormula.class))
-                .map(Formula::toNamedString).toList();
+                .map(formula1 -> formula1.toNamedString(creator)).toList();
     }
 
     @Override
@@ -64,9 +66,9 @@ public class ConjuctionFormula implements Formula{
         }
     }
 
-    public String toNamedString(){
+    public String toNamedString(IStatementCreator creator){
         StringJoiner join = new StringJoiner(" \\<and> ");
-        for (String string: this.toStrings())
+        for (String string: this.toStrings(creator))
             join.add(string);
         return name+formulas.hashCode() + ":\""+ join.toString() + "\"";
     }
@@ -82,19 +84,6 @@ public class ConjuctionFormula implements Formula{
             throw new RuntimeException("Formula from stack not found");
         }
     }
-     /*public boolean isMarkedSetState(){
-         Iterator<Formula> iter = formulas.descendingIterator();
-         while (iter.hasNext()){
-             Formula formula = iter.next();
-             if (formula instanceof MarkSetState){
-                 return true;
-             }
-             if (formula instanceof UnmarkSetState){
-                 return false;
-             }
-         }
-         return false;
-     }*/
     public boolean isMarkedReset(){
         Iterator<Formula> iter = formulas.descendingIterator();
         while (iter.hasNext()){

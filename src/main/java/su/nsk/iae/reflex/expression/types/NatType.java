@@ -1,8 +1,10 @@
 package su.nsk.iae.reflex.expression.types;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
+
 public class NatType implements ExprType{
 
-    public String toString(){
+    public String toString(IStatementCreator cerator){
         return "nat";
     }
     public String takeGetter(){

@@ -2,6 +2,7 @@ package su.nsk.iae.reflex.vcg;
 
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.misc.Pair;
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 import su.nsk.iae.reflex.expression.types.ExprType;
 import su.nsk.iae.reflex.expression.types.TypeUtils;
@@ -16,12 +17,13 @@ public class VariableMapper {
     HashMap<String,Pair<String,ExprType>> constants;
 
     HashMap<Pair<String,String>,Pair<String,ExprType>> enums;
-
-    public VariableMapper(ReflexParser.ProgramContext ctx) {
+    IStatementCreator creator;
+    public VariableMapper(ReflexParser.ProgramContext ctx, IStatementCreator creator) {
         variables = new HashMap<>();
         constants = new HashMap<>();
         enums = new HashMap<>();
         globalVariables = new HashSet<>();
+        this.creator = creator;
 
         prepareVariableMapper(ctx,0);
     }
@@ -48,11 +50,11 @@ public class VariableMapper {
             }
         }
         for (ReflexParser.ConstContext con: ctx.consts){
-            ExpressionVisitor vis = new ExpressionVisitor(this,"_",stateName(stateCount));
+            ExpressionVisitor vis = new ExpressionVisitor(this,"_",stateName(stateCount),creator);
             ExprGenRes res = vis.visitExpression(con.expression());
             this.addConstant(
                     con.name.getText(),
-                    res.expr.toString(),
+                    res.expr.toString(creator),
                     TypeUtils.defineType(con.varType.getText()));
         }
 

@@ -1,20 +1,27 @@
 package su.nsk.iae.reflex.formulas;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
+
 import java.util.List;
 
 public class MarkRestart implements Formula{
     @Override
-    public List<String> toStrings() {
+    public String toString(IStatementCreator creator) {
         return null;
     }
 
     @Override
-    public String toNamedString() {
+    public List<String> toStrings(IStatementCreator creator) {
         return null;
     }
 
     @Override
-    public List<String> toNamedStrings() {
+    public String toNamedString(IStatementCreator creator) {
+        return null;
+    }
+
+    @Override
+    public List<String> toNamedStrings(IStatementCreator creator) {
         return null;
     }
 

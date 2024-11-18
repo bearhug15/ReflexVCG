@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.expression;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.expression.types.BoolType;
 import su.nsk.iae.reflex.expression.types.ExprType;
 
@@ -19,7 +20,7 @@ public class CheckStateExpression implements SymbolicExpression{
     }
 
     @Override
-    public void actuate(String programState) {}
+    public void actuate(String programState, IStatementCreator creator) {}
 
     @Override
     public boolean isActuated() {
@@ -27,7 +28,7 @@ public class CheckStateExpression implements SymbolicExpression{
     }
 
     @Override
-    public String toString(){
+    public String toString(IStatementCreator creator){
         if (processState.equals("inactive"))
             return "((getPstate "+state+" ''"+process+"'' = ''stop'') \\<or> "+"(getPstate "+state+" "+process+" = ''error''))" ;
         if (processState.equals("active"))

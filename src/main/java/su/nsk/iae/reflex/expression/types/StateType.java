@@ -1,5 +1,7 @@
 package su.nsk.iae.reflex.expression.types;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
+
 public class StateType implements ExprType{
     String name;
     public StateType(String name){
@@ -25,8 +27,8 @@ public class StateType implements ExprType{
         return "emptyState";
     }
 
-    @Override
-    public String toString(){
+
+    public String toString(IStatementCreator creator){
         return this.name;
     }
 }

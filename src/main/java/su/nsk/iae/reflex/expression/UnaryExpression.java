@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.expression;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.expression.ops.UnaryOp;
 import su.nsk.iae.reflex.expression.types.ExprType;
 
@@ -17,13 +18,13 @@ public class UnaryExpression implements SymbolicExpression{
     public ExprType exprType() {
         return type;
     }
-    public String toString(){
-        return "("+op.toString()+exp.toString()+")";
+    public String toString(IStatementCreator creator){
+        return "("+op.toString(creator)+exp.toString(creator)+")";
     }
 
     @Override
-    public void actuate(String programState) {
-        exp.actuate(programState);
+    public void actuate(String programState, IStatementCreator creator) {
+        exp.actuate(programState, creator);
     }
 
     @Override

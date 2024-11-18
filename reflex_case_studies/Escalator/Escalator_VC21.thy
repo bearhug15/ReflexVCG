@@ -1,9 +1,9 @@
 theory Escalator_VC21
-imports EscalatorTheory
+imports EscalatorTheory Requirements extra
 begin
 
 lemma
- assumes base_inv:"(inv st0)"
+ assumes base_inv:"(extraInv st0)"
  and st1:"(st1=(setVarBool st0 ''inp_3'' inp_3))"
  and st2:"(st2=(setVarBool st1 ''inp_2'' inp_2))"
  and st3:"(st3=(setVarBool st2 ''inp_1'' inp_1))"
@@ -17,6 +17,6 @@ lemma
  and st7_stuckState_timeout:"1000>(ltime st7 ''Ctrl'')"
  and st8:"(st8=(toEnv st7))"
  and st_final:"(st_final=st8)"
-shows "(inv st_final)"
+shows "(extraInv st_final)" by sorry
 
 end

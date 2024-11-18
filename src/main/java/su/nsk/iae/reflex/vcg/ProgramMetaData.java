@@ -2,8 +2,9 @@ package su.nsk.iae.reflex.vcg;
 
 
 
-import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.misc.Pair;
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
+import su.nsk.iae.reflex.StatementsCreator.IsabelleCreator;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 import su.nsk.iae.reflex.expression.types.ExprType;
 import su.nsk.iae.reflex.expression.types.TypeUtils;
@@ -20,6 +21,7 @@ public class ProgramMetaData {
     Map<String, ExprType> inputVariablesNames;
 
     HashMap<String, ReflexParser.ProcessContext> processNameMapper=new HashMap<>();
+    IStatementCreator creator;
 
     public String getClockValue() {
         return clockValue;
@@ -28,10 +30,11 @@ public class ProgramMetaData {
     public void setClockValue(String clockValue) {
         this.clockValue = clockValue;
     }
-    public ProgramMetaData(ReflexParser.ProgramContext ctx,VariableMapper mapper){
+    public ProgramMetaData(ReflexParser.ProgramContext ctx, VariableMapper mapper, IStatementCreator creator){
         processes = new ArrayList<>();
         initializer = new HashMap<>();
         inputVariablesNames = new HashMap<>();
+        this.creator = creator;
 
         for (ReflexParser.GlobalVariableContext variable: ctx.globalVars){
             if (variable.programVariable() == null) {
@@ -77,7 +80,7 @@ public class ProgramMetaData {
                 String variableName = programVariable.name.getText();
                 String processName = ctx.processes.get(0).name.getText();
                 if(programVariable.expression()!=null){
-                    ExpressionVisitor vis = new ExpressionVisitor(mapper,processName,state);
+                    ExpressionVisitor vis = new ExpressionVisitor(mapper,processName,state,creator);
                     ExprGenRes res = vis.visitExpression(programVariable.expression());
                     ExprType ty = mapper.variableType(processName,variableName);
                     state = StringUtils.constructSetter(ty,state,mapper.mapVariable(processName,variableName),res.getExpr().toString());
@@ -224,7 +227,7 @@ public class ProgramMetaData {
                 ReflexParser.ProgramVariableContext programVariable = variable.programVariable();
                 String variableName = programVariable.name.getText();
                 if(programVariable.expression()!=null){
-                    ExpressionVisitor vis = new ExpressionVisitor(mapper,processName,state);
+                    ExpressionVisitor vis = new ExpressionVisitor(mapper,processName,state,creator);
                     ExprGenRes res = vis.visitExpression(programVariable.expression());
                     ExprType ty = mapper.variableType(processName,variableName);
                     state = StringUtils.constructSetter(ty,state,mapper.mapVariable(processName,variableName),res.getExpr().toString());

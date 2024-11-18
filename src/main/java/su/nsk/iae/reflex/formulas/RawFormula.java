@@ -1,6 +1,7 @@
 package su.nsk.iae.reflex.formulas;
 
-import java.nio.file.Path;
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
+
 import java.util.List;
 
 public class RawFormula implements Formula{
@@ -16,17 +17,17 @@ public class RawFormula implements Formula{
     }
 
     @Override
-    public String toString(){
+    public String toString(IStatementCreator creator){
         return value;
     }
 
     @Override
-    public List<String> toStrings() {
+    public List<String> toStrings(IStatementCreator creator) {
         return List.of(value);
     }
 
     @Override
-    public String toNamedString() {
+    public String toNamedString(IStatementCreator creator) {
         if (name == null) {
             throw new RuntimeException("Trying to make named string for nameless raw formula");
         }else {
@@ -35,7 +36,7 @@ public class RawFormula implements Formula{
     }
 
     @Override
-    public List<String> toNamedStrings() {
+    public List<String> toNamedStrings(IStatementCreator creator) {
         if (name == null) {
             throw new RuntimeException("Trying to make named string for nameless raw formula");
         }else {

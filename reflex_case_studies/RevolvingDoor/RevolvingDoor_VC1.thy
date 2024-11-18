@@ -434,6 +434,7 @@ next
         then have 8:"substate x s3" using predEnv_substate_imp_eq_or_substate 1 o1 prem by auto
         have 9:"R3_full st0" using base_inv inv3_def by auto
         have 10:"(\<forall>y. toEnvP y \<and> substate x y \<and> substate y st_final \<longrightarrow> toEnvNum x y \<le>10)" using 2 0 predEnv_toEnvNum toEnvNum3 buff1 by auto  
+        have "\<forall>y. toEnvP y \<and> substate s3 y \<and> substate y st0 \<longrightarrow> getPstate y ''Controller'' = ''motionless''" by 
         (*obtain y where "toEnvP y \<and> substate x y \<and> substate y st0 \<and> y\<noteq>st0"
           using "1" prem substate_total by blast 
         then have "getVarBool y ''user'' \<or> \<not>getVarBool y ''rotation''"

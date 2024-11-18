@@ -1,13 +1,13 @@
 package su.nsk.iae.reflex.expression;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.expression.types.ExprType;
-import su.nsk.iae.reflex.expression.types.IntType;
 
 public class RawExpression implements SymbolicExpression{
     String value;
 
     @Override
-    public String toString(){
+    public String toString(IStatementCreator creator){
         return value;
     }
     public RawExpression(String value) {
@@ -20,7 +20,7 @@ public class RawExpression implements SymbolicExpression{
     }
 
     @Override
-    public void actuate(String programState) {}
+    public void actuate(String programState, IStatementCreator creator) {}
 
     @Override
     public boolean isActuated() {

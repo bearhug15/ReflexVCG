@@ -1,5 +1,7 @@
 package su.nsk.iae.reflex.vcg;
 
+import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
+import su.nsk.iae.reflex.StatementsCreator.IsabelleCreator;
 import su.nsk.iae.reflex.formulas.ImplicationFormula;
 
 import java.io.*;
@@ -7,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.StringJoiner;
@@ -21,12 +24,14 @@ public class VCPrinter {
     HashSet<String> VC;
     int lemmasPrinted;
     ProgramMetaData programMetaData;
+    IStatementCreator creator;
 
     boolean isGlobalTheory;
-    public VCPrinter(Path destination, String sourceName, ProgramMetaData programMetaData){
+    public VCPrinter(Path destination, Path source, ProgramMetaData programMetaData, IStatementCreator creator){
         isGlobalTheory = false;
         lemmasPrinted=0;
-        this.sourceName=sourceName;
+        this.sourceName=source.getFileName().toString();
+        this.creator = creator;
         VC = new HashSet<>();
         File file = destination.toFile();
         if (file.isDirectory()){
@@ -35,7 +40,7 @@ public class VCPrinter {
             throw new RuntimeException("Destination not directory");
         }
         this.programMetaData = programMetaData;
-        copyReflexTheory();
+        //copyReflexTheory();
     }
 
     public void copyReflexTheory(){
@@ -126,9 +131,55 @@ public class VCPrinter {
         lemmasPrinted++;
     }
 
+    public void printVCInDir(ArrayList<String> statements, int lastState){
+        if (!isGlobalTheory){
+            createGlobalTheory();
+            copyReflexTheory();
+            isGlobalTheory = true;
+        }
+        String init = creator.createInitInvariantStatement();
+        statements.add(creator.createFinalStatement(lastState));
+        String impl = creator.createImplInvariantStatement(creator.createFinalStatementName());
+        String lemma = creator.createLemma(init,statements,impl);
+
+        String dirName = destination.getFileName().toString();
+        String fileName;
+        if (sourceName==null) {
+            fileName = dirName.split("\\.")[0];
+        }else{
+            fileName = sourceName.split("\\.")[0];
+        }
+        String baseTheory = fileName+"Theory";
+        fileName = fileName+"_VC"+lemmasPrinted;
+
+        StringBuilder builder = new StringBuilder();
+
+        builder.append("theory ").append(fileName).append("\n");
+        builder.append("imports ");
+        builder.append(baseTheory);
+        builder.append("\nbegin\n\n");
+        builder.append(lemma);
+        builder.append("\n");
+        builder.append("\nend\n");
+
+        fileName = fileName+".thy";
+        try {
+            FileWriter writer = new FileWriter(new File(destination.toString() + "/" + fileName), StandardCharsets.UTF_8);
+            writer.write(builder.toString());
+            writer.close();
+            lemmasPrinted++;
+        }catch(Exception e){
+            throw new RuntimeException(e);
+        }
+    }
+
+    public int getLemmasPrinted(){
+        return lemmasPrinted;
+    }
     public void printVCInDir(ImplicationFormula formula){
         if (!isGlobalTheory){
             createGlobalTheory();
+            copyReflexTheory();
             isGlobalTheory = true;
         }
         String dirName = destination.getFileName().toString();
@@ -165,7 +216,7 @@ public class VCPrinter {
         StringBuilder lemma = new StringBuilder();
         lemma.append("lemma\n ");
         lemma.append("assumes ");
-        List<String> assumes = formula.left().trim().toNamedStrings();
+        List<String> assumes = formula.left().trim().toNamedStrings(creator);
         StringJoiner joiner1 = new StringJoiner("\n and ");
         for (String string: assumes)
             joiner1.add(string);
