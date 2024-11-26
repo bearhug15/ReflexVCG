@@ -2,7 +2,6 @@ package su.nsk.iae.reflex.ProgramGraph.staticAnalysis;
 
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProcessNode;
 import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.*;
-import su.nsk.iae.reflex.antlr.ReflexParser;
 
 import su.nsk.iae.reflex.vcg.ProgramMetaData;
 
@@ -40,11 +39,11 @@ public class RuleChecker {
             case State: {
                 return checkRulesStateAttributes(path,(StateAttributes) attr);
             }
-            case Timeout:{
-                if(((AttributedTimeout)attr).isVariable()){
-                    return checkTimeout(path);
-                }else{
+            case TimeoutBranch:{
+                if(((TimeoutBranch)attr).isVariable() || !((TimeoutBranch)attr).isExceed()){
                     return true;
+                }else{
+                    return checkTimeout(path);
                 }
             }
             default: return true;
@@ -55,7 +54,7 @@ public class RuleChecker {
         ProcessNode rootProcess = attr.getRootProcess();
         ProcessAttributes pattr = (ProcessAttributes) collector.getAttributes(rootProcess);
         if(!pattr.isReachE() && attr.getStateName().equals("error"))return false;
-        if(!pattr.isReachS() && !pattr.isStartS() && attr.getStateName().equals("break")) return false;
+        if(!pattr.isReachS() && !pattr.isStartS() && attr.getStateName().equals("stop")) return false;
         //boolean res = true;
         Iterator<IAttributed> iter = path.descendingIterator();
         while(iter.hasNext()){

@@ -12,6 +12,7 @@ public interface IReflexNode extends Serializable {
     ParserRuleContext getContext();
     ArrayList<String> createStatements(IStatementCreator creator, int stateNumber);
     Integer getStateShift();
+    Integer getNumOfStatements();
 
     Integer getBranchNum();
     void setBranchNum(Integer branchNum);

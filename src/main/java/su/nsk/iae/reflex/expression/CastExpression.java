@@ -31,12 +31,14 @@ public class CastExpression implements SymbolicExpression{
     @Override
     public String toString(IStatementCreator creator) {
         if (expr.exprType() == null){
-            return "("+type.toString(creator)+" "+expr.toString(creator)+")";
+            return creator.createCastExpression(expr.toString(creator),type);
+            //return "("+type.toString(creator)+" "+expr.toString(creator)+")";
         }
         if (type.toString(creator).equals(expr.exprType().toString(creator))){
             return expr.toString(creator);
         }else{
-            return "("+type.toString(creator)+" "+expr.toString(creator)+")";
+            return creator.createCastExpression(expr.toString(creator),type);
+            //return "("+type.toString(creator)+" "+expr.toString(creator)+")";
         }
     }
 }

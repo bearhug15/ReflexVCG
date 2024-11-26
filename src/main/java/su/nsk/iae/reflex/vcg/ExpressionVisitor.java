@@ -55,7 +55,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         } else {
             val = ctx.UNSIGNED_INTEGER().getText();
         }
-        String value = StringUtils.parseInteger(val);
+        String value = ValueParser.parseInteger(val);
         SymbolicExpression expr;
         if (val.contains("u") || val.contains("U")){
             expr = new ConstantExpression(value, new NatType());
@@ -68,7 +68,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
     @Override
     public ExprGenRes visitFloat(ReflexParser.FloatContext ctx) {
         String val =  ctx.FLOAT().getText();
-        String value = StringUtils.parseFloat(val);
+        String value = ValueParser.parseFloat(val);
         SymbolicExpression expr = new ConstantExpression(value,new FloatType());
         return new ExprGenRes(expr,state,new TrueFormula());
     }
@@ -84,7 +84,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
     @Override
     public ExprGenRes visitTime(ReflexParser.TimeContext ctx) {
         String val =  ctx.TIME().getText();
-        String value = StringUtils.parseTime(val);
+        String value = ValueParser.parseTime(val);
         SymbolicExpression expr = new ConstantExpression(value,new TimeType());
         return new ExprGenRes(expr,state,new TrueFormula());
     }
@@ -115,11 +115,14 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         ExprType type = mapper.variableType(process,id);
         String get;
         if (op.equals("++")){
-            get = StringUtils.constructGetter(type,state,variable)+"+("+type.toString(creator)+"1)";
+            get = creator.createBinaryExpression(creator.createGetter(type,state,variable),"1",BinaryOp.Sum);
+            //get = StringUtils.constructGetter(type,state,variable)+"+("+type.toString(creator)+"1)";
         } else{
-            get =StringUtils.constructGetter(type,state,variable)+"-("+type.toString(creator)+"1)";
+            get = creator.createBinaryExpression(creator.createGetter(type,state,variable),"1",BinaryOp.Sub);
+            //get =StringUtils.constructGetter(type,state,variable)+"-("+type.toString(creator)+"1)";
         }
-        String newState = StringUtils.constructSetter(type,state,variable,get);
+        //String newState = StringUtils.constructSetter(type,state,variable,get);
+        String newState = creator.createSetter(type,state,variable,get);
         SymbolicExpression expr = new VariableExpression(variable,type,true);
         expr.actuate(state, creator);
         return new ExprGenRes(expr,newState,new TrueFormula());
@@ -134,11 +137,14 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         ExprType type = mapper.variableType(process,id);
         String get;
         if (op.equals("++")){
-            get = StringUtils.constructGetter(type,state,variable)+"+("+type.toString(creator)+"1)";
+            get = creator.createBinaryExpression(creator.createGetter(type,state,variable),"1",BinaryOp.Sum);
+            //get = StringUtils.constructGetter(type,state,variable)+"+("+type.toString(creator)+"1)";
         } else{
-            get =StringUtils.constructGetter(type,state,variable)+"-("+type.toString(creator)+"1)";
+            get = creator.createBinaryExpression(creator.createGetter(type,state,variable),"1",BinaryOp.Sub);
+            //get =StringUtils.constructGetter(type,state,variable)+"-("+type.toString(creator)+"1)";
         }
-        String newState = StringUtils.constructSetter(type,state,variable,get);
+        //String newState = StringUtils.constructSetter(type,state,variable,get);
+        String newState = creator.createSetter(type,state,variable,get);
         SymbolicExpression expr = new VariableExpression(variable,type,true);
         return new ExprGenRes(expr,newState,new TrueFormula());
     }
@@ -150,14 +156,14 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         SymbolicExpression expr = res.getExpr();
         String newState = res.getState();
         Formula domain = res.getDomain();
-        UnaryOp unOp;
-        switch (op) {
-            case "+": unOp= new UnPlus();break;
-            case "-": unOp= new UnMinus();break;
-            case "!": unOp= new UnNeg();break;
-            case "~": unOp= new UnInvert(expr.exprType());break;
-            default: throw new RuntimeException("Unknown unary op");
-        }
+        UnaryOp unOp = switch (op) {
+            case "+" -> new UnPlus();
+            case "-" -> new UnMinus();
+            case "!" -> new UnNeg();
+            case "~" -> new UnInvert(expr.exprType());
+            default -> throw new RuntimeException("Unknown unary op");
+        };
+        //SymbolicExpression newExpr = new UnaryExpression(unOp,expr,expr.exprType());
         SymbolicExpression newExpr = new UnaryExpression(unOp,expr,expr.exprType());
         return new ExprGenRes(newExpr,newState,domain);
     }
@@ -564,7 +570,8 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         ExprType type = mapper.variableType(process,id);
 
         CastExpression expr = new CastExpression(type,expr1);
-        String newState = StringUtils.constructSetter(type,newState1,variable,expr.toString(creator));
+        String newState = creator.createSetter(type,newState1,variable,expr.toString(creator));
+        //String newState = StringUtils.constructSetter();
 
         SymbolicExpression newExpr = new VariableExpression(variable,type,true);
         return new ExprGenRes(newExpr,newState,domain1);
@@ -592,13 +599,13 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         }
         ExprType resType = lastCast;
 
-        String getter = StringUtils.constructGetter(resType,newState1,variable);
+        String getter = creator.createGetter(resType,newState1,variable);
         expr1.actuate(newState1, creator);
         SymbolicExpression assignedExpr = new BinaryExpression(binOp,
                 new CastExpression(cast,new ConstantExpression(getter,resType)),
                 new CastExpression(cast,expr1),
                 resType);
-        String newState = StringUtils.constructGetter(resType,newState1,(new CastExpression(lastCast,assignedExpr)).toString(creator));
+        String newState = creator.createGetter(resType,newState1,(new CastExpression(lastCast,assignedExpr)).toString(creator));
 
         if (binOp.equals(BinaryOp.Div) || binOp.equals(BinaryOp.Mod)) {
             ConjuctionFormula newDomain = new ConjuctionFormula();

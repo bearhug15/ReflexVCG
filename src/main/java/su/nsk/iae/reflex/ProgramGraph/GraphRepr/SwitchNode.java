@@ -37,6 +37,11 @@ public class SwitchNode implements IReflexNode{
     }
 
     @Override
+    public Integer getNumOfStatements() {
+        return 0;
+    }
+
+    @Override
     public Integer getBranchNum() {
         return branchNum;
     }

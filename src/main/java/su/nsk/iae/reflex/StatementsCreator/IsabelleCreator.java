@@ -35,42 +35,52 @@ public class IsabelleCreator implements IStatementCreator {
 
     @Override
     public String createStateStatement(int stateNumber, String processName, String stateName) {
-        return createStateName(stateNumber)+"_state:"+"\""+"getPstate "+createStateName(stateNumber)+"''"+processName+"'' = ''"+stateName+"''\"";
+        return createStateName(stateNumber)+"_state:\""+"getPstate "+createStateName(stateNumber)+" ''"+processName+"'' = ''"+stateName+"''\"";
     }
 
     @Override
     public String createSetStateStatement(int stateNumber, String processName, String stateName) {
-        return createStateName(stateNumber+1)+":"+"\""+createStateName(stateNumber+1)+"="+"setPstate "+createStateName(stateNumber)+"''"+processName+"'' = ''"+stateName+"''\"";
+        return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+"setPstate "+createStateName(stateNumber)+" ''"+processName+"'' = ''"+stateName+"''\"";
     }
 
     @Override
     public String createStartProcessStatement(int stateNumber, String processName, String stateName) {
-        return createStateName(stateNumber+1)+":"+"\""+createStateName(stateNumber+1)+"="+"setPstate "+createStateName(stateNumber)+"''"+processName+"'' = ''"+stateName+"''\"";
+        return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+"setPstate "+createStateName(stateNumber)+" ''"+processName+"'' = ''"+stateName+"''\"";
     }
 
     @Override
     public String createStopProcessStatement(int stateNumber, String processName) {
-        return createStateName(stateNumber+1)+":"+"\""+createStateName(stateNumber+1)+"="+"setPstate "+createStateName(stateNumber)+"''"+processName+"'' = ''stop''\"";
+        return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+"setPstate "+createStateName(stateNumber)+" ''"+processName+"'' = ''stop''\"";
     }
 
     @Override
     public String createErrorProcessStatement(int stateNumber, String processName) {
-        return createStateName(stateNumber+1)+":"+"\""+createStateName(stateNumber+1)+"="+"setPstate "+createStateName(stateNumber)+"''"+processName+"'' = ''error''\"";
+        return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+"setPstate "+createStateName(stateNumber)+" ''"+processName+"'' = ''error''\"";
     }
 
     @Override
     public String createResetStatement(int stateNumber, String processName) {
-        return createStateName(stateNumber+1)+":"+"\""+createStateName(stateNumber+1)+"="+"reset "+createStateName(stateNumber)+"\"";
+        return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+"reset "+createStateName(stateNumber)+"\"";
+    }
+
+    @Override
+    public String createEnvStatement(int stateNumber) {
+        return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+"toEnv "+createStateName(stateNumber)+"\"";
     }
 
     @Override
     public String createFinalStatement(int stateNumber) {
-        return createFinalStatementName()+"\""+createFinalStatementName()+"="+createStateName(stateNumber)+"\"";
+        return createFinalStatementName()+":\""+createFinalStatementName()+"="+createStateName(stateNumber)+"\"";
     }
 
     @Override
     public String createFinalStatementName(){
         return "st_final";
+    }
+
+    @Override
+    public String createEmptyStateStatement() {
+        return createStateName(0)+":\""+createStateName(0)+"="+createEmptyState()+"\"";
     }
 
     @Override
@@ -90,9 +100,16 @@ public class IsabelleCreator implements IStatementCreator {
         if(init!=null){
             joiner.add(init);
         }
-        for(String line :inter){
-            joiner.add(line);
+        String holder = inter.get(0);
+        for(String line :inter.subList(1,inter.size())){
+            if(line.equals("")){
+                holder+="\n";
+            }else{
+                joiner.add(holder);
+                holder=line;
+            }
         }
+        joiner.add(holder);
         StringBuilder builder = new StringBuilder();
         builder.append(joiner);
         builder.append("shows ");
@@ -132,14 +149,35 @@ public class IsabelleCreator implements IStatementCreator {
     }
 
     @Override
+    public String createCastExpression(String exp, ExprType type) {
+        return "("+type.toString(this)+" "+exp+")";
+    }
+
+    @Override
     public String createInvariant(String state) {
         return "inv("+state+")";
+    }
+
+    @Override
+    public String createEmptyState() {
+        return "emptyState";
     }
 
 
     public String createGetter(ExprType type, String state, String variable){
         return "("+type.takeGetter()+" "+state+" ''"+variable+"'')";
     }
+
+    @Override
+    public String createPstateSetter(String stateHolder, String processName, String stateName) {
+        return "setPstate" + stateHolder +" "+IString(processName)+" "+IString(stateName);
+    }
+
+    @Override
+    public String createPstateGetter(String stateHolder, String processName) {
+        return "getPstate" + stateHolder +" "+IString(processName);
+    }
+
     public String createSetter(ExprType type, String state, String variable, String value){
         return "("+type.takeSetter()+" "+state+" ''"+variable+"'' "+value+")";
     }

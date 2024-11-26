@@ -26,6 +26,11 @@ public class BlankNode implements IReflexNode{
     }
 
     @Override
+    public Integer getNumOfStatements() {
+        return 0;
+    }
+
+    @Override
     public Integer getBranchNum() {
         return branchNum;
     }

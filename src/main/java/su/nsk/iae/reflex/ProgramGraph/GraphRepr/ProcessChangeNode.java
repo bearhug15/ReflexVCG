@@ -47,7 +47,12 @@ public class ProcessChangeNode implements IReflexNode{
 
     @Override
     public Integer getStateShift() {
-        return 0;
+        return 1;
+    }
+
+    @Override
+    public Integer getNumOfStatements() {
+        return 1;
     }
 
     @Override

@@ -5,14 +5,11 @@ import org.jgrapht.event.VertexTraversalEvent;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.traverse.AbstractGraphIterator;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.IReflexNode;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProgramNode;
 import su.nsk.iae.reflex.ProgramGraph.ProgramGraph;
 import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.AttributeCollector;
 import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.AttributedPath;
 import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.RuleChecker;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.AttributedNodeType;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.IAttributed;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.StateAttributes;
+import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.*;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 
 import java.util.*;
@@ -23,13 +20,17 @@ public class VCGeneratorIterator extends AbstractGraphIterator<IReflexNode, Defa
 
     RuleChecker checker;
 
-    IReflexNode next;
+    IReflexNode init;
+    //Cursor shows last returned element
+    IReflexNode cursor;
     AttributeTraversal attributeTraversal;
     VCTraversal vcTraversal;
 
     public VCGeneratorIterator(ProgramGraph graph,AttributeCollector collector,RuleChecker checker,IStatementCreator creator){
         super(graph);
-        next = graph.getStartNode();
+        //cursor = graph.getStartNode();
+        cursor=null;
+        init = graph.getStartNode();
         AttributeTraversal trav1 = new AttributeTraversal(collector);
         this.addTraversalListener(trav1);
         attributeTraversal = trav1;
@@ -40,24 +41,119 @@ public class VCGeneratorIterator extends AbstractGraphIterator<IReflexNode, Defa
     }
     @Override
     public boolean hasNext() {
-        return next!=null;
+        if(init!=null){
+            return true;
+        }
+        List<IReflexNode> neighs = ((ProgramGraph)graph).getOutgoingNeighbours(cursor);
+        if(neighs.isEmpty()){
+            int i = branchPoints.size()-1;
+            while(i>=0){
+                Map.Entry<IReflexNode, Integer> point = branchPoints.get(i);
+                List<IReflexNode> neighbours = ((ProgramGraph)graph).getOutgoingNeighbours(point.getKey());
+                if (point.getValue() >= neighbours.size() - 1) {
+                    i--;
+                } else {
+                    return true;
+                }
+            }
+            return false;
+        }else{
+            return true;
+        }
     }
-
     @Override
     public IReflexNode next() {
-        this.fireVertexTraversed(this.createVertexTraversalEvent(next));
-        IReflexNode toReturn = next;
+        if(cursor==null){
+            if(init==null){
+                return null;
+            }else{
+                cursor = init;
+                this.fireVertexTraversed(this.createVertexTraversalEvent(cursor));
+                init = null;
+                return cursor;
+            }
+        }
+        boolean rollback = false;
+        do{
+            cursor = findNext(rollback);
+            if (cursor == null){
+                return null;
+            }
+            rollback = true;
+        }while(!attributeTraversal.isCompatible(checker));
+        return cursor;
+    }
+    public IReflexNode findNext(boolean rollback){
+        List<IReflexNode> neighs = ((ProgramGraph)graph).getOutgoingNeighbours(cursor);
+        if(neighs.isEmpty() || rollback){
+            while(!branchPoints.isEmpty()){
+                Map.Entry<IReflexNode, Integer> point = branchPoints.remove(branchPoints.size() - 1);
+                List<IReflexNode> neighbours = ((ProgramGraph)graph).getOutgoingNeighbours(point.getKey());
+                //List<IReflexNode> neighbours = graph.outgoingEdgesOf(point.getKey()).stream().map(graph::getEdgeTarget).sorted(new ReflexNodesComparator()).toList();
+                if (point.getValue() >= neighbours.size() - 1) {
+                    fireVertexFinished(this.createVertexTraversalEvent(point.getKey()));
+                } else {
+                    IReflexNode newCursor = neighbours.get(point.getValue() + 1);
+                    branchPoints.add(new AbstractMap.SimpleImmutableEntry<>(point.getKey(), point.getValue() + 1));
+                    branchPoints.add(new AbstractMap.SimpleImmutableEntry<>(newCursor, 0));
+                    this.fireVertexTraversed(this.createVertexTraversalEvent(newCursor));
+                    return newCursor;
+                }
+            }
+            return null;
+        }else{
+            branchPoints.add(new AbstractMap.SimpleImmutableEntry<>(neighs.get(0), 0));
+            this.fireVertexTraversed(this.createVertexTraversalEvent(neighs.get(0)));
+            return neighs.get(0);
+        }
+    }
+    /*@Override
+    public boolean hasNext() {
+        if(init!=null){
+            return true;
+        }
+        List<IReflexNode> neighs = ((ProgramGraph)graph).getOutgoingNeighbours(cursor);
+        if(neighs.isEmpty()){
+            int i = branchPoints.size()-1;
+            while(i>=0){
+                Map.Entry<IReflexNode, Integer> point = branchPoints.get(i);
+                List<IReflexNode> neighbours = ((ProgramGraph)graph).getOutgoingNeighbours(point.getKey());
+                if (point.getValue() >= neighbours.size() - 1) {
+                    i--;
+                } else {
+                    return true;
+                }
+            }
+            return false;
+        }else{
+            return true;
+        }
+    }
+    @Override
+    public IReflexNode next() {
+        if(cursor==null){
+            if(init==null){
+                return null;
+            }else{
+                cursor = init;
+                this.fireVertexTraversed(this.createVertexTraversalEvent(cursor));
+                init = null;
+                return cursor;
+            }
+        }
+        cursor = findNext();
+        this.fireVertexTraversed(this.createVertexTraversalEvent(cursor));
         while(!attributeTraversal.isCompatible(checker)){
             boolean rest = rollback();
             if(!rest){
-                return null;
+                cursor = null;
+                return cursor;
             }
-            next = findNext();
-            this.fireVertexTraversed(this.createVertexTraversalEvent(next));
+            cursor = findNext();
+            this.fireVertexTraversed(this.createVertexTraversalEvent(cursor));
         }
-        branchPoints.add(new AbstractMap.SimpleImmutableEntry<>(next,0));
-        next = findNext();
-        return toReturn;
+        branchPoints.add(new AbstractMap.SimpleImmutableEntry<>(cursor,0));
+        return cursor;
     }
 
     protected boolean rollback() {
@@ -76,9 +172,9 @@ public class VCGeneratorIterator extends AbstractGraphIterator<IReflexNode, Defa
     }
 
     protected IReflexNode findNext(){
-        List<IReflexNode> neighbours = ((ProgramGraph)graph).getOutgoingNeighbours(next);
+        List<IReflexNode> neighbours = ((ProgramGraph)graph).getOutgoingNeighbours(cursor);
         //List<IReflexNode> neighbours = graph.outgoingEdgesOf(next).stream().map(graph::getEdgeTarget).sorted(new ReflexNodesComparator()).toList();
-        IReflexNode newNext = next;
+        IReflexNode newNext = cursor;
         if(!neighbours.isEmpty()){
             newNext = neighbours.get(0);
             return newNext;
@@ -93,10 +189,10 @@ public class VCGeneratorIterator extends AbstractGraphIterator<IReflexNode, Defa
             newNext = neighbours.get(point.getValue());
             return newNext;
         }
-    }
+    }*/
 
     public ArrayList<String> getVCStrings(){
-        return vcTraversal.stringBuilder;
+        return (ArrayList<String>) vcTraversal.stringBuilder.clone();
     }
     public int getStateCounter(){return vcTraversal.counter;}
 
@@ -106,8 +202,6 @@ class AttributeTraversal extends TraversalListenerAdapter<IReflexNode, DefaultEd
     AttributedPath path;
     AttributeCollector collector;
 
-    String currentProcess;
-    String currentState;
 
     public AttributeTraversal(AttributeCollector collector){
         path = new AttributedPath();
@@ -159,13 +253,18 @@ class VCTraversal extends TraversalListenerAdapter<IReflexNode, DefaultEdge>{
         IReflexNode node = e.getVertex();
         stringBuilder.addAll(node.createStatements(creator,counter));
         counter+=node.getStateShift();
+        return;
     }
 
     @Override
     public void vertexFinished(VertexTraversalEvent<IReflexNode> e) {
-        int rem = e.getVertex().getStateShift();
-        counter-=rem;
-        stringBuilder.subList(0,stringBuilder.size()-rem);
+        IReflexNode node = e.getVertex();
+        counter-=node.getStateShift();
+        int newEnd = stringBuilder.size()-node.getNumOfStatements();
+        for(int i =stringBuilder.size();i>newEnd;i--){
+            stringBuilder.remove(i-1);
+        }
+        return;
     }
 
 }

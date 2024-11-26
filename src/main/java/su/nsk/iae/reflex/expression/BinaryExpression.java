@@ -22,7 +22,8 @@ public class BinaryExpression implements SymbolicExpression{
         return type;
     }
     public String toString(IStatementCreator creator){
-        return "("+leftExp.toString(creator)+" "+op.toString(creator)+" "+rightExp.toString(creator)+")";
+        return creator.createBinaryExpression(leftExp.toString(creator),rightExp.toString(creator),op);
+        //return "("+leftExp.toString(creator)+" "+op.toString(creator)+" "+rightExp.toString(creator)+")";
     }
 
     @Override

@@ -1,6 +1,8 @@
 package su.nsk.iae.reflex.expression;
 
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
+import su.nsk.iae.reflex.expression.ops.BinaryOp;
+import su.nsk.iae.reflex.expression.ops.UnNeg;
 import su.nsk.iae.reflex.expression.types.BoolType;
 import su.nsk.iae.reflex.expression.types.ExprType;
 
@@ -30,9 +32,20 @@ public class CheckStateExpression implements SymbolicExpression{
     @Override
     public String toString(IStatementCreator creator){
         if (processState.equals("inactive"))
-            return "((getPstate "+state+" ''"+process+"'' = ''stop'') \\<or> "+"(getPstate "+state+" "+process+" = ''error''))" ;
+            return creator.createBinaryExpression(
+                    creator.createBinaryExpression(creator.createPstateGetter(state,process),"stop",BinaryOp.Eq),
+                    creator.createBinaryExpression(creator.createPstateGetter(state,process),"error",BinaryOp.Eq),
+                    BinaryOp.Or
+            );
+            //return "((getPstate "+state+" ''"+process+"'' = ''stop'') \\<or> "+"(getPstate "+state+" "+process+" = ''error''))" ;
         if (processState.equals("active"))
-            return "(\\<not>(getPstate "+state+" ''"+process+"'' = ''stop'') \\<and> "+"\\<not>(getPstate "+state+" "+process+" = ''error''))" ;
-        return "(getPstate "+state+" ''"+process+"'' = ''"+processState+"'')";
+            return creator.createBinaryExpression(
+                    creator.createUnaryExpression(creator.createBinaryExpression(creator.createPstateGetter(state,process),"stop",BinaryOp.Eq), new UnNeg()),
+                    creator.createUnaryExpression(creator.createBinaryExpression(creator.createPstateGetter(state,process),"error",BinaryOp.Eq), new UnNeg()),
+                    BinaryOp.And
+            );
+            //return "(\\<not>(getPstate "+state+" ''"+process+"'' = ''stop'') \\<and> "+"\\<not>(getPstate "+state+" "+process+" = ''error''))" ;
+        return creator.createBinaryExpression(creator.createPstateGetter(state,process),processState,BinaryOp.Eq);
+        //return "(getPstate "+state+" ''"+process+"'' = ''"+processState+"'')";
     }
 }

@@ -17,22 +17,28 @@ public interface IStatementCreator {
      String createStopProcessStatement(int stateNumber, String processName);
      String createErrorProcessStatement(int stateNumber, String processName);
      String createResetStatement(int stateNumber,String processName);
+     String createEnvStatement(int stateNumber);
      String createFinalStatement(int stateNumber);
      String createFinalStatementName();
+     String createEmptyStateStatement();
      String createInitInvariantStatement();
      String createImplInvariantStatement(String state);
      String createLemma(String init, ArrayList<String> inter, String impl);
-
      String createTimeoutExceed(String stateHolder,String condition, String processName);
      String createTimeoutLose(String stateHolder,String condition, String processName);
+
      String createTrue();
      String createFalse();
      String createBinaryExpression(String left, String right, BinaryOp op);
      String createUnaryExpression(String exp, UnaryOp op);
+     String createCastExpression(String exp, ExprType type);
      String createInvariant(String state);
+     String createEmptyState();
 
      String createSetter(ExprType type, String stateHolder, String variable, String value);
      String createGetter(ExprType type, String stateHolder, String variable);
+     String createPstateSetter(String stateHolder, String processName, String stateName);
+     String createPstateGetter(String stateHolder, String processName);
 
     String createPlaceHolder();
 

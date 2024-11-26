@@ -4,9 +4,7 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Map;
+import java.util.*;
 
 public class ProcessNode implements IReflexNode{
     ReflexParser.ProcessContext context;
@@ -31,11 +29,21 @@ public class ProcessNode implements IReflexNode{
 
     @Override
     public ArrayList<String> createStatements(IStatementCreator creator, int stateNumber) {
-        return new ArrayList<>();
+        if(opener){
+            return new ArrayList<>();
+        }else{
+            return new ArrayList<>(List.of(""));
+        }
+
     }
 
     @Override
     public Integer getStateShift() {
+        return 0;
+    }
+
+    @Override
+    public Integer getNumOfStatements() {
         return 0;
     }
 

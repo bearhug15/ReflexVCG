@@ -1,7 +1,6 @@
 package su.nsk.iae.reflex.vcg;
 
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
-import su.nsk.iae.reflex.StatementsCreator.IsabelleCreator;
 import su.nsk.iae.reflex.formulas.ImplicationFormula;
 
 import java.io.*;
@@ -23,7 +22,7 @@ public class VCPrinter {
 
     HashSet<String> VC;
     int lemmasPrinted;
-    ProgramMetaData programMetaData;
+    ProgramMetaData metaData;
     IStatementCreator creator;
 
     boolean isGlobalTheory;
@@ -39,7 +38,7 @@ public class VCPrinter {
         } else{
             throw new RuntimeException("Destination not directory");
         }
-        this.programMetaData = programMetaData;
+        this.metaData = programMetaData;
         //copyReflexTheory();
     }
 
@@ -54,7 +53,7 @@ public class VCPrinter {
         }
     }
     public void createGlobalTheory(){
-        String clock = programMetaData.clockValue;
+        String clock = metaData.clockValue;
         String dirName = destination.getFileName().toString();
         String fileName;
         if (sourceName==null) {
@@ -131,6 +130,67 @@ public class VCPrinter {
         lemmasPrinted++;
     }
 
+    public void printBaseVCInDir(){
+        if (!isGlobalTheory){
+            createGlobalTheory();
+            copyReflexTheory();
+            isGlobalTheory = true;
+        }
+        String init = creator.createEmptyStateStatement();
+
+        List<String> processNames = metaData.processNames();
+        //formula.addConjunct(new StateFormula(stateName(),(new StateType(stateName())).defaultValue()));
+        ArrayList<String> statements = new ArrayList<>();
+        int stateNum =0;
+        for(String processName: processNames){
+            String initialized = metaData.initializeProcess(creator.createPlaceHolder(),processName);
+            if (!initialized.equals(creator.createPlaceHolder())) {
+                statements.add(creator.createExpressionStatement(stateNum,initialized));
+                stateNum++;
+            }
+        }
+        String startProcess = metaData.startProcess();
+        statements.add(creator.createSetStateStatement(stateNum,startProcess,metaData.startState(startProcess)));
+        stateNum++;
+        statements.add(creator.createEnvStatement(stateNum));
+        stateNum++;
+        statements.add(creator.createFinalStatement(stateNum));
+        String impl = creator.createImplInvariantStatement(creator.createFinalStatementName());
+        String lemma = creator.createLemma(init,statements,impl);
+        //String setP = setPstate(stateName(),startProcess,metaData.startState(startProcess));
+        //stateCount++;
+        //formula.addConjunct(new StateFormula(stateName(),setP));
+        String dirName = destination.getFileName().toString();
+        String fileName;
+        if (sourceName==null) {
+            fileName = dirName.split("\\.")[0];
+        }else{
+            fileName = sourceName.split("\\.")[0];
+        }
+        String baseTheory = fileName+"Theory";
+        fileName = fileName+"_VC"+lemmasPrinted;
+
+        StringBuilder builder = new StringBuilder();
+
+        builder.append("theory ").append(fileName).append("\n");
+        builder.append("imports ");
+        builder.append(baseTheory);
+        builder.append("\nbegin\n\n");
+        builder.append(lemma);
+        builder.append("\n");
+        builder.append("\nend\n");
+
+        fileName = fileName+".thy";
+        try {
+            FileWriter writer = new FileWriter(new File(destination.toString() + "/" + fileName), StandardCharsets.UTF_8);
+            writer.write(builder.toString());
+            writer.close();
+            lemmasPrinted++;
+        }catch(Exception e){
+            throw new RuntimeException(e);
+        }
+    }
+
     public void printVCInDir(ArrayList<String> statements, int lastState){
         if (!isGlobalTheory){
             createGlobalTheory();
@@ -138,6 +198,8 @@ public class VCPrinter {
             isGlobalTheory = true;
         }
         String init = creator.createInitInvariantStatement();
+        statements.add(creator.createEnvStatement(lastState));
+        lastState++;
         statements.add(creator.createFinalStatement(lastState));
         String impl = creator.createImplInvariantStatement(creator.createFinalStatementName());
         String lemma = creator.createLemma(init,statements,impl);

@@ -141,10 +141,6 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         projection.put(ctx, nodes.getKey());
         ProgramGraph graph = new ProgramGraph(nodes.getKey(), nodes.getValue());
 
-        IReflexNode loseCondition = new ConditionNode(ctx, creator.createTimeoutLose(creator.createPlaceHolder(),condition,currentProcess),isVariable);
-        ProgramGraph loseGraph = new ProgramGraph(loseCondition,loseCondition);
-        graph.insertGraph(loseGraph);
-
         IReflexNode exceedCondition = new ConditionNode(ctx, creator.createTimeoutExceed(creator.createPlaceHolder(),condition,currentProcess),isVariable);
         ProgramGraph exceedGraph = new ProgramGraph(exceedCondition,exceedCondition);
         ProgramGraph exceed;
@@ -155,6 +151,12 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         }
         exceedGraph.extendGraph(exceed);
         graph.insertGraph(exceedGraph);
+
+        IReflexNode loseCondition = new ConditionNode(ctx, creator.createTimeoutLose(creator.createPlaceHolder(),condition,currentProcess),isVariable);
+        ProgramGraph loseGraph = new ProgramGraph(loseCondition,loseCondition);
+        graph.insertGraph(loseGraph);
+
+
 
         return graph;
     }

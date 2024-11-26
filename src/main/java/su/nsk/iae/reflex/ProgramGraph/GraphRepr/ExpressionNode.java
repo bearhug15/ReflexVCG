@@ -36,6 +36,11 @@ public class ExpressionNode implements IReflexNode {
     }
 
     @Override
+    public Integer getNumOfStatements() {
+        return 1;
+    }
+
+    @Override
     public Integer getBranchNum() {
         return branchNum;
     }

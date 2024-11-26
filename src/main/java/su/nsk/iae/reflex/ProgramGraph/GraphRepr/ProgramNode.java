@@ -33,6 +33,8 @@ public class ProgramNode implements IReflexNode{
 
     @Override
     public ArrayList<String> createStatements(IStatementCreator creator, int stateNumber) {
+        if (!isOpener())
+            return new ArrayList<>();
         ArrayList<String> vec = new ArrayList<>();
         for(String var: inputVars){
             String res = creator.createInputVarInitStatement(stateNumber,var);
@@ -44,6 +46,15 @@ public class ProgramNode implements IReflexNode{
 
     @Override
     public Integer getStateShift() {
+        if(!isOpener())
+            return 0;
+        return inputVars.size();
+    }
+
+    @Override
+    public Integer getNumOfStatements() {
+        if(!isOpener())
+            return 0;
         return inputVars.size();
     }
 

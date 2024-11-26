@@ -2,13 +2,15 @@ package su.nsk.iae.reflex.ProgramGraph.staticAnalysis;
 
 import su.nsk.iae.reflex.ProgramGraph.ASTGraphProjection;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.*;
+import su.nsk.iae.reflex.ProgramGraph.ProgramGraph;
 import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.*;
 import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.ChangeType;
 import su.nsk.iae.reflex.antlr.ReflexBaseVisitor;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 import su.nsk.iae.reflex.vcg.ProgramMetaData;
 
-import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
 import java.util.Stack;
 import java.util.Vector;
 
@@ -19,13 +21,15 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
 
     ProgramMetaData metaData;
     ASTGraphProjection projection;
+    ProgramGraph graph;
 
     ProcessNode currentProcess;
     StateNode currentState;
 
-    public ProgramAnalyzer2(ProgramMetaData metaData, ASTGraphProjection projection){
+    public ProgramAnalyzer2(ProgramMetaData metaData, ASTGraphProjection projection, ProgramGraph graph){
         this.metaData = metaData;
         this.projection = projection;
+        this.graph = graph;
     }
 
     public AttributeCollector generateAttributes(ReflexParser.ProgramContext ctx){
@@ -88,6 +92,24 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
 
         super.visitProcess(ctx);
         attributesContainers.pop();
+        List<IReflexNode> neighs = graph.getOutgoingNeighbours(proj);
+
+        Optional<IReflexNode> sres = neighs.stream().filter(s->((StateNode)s).getStateName().equals("stop")).findFirst();
+        if(sres.isEmpty()){
+            throw new RuntimeException("Stop state node doesnt exist for process "+((ProcessNode) proj).getProcessName());
+        }else{
+            StateAttributes sattr = new StateAttributes((ProcessNode)proj,(StateNode)sres.get());
+            collector.addAttributes(sres.get(),sattr);
+        }
+
+        Optional<IReflexNode> eres = neighs.stream().filter(s->((StateNode)s).getStateName().equals("error")).findFirst();
+        if(eres.isEmpty()){
+            throw new RuntimeException("Error state node doesnt exist for process "+((ProcessNode) proj).getProcessName());
+        }else{
+            StateAttributes sattr = new StateAttributes((ProcessNode)proj,(StateNode)eres.get());
+            collector.addAttributes(eres.get(),sattr);
+        }
+
         return null;
     }
 
@@ -101,9 +123,10 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         collector.addAttributes(proj1,attr);
 
         super.visitState(ctx);
-        if(ctx.timeoutFunction()!=null){
+        /*if(ctx.timeoutFunction()!=null){
             visitTimeoutFunction(ctx.timeoutFunction());
-        }
+        }*/
+        attr.liftAttributes();
         attributesContainers.pop();
         return null;
     }
@@ -111,10 +134,26 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
     @Override
     public Void visitTimeoutFunction(ReflexParser.TimeoutFunctionContext ctx){
         TimeoutNode proj = (TimeoutNode)projection.get(ctx);
-        AttributedTimeout attr = new AttributedTimeout(proj,proj.isVariable());
+        TimeoutCore attr = new TimeoutCore(proj,proj.isVariable());
         attributesContainers.add(attr);
+
+        List<IReflexNode> neighbours = graph.getOutgoingNeighbours(proj);
+        TimeoutBranch branchAttr0= new TimeoutBranch((ConditionNode) neighbours.get(0),true);
+        attributesContainers.add(branchAttr0);
         super.visitTimeoutFunction(ctx);
         attributesContainers.pop();
+        collector.addAttributes(neighbours.get(0),branchAttr0);
+
+        TimeoutBranch branchAttr1= new TimeoutBranch((ConditionNode) neighbours.get(1),false);
+        collector.addAttributes(neighbours.get(1),branchAttr1);
+
+        attr.addAttributes(branchAttr0);
+        attr.addAttributes(branchAttr1);
+        attr.liftAttributes();
+
+        attributesContainers.pop();
+        collector.addAttributes(proj,attr);
+        attributesContainers.peek().addAttributes(attr);
         return null;
     }
 
@@ -125,22 +164,28 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         attributesContainers.push(attr);
         collector.addAttributes(proj,attr);
 
-        IfElseAttributes trueAttr = new IfElseAttributes(currentProcess,currentState,(IfElseNode) proj);
+        IfElseBranch trueAttr = new IfElseBranch(currentProcess,currentState,(IfElseNode) proj);
         attributesContainers.push(trueAttr);
         super.visit(ctx.then);
         attributesContainers.pop();
         attr.addAttributes(trueAttr);
+        trueAttr.liftAttributes();
+        collector.addAttributes(graph.getOutgoingNeighbours(proj).get(0),trueAttr);
 
+        IfElseBranch falseAttr;
         if(ctx.else_!=null){
-            IfElseAttributes falseAttr = new IfElseAttributes(currentProcess,currentState,(IfElseNode) proj);
+            falseAttr = new IfElseBranch(currentProcess,currentState,(IfElseNode) proj);
             attributesContainers.push(falseAttr);
             super.visit(ctx.else_);
             attributesContainers.pop();
-            attr.addAttributes(falseAttr);
+
         }else{
-            IfElseAttributes falseAttr = new IfElseAttributes(currentProcess,currentState,(IfElseNode) proj);
-            attr.addAttributes(falseAttr);
+            falseAttr = new IfElseBranch(currentProcess,currentState,(IfElseNode) proj);
         }
+        attr.addAttributes(falseAttr);
+        falseAttr.liftAttributes();
+        collector.addAttributes(graph.getOutgoingNeighbours(proj).get(1),falseAttr);
+
 
         attributesContainers.pop();
         attr.liftAttributes();
@@ -155,15 +200,15 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         attributesContainers.push(attr);
         collector.addAttributes(proj,attr);
 
-        Vector<SwitchCaseAttributes> beforeBrake = new Vector<>();
+        Vector<SwitchCaseBranch> beforeBrake = new Vector<>();
 
         for(ReflexParser.CaseStatContext cas: ctx.options){
-            SwitchCaseAttributes caseAttr = new SwitchCaseAttributes(currentProcess,currentState,(SwitchNode) proj);
+            SwitchCaseBranch caseAttr = new SwitchCaseBranch(currentProcess,currentState,(SwitchNode) proj);
             attributesContainers.push(caseAttr);
             super.visitSwitchOptionStatSeq(cas.switchOptionStatSeq());
             attributesContainers.pop();
 
-            for (SwitchCaseAttributes attrs: beforeBrake){
+            for (SwitchCaseBranch attrs: beforeBrake){
                 attrs.addAttributes(caseAttr);
 
             }
@@ -172,28 +217,31 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
                 beforeBrake.forEach(b->{
                     b.liftAttributes();
                     attr.addAttributes(b);
+                    List<IReflexNode> out = graph.getOutgoingNeighbours(proj);
+                    collector.addAttributes(out.get(out.size()-1),b);
                 });
                 beforeBrake.clear();
             }
         }
 
-        SwitchCaseAttributes caseAttr;
+        SwitchCaseBranch caseAttr;
         if(ctx.defaultOption!=null){
-            caseAttr = new SwitchCaseAttributes(currentProcess,currentState,(SwitchNode) proj);
+            caseAttr = new SwitchCaseBranch(currentProcess,currentState,(SwitchNode) proj);
             attributesContainers.push(caseAttr);
             super.visitDefaultStat(ctx.defaultStat());
             attributesContainers.pop();
-            for (SwitchCaseAttributes attrs: beforeBrake){
+            for (SwitchCaseBranch attrs: beforeBrake){
                 attrs.addAttributes(caseAttr);
             }
 
         }else{
-            caseAttr = new SwitchCaseAttributes(currentProcess,currentState,(SwitchNode) proj);
-            attr.addAttributes(caseAttr);
+            caseAttr = new SwitchCaseBranch(currentProcess,currentState,(SwitchNode) proj);
         }
         beforeBrake.forEach(b->{
             b.liftAttributes();
             attr.addAttributes(b);
+            List<IReflexNode> out = graph.getOutgoingNeighbours(proj);
+            collector.addAttributes(out.get(out.size()-1),b);
         });
         beforeBrake.clear();
         attr.addAttributes(caseAttr);

@@ -12,6 +12,8 @@ import su.nsk.iae.reflex.StatementsCreator.IsabelleCreator;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 public class VCGenerator2 {
 
@@ -36,7 +38,7 @@ public class VCGenerator2 {
         this.graph = builder.buildProgramGraph(context);
         this.projection = builder.getASTtoGraphProjection();
 
-        ProgramAnalyzer2 analyzer = new ProgramAnalyzer2(metaData,projection);
+        ProgramAnalyzer2 analyzer = new ProgramAnalyzer2(metaData,projection,graph);
         this.collector = analyzer.generateAttributes(context);
 
         this.checker = new RuleChecker(metaData,collector);
@@ -44,19 +46,20 @@ public class VCGenerator2 {
 
     public void generateVC(Path source, Path destination){
         this.printer = new VCPrinter(destination,source,metaData,creator);
-
+        printer.printBaseVCInDir();
         VCGeneratorIterator gen = new VCGeneratorIterator(graph,collector,checker,creator);
         while(gen.hasNext()){
             IReflexNode next = gen.next();
             if (next==null){
                 break;
             }
-            String init = creator.createInitInvariantStatement();
-            if(graph.outgoingEdgesOf(next).stream().map(graph::getEdgeTarget).toList().isEmpty()){
+            if(graph.getOutgoingNeighbours(next).isEmpty()){
                 printer.printVCInDir(gen.getVCStrings(),gen.getStateCounter());
             }
         }
     }
+
+
 
     public int VCGenerated(){
         return printer.getLemmasPrinted();

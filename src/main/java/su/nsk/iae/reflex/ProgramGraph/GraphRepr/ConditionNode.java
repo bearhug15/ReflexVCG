@@ -15,6 +15,9 @@ public class ConditionNode implements IReflexNode{
     ReflexParser.ExpressionContext exprContext;
 
     String condition;
+
+
+
     boolean isTimeoutVariable;
     int branchNum=0;
     int numOfNextNodes=0;
@@ -25,7 +28,6 @@ public class ConditionNode implements IReflexNode{
         this.exprContext = null;
         this.condition = condition;
         this.isTimeoutVariable = false;
-        this.branchNum =branchNum;
     }
     public ConditionNode(ReflexParser.SwitchStatContext context,String condition){
         this.ifContext = null;
@@ -34,7 +36,6 @@ public class ConditionNode implements IReflexNode{
         this.exprContext = null;
         this.condition = condition;
         this.isTimeoutVariable = false;
-        this.branchNum =branchNum;
     }
     public ConditionNode(ReflexParser.TimeoutFunctionContext context,String condition,boolean isTimeoutVariable){
         this.ifContext = null;
@@ -43,7 +44,6 @@ public class ConditionNode implements IReflexNode{
         this.exprContext = null;
         this.condition = condition;
         this.isTimeoutVariable = isTimeoutVariable;
-        this.branchNum =branchNum;
     }
     public ConditionNode(ReflexParser.ExpressionContext context,String condition,boolean isDomain){
         this.ifContext = null;
@@ -52,7 +52,6 @@ public class ConditionNode implements IReflexNode{
         this.exprContext = context;
         this.condition = condition;
         this.isTimeoutVariable = false;
-        this.branchNum =branchNum;
     }
 
     @Override
@@ -77,6 +76,11 @@ public class ConditionNode implements IReflexNode{
     @Override
     public Integer getStateShift() {
         return 0;
+    }
+
+    @Override
+    public Integer getNumOfStatements() {
+        return 1;
     }
 
     @Override
@@ -116,5 +120,13 @@ public class ConditionNode implements IReflexNode{
     @Override
     public String toString() {
         return "Condition: "+ condition;
+    }
+
+    public boolean isTimeoutVariable() {
+        return isTimeoutVariable;
+    }
+
+    public void setTimeoutVariable(boolean timeoutVariable) {
+        isTimeoutVariable = timeoutVariable;
     }
 }

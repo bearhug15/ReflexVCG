@@ -3,11 +3,20 @@ package su.nsk.iae.reflex.vcg;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.nio.Attribute;
+import org.jgrapht.nio.DefaultAttribute;
+import org.jgrapht.nio.dot.DOTExporter;
 import org.junit.jupiter.api.Test;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.IReflexNode;
 import su.nsk.iae.reflex.antlr.ReflexLexer;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 
+import java.io.StringWriter;
+import java.io.Writer;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 class VCGeneratorTest {
 
@@ -445,7 +454,7 @@ class VCGeneratorTest {
             });
             Writer writer = new StringWriter();
             exporter.exportGraph(gen.graph, writer);
-            System.out.println(writer.toString());*/
+            System.out.println(writer.toString());//*/
 
             gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
             System.out.println("VC conditions generated: " + gen.VCGenerated());
@@ -553,7 +562,7 @@ class VCGeneratorTest {
             System.out.println(writer.toString());*/
 
             gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
-
+            System.out.println("VC conditions generated: " + gen.VCGenerated());
             /*IsabelleCreator creator = new IsabelleCreator();
             VariableMapper mapper = new VariableMapper(context,creator);
             ProgramMetaData metaData = new ProgramMetaData(context,mapper,creator);
@@ -584,5 +593,150 @@ class VCGeneratorTest {
         //System.out.println("VC conditions generated: " + generator.conditionsGenerated);
     }
 
+    @Test
+    void newThermopot(){
+        CharStream inputStream = CharStreams.fromString("program Thermopot {\n" +
+                "\tclock 100;\n" +
+                "    input temperature 0x00 0x00 8;\n" +
+                "\tinput buttons 0x00 0x00 8;\n" +
+                "\tinput boilingButton 0x00 0x00 8;\n" +
+                "\t\n" +
+                "    output selectedTemp 0x00 0x01 8;\n" +
+                "\toutput heater 0x00 0x01 8;\n" +
+                "\toutput lid 0x00 0x01 8;\n" +
+                "\toutput mods 0x00 0x01 8;\n" +
+                "\t\n" +
+                "\tconst bool LOCKED = true;\n" +
+                "\tconst bool UNLOCKED = false;\n" +
+                "\tconst bool PRESSED = true;\n" +
+                "\t\n" +
+                "\tconst int8 BOILING_POINT = 100;\n" +
+                "\tconst int8 TEMP1 = 98;\n" +
+                "\tconst int8 TEMP2 = 85;\n" +
+                "\tconst int8 TEMP3 = 60;\n" +
+                "\t\n" +
+                "\tint8 temperature = temperature[0];\n" +
+                "\tbool button1 = buttons[1];\n" +
+                "\tbool button2 = buttons[2];\n" +
+                "\tbool button3 = buttons[3];\n" +
+                "\tbool boilingButton = boilingButton[0];\n" +
+                "\t\n" +
+                "\tint8 selectedTemp = selectedTemp[0];\n" +
+                "\tbool heater = heater[0];\n" +
+                "\tbool lid = lid[0];\n" +
+                "\tbool boilingMode = mods[0];\n" +
+                "\tbool maintainingMode = mods[1];\n" +
+                "\t\n" +
+                "\tprocess Init {\n" +
+                "\t\tstate begin {\n" +
+                "\t\t\tstart TempSelection;\n" +
+                "\t\t\tstart HeaterController;\n" +
+                "\t\t\tstop;\n" +
+                "\t\t}\n" +
+                "\t}\n" +
+                "\t\n" +
+                "\tprocess TempSelection{\n" +
+                "\t\tstate tempSelection {\n" +
+                "\t\t\tif (button1 == PRESSED){\n" +
+                "\t\t\t\tselectedTemp = TEMP1;\n" +
+                "\t\t\t} else {\n" +
+                "\t\t\t\tif (button2 == PRESSED){\n" +
+                "\t\t\t\t\tselectedTemp = TEMP2;\n" +
+                "\t\t\t\t} else {\n" +
+                "\t\t\t\t\tif (button3 == PRESSED){\n" +
+                "\t\t\t\t\t\tselectedTemp = TEMP3;\n" +
+                "\t\t\t\t\t}\n" +
+                "\t\t\t\t}\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t}\n" +
+                "\t\n" +
+                "\tprocess HeaterController {\n" +
+                "\t\tstate begin {\n" +
+                "\t\t\tif (boilingButton == PRESSED){\n" +
+                "\t\t\t\tboilingMode = true;\n" +
+                "\t\t\t\tset next state;\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t\t\n" +
+                "\t\tstate heating {\n" +
+                "\t\t\theater = true;\n" +
+                "\t\t\tlid = LOCKED;\n" +
+                "\t\t\tif (temperature >= BOILING_POINT){\n" +
+                "\t\t\t\theater = false;\n" +
+                "\t\t\t\tlid = UNLOCKED;\n" +
+                "\t\t\t\tboilingMode = false;\n" +
+                "\t\t\t\tmaintainingMode = true;\n" +
+                "\t\t\t\tset next state;\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t\t\n" +
+                "\t\tstate maintaining {\n" +
+                "\t\t\tif (boilingButton==PRESSED){\n" +
+                "\t\t\t\tmaintainingMode = false;\n" +
+                "\t\t\t\tboilingMode = true;\n" +
+                "\t\t\t\tset state heating;\n" +
+                "\t\t\t} else {\n" +
+                "\t\t\t\tif (temperature >= selectedTemp){\n" +
+                "\t\t\t\t\theater = false;\n" +
+                "\t\t\t\t} else {\n" +
+                "\t\t\t\t\tif (temperature < selectedTemp - 5) {\n" +
+                "\t\t\t\t\t\theater = true;\n" +
+                "\t\t\t\t\t}\n" +
+                "\t\t\t\t}\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t}\n" +
+                "\t\n" +
+                "}");
+        try {
+            ReflexLexer lexer = new ReflexLexer(inputStream);
+            CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+            ReflexParser parser = new ReflexParser(tokenStream);
+            ReflexParser.ProgramContext context = parser.program();
 
+            VCGenerator2 gen = new VCGenerator2(context);
+
+            /*DOTExporter<IReflexNode, DefaultEdge> exporter =
+                    new DOTExporter<>();
+            exporter.setVertexAttributeProvider((v) -> {
+                Map<String, Attribute> map = new LinkedHashMap<>();
+                map.put("label", DefaultAttribute.createAttribute(v.toString()));
+                return map;
+            });
+            Writer writer = new StringWriter();
+            exporter.exportGraph(gen.graph, writer);
+            System.out.println(writer.toString());*/
+
+            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            System.out.println("VC conditions generated: " + gen.VCGenerated());
+            /*IsabelleCreator creator = new IsabelleCreator();
+            VariableMapper mapper = new VariableMapper(context,creator);
+            ProgramMetaData metaData = new ProgramMetaData(context,mapper,creator);
+            GraphBuilder builder = new GraphBuilder(metaData,mapper,creator);
+            ProgramGraph graph = builder.buildProgramGraph(context);
+
+            DOTExporter<IReflexNode, DefaultEdge> exporter =
+                    new DOTExporter<>();
+            exporter.setVertexAttributeProvider((v) -> {
+                Map<String, Attribute> map = new LinkedHashMap<>();
+                map.put("label", DefaultAttribute.createAttribute(v.toString()));
+                return map;
+            });
+            Writer writer = new StringWriter();
+            exporter.exportGraph(graph, writer);
+            System.out.println(writer.toString());
+            /*
+            generator.printer = new VCPrinter(Path.of("./src/test/testResult"),"test",generator.metaData);
+            generator.checker = new RuleChecker(generator.metaData);
+            ProgramAnalyzer2 analyzer2 = new ProgramAnalyzer2(generator.metaData);
+            generator.collector = analyzer2.generateAttributes(context);
+
+            generator.visitProgram(context);
+            generator.visitStack();*/
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+        //System.out.println("VC conditions generated: " + generator.conditionsGenerated);
+    }
 }
