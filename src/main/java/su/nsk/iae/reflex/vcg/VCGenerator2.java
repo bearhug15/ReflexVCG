@@ -39,12 +39,15 @@ public class VCGenerator2 {
         this.projection = builder.getASTtoGraphProjection();
 
         ProgramAnalyzer2 analyzer = new ProgramAnalyzer2(metaData,projection,graph);
+
         this.collector = analyzer.generateAttributes(context);
 
         this.checker = new RuleChecker(metaData,collector);
+        System.out.println("Completed program analysis.");
     }
 
     public void generateVC(Path source, Path destination){
+        System.out.println("Starting verification conditions generation.");
         this.printer = new VCPrinter(destination,source,metaData,creator);
         printer.printBaseVCInDir();
         VCGeneratorIterator gen = new VCGeneratorIterator(graph,collector,checker,creator);
@@ -57,6 +60,7 @@ public class VCGenerator2 {
                 printer.printVCInDir(gen.getVCStrings(),gen.getStateCounter());
             }
         }
+        System.out.println("Completed verification conditions generation. Conditions generated: " + VCGenerated());
     }
 
 

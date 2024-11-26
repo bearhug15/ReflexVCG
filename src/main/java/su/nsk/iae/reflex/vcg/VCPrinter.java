@@ -125,11 +125,6 @@ public class VCPrinter {
     }
 
 
-    public void printVC(ImplicationFormula formula){
-        printVCInDir(formula);
-        lemmasPrinted++;
-    }
-
     public void printBaseVCInDir(){
         if (!isGlobalTheory){
             createGlobalTheory();
@@ -237,63 +232,6 @@ public class VCPrinter {
 
     public int getLemmasPrinted(){
         return lemmasPrinted;
-    }
-    public void printVCInDir(ImplicationFormula formula){
-        if (!isGlobalTheory){
-            createGlobalTheory();
-            copyReflexTheory();
-            isGlobalTheory = true;
-        }
-        String dirName = destination.getFileName().toString();
-        String fileName;
-        if (sourceName==null) {
-            fileName = dirName.split("\\.")[0];
-        }else{
-            fileName = sourceName.split("\\.")[0];
-        }
-        String baseTheory = fileName+"Theory";
-        fileName = fileName+"_VC"+lemmasPrinted;
-        String lemma = toDetailedLemma(formula);
-        StringBuilder builder = new StringBuilder();
-
-        builder.append("theory ").append(fileName).append("\n");
-        builder.append("imports ");
-        builder.append(baseTheory);
-        builder.append("\nbegin\n\n");
-        builder.append(lemma);
-        builder.append("\n");
-        builder.append("\nend\n");
-
-        fileName = fileName+".thy";
-        try {
-            FileWriter writer = new FileWriter(new File(destination.toString() + "/" + fileName), StandardCharsets.UTF_8);
-            writer.write(builder.toString());
-            writer.close();
-        }catch(Exception e){
-            throw new RuntimeException(e);
-        }
-    }
-
-    public String toDetailedLemma(ImplicationFormula formula){
-        StringBuilder lemma = new StringBuilder();
-        lemma.append("lemma\n ");
-        lemma.append("assumes ");
-        List<String> assumes = formula.left().trim().toNamedStrings(creator);
-        StringJoiner joiner1 = new StringJoiner("\n and ");
-        for (String string: assumes)
-            joiner1.add(string);
-        lemma.append(joiner1);
-        lemma.append("\n");
-        lemma.append("shows ");
-
-        String shows = "\""+formula.right().toString()+"\"";
-        lemma.append(shows);
-        /*List<String> shows = formula.right().trim().toNamedStrings();
-        StringJoiner joiner2 = new StringJoiner("\n and ");
-        for (String string: shows)
-            joiner2.add(string);
-        lemma.append(joiner2);*/
-        return lemma.toString();
     }
 
 }
