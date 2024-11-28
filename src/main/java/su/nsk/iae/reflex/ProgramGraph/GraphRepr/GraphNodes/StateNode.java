@@ -1,22 +1,27 @@
-package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Map;
+import java.util.*;
 
-public class IfElseNode implements IReflexNode{
-    ReflexParser.IfElseStatContext context;
+public class StateNode implements IReflexNode{
+    ReflexParser.StateContext context;
     boolean opener;
-    IfElseNode nodeBind;
+    StateNode nodeBind;
+    String stateName;
+
+    String processName;
+
     int branchNum=0;
+
     int numOfNextNodes=0;
-    IfElseNode(ReflexParser.IfElseStatContext context, boolean opener){
+    StateNode(ReflexParser.StateContext context, boolean opener, String stateName, String processName) {
         this.context = context;
         this.opener = opener;
+        this.stateName = stateName;
+        this.processName = processName;
     }
 
     @Override
@@ -26,17 +31,24 @@ public class IfElseNode implements IReflexNode{
 
     @Override
     public ArrayList<String> createStatements(IStatementCreator creator, int stateNumber) {
-        return new ArrayList<>();
+        if(isOpener())
+            return new ArrayList<>(Arrays.asList(creator.createStateStatement(stateNumber,processName,stateName)));
+        else
+            return new ArrayList<>();
     }
 
     @Override
     public Integer getStateShift() {
+        if(!isOpener())
+            return 0;
         return 0;
     }
 
     @Override
     public Integer getNumOfStatements() {
-        return 0;
+        if(!isOpener())
+            return 0;
+        return 1;
     }
 
     @Override
@@ -73,21 +85,33 @@ public class IfElseNode implements IReflexNode{
         numOfNextNodes +=n;
     }
 
-    void bindWith(IfElseNode node){
+    void bindWith(StateNode node){
         this.nodeBind = node;
         node.nodeBind = this;
     }
-    public static Map.Entry<IfElseNode,IfElseNode> IfElseNodes(ReflexParser.IfElseStatContext context){
-        AbstractMap.SimpleImmutableEntry<IfElseNode,IfElseNode> nodes = new AbstractMap.SimpleImmutableEntry<>(new IfElseNode(context,true),new IfElseNode(context,false));
+
+    public static Map.Entry<StateNode,StateNode> StateNodes(ReflexParser.StateContext context,String stateName, String processName){
+        AbstractMap.SimpleImmutableEntry<StateNode,StateNode> nodes =
+                new AbstractMap.SimpleImmutableEntry<>(
+                        new StateNode(context,true,stateName,processName),
+                        new StateNode(context,false,stateName,processName));
         nodes.getKey().bindWith(nodes.getValue());
         return nodes;
     }
+
     @Override
     public String toString() {
         if(opener){
-            return "If start";
+            return "State start: "+stateName;
         }else{
-            return "if end";
+            return "State end: "+stateName;
         }
+    }
+
+    public String getProcessName(){
+        return processName;
+    }
+    public String getStateName(){
+        return stateName;
     }
 }

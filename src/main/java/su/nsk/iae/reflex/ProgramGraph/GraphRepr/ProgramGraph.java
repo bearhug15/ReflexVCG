@@ -1,14 +1,13 @@
-package su.nsk.iae.reflex.ProgramGraph;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
 
 import org.jgrapht.Graphs;
 import org.jgrapht.graph.DefaultDirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.traverse.BreadthFirstIterator;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.IReflexNode;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProcessNode;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.StateNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ProcessNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.StateNode;
 
-import java.util.HashMap;
 import java.util.List;
 
 public class ProgramGraph extends DefaultDirectedGraph<IReflexNode, DefaultEdge> {

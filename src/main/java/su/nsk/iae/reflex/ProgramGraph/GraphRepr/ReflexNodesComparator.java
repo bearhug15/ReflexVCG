@@ -1,6 +1,6 @@
-package su.nsk.iae.reflex.ProgramGraph;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
 
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.IReflexNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
 
 import java.util.Comparator;
 

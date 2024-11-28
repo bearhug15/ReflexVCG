@@ -2,6 +2,7 @@ package su.nsk.iae.reflex.expression;
 
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.expression.ops.BinaryOp;
+import su.nsk.iae.reflex.expression.types.BoolType;
 import su.nsk.iae.reflex.expression.types.ExprType;
 
 public class BinaryExpression implements SymbolicExpression{
@@ -35,5 +36,39 @@ public class BinaryExpression implements SymbolicExpression{
     @Override
     public boolean isActuated() {
         return leftExp.isActuated() && rightExp.isActuated();
+    }
+
+    @Override
+    public SymbolicExpression trim() {
+        switch (op){
+            case And:{
+                if(leftExp instanceof ConstantExpression){
+                    if(((ConstantExpression) leftExp).value.equals("true")){
+                        return rightExp;
+                    }
+                    if(((ConstantExpression) leftExp).value.equals("false")){
+                        return new ConstantExpression("false", new BoolType());
+                    }
+                    return this;
+                }
+            }
+            case Or:{
+                if(leftExp instanceof ConstantExpression){
+                    if(((ConstantExpression) leftExp).value.equals("false")){
+                        return rightExp;
+                    }
+                    if(((ConstantExpression) leftExp).value.equals("true")){
+                        return new ConstantExpression("true", new BoolType());
+                    }
+                    return this;
+                }
+            }
+            default: return this;
+        }
+    }
+
+    @Override
+    public SymbolicExpression innerExp() {
+        return this;
     }
 }

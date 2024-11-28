@@ -29,6 +29,16 @@ public class CastExpression implements SymbolicExpression{
     }
 
     @Override
+    public SymbolicExpression trim() {
+        return this;
+    }
+
+    @Override
+    public SymbolicExpression innerExp() {
+        return expr;
+    }
+
+    @Override
     public String toString(IStatementCreator creator) {
         if (expr.exprType() == null){
             return creator.createCastExpression(expr.toString(creator),type);

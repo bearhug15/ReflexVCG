@@ -1,12 +1,10 @@
-package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 
-import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Map;
 
 public class ConditionNode implements IReflexNode{
     ReflexParser.IfElseStatContext ifContext;

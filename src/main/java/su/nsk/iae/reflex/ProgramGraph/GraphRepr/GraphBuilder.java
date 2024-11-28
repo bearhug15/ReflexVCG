@@ -1,9 +1,8 @@
-package su.nsk.iae.reflex.ProgramGraph;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
 
-import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.*;
-import su.nsk.iae.reflex.ProgramGraph.ProgramGraph;
+import su.nsk.iae.reflex.ProgramGraph.GraphNodes.*;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.*;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexBaseVisitor;
 import su.nsk.iae.reflex.antlr.ReflexParser;
@@ -16,10 +15,8 @@ import su.nsk.iae.reflex.expression.types.IntType;
 import su.nsk.iae.reflex.expression.types.TimeType;
 import su.nsk.iae.reflex.formulas.Formula;
 import su.nsk.iae.reflex.formulas.TrueFormula;
-import su.nsk.iae.reflex.vcg.*;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Map;
 
 

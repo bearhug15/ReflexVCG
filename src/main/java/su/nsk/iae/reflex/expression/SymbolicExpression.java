@@ -10,4 +10,7 @@ public interface SymbolicExpression {
     void actuate(String programState, IStatementCreator creator);
     boolean isActuated();
 
+    SymbolicExpression trim();
+    SymbolicExpression innerExp();
+
 }

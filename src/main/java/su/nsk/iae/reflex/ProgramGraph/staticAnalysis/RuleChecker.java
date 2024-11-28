@@ -1,14 +1,14 @@
 package su.nsk.iae.reflex.ProgramGraph.staticAnalysis;
 
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProcessNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ProcessNode;
 import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.*;
 
-import su.nsk.iae.reflex.vcg.ProgramMetaData;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProgramMetaData;
 
 import java.util.Iterator;
 import java.util.Objects;
 
-public class RuleChecker {
+public class RuleChecker implements IRuleChecker{
     ProgramMetaData metaData;
     AttributeCollector collector;
     public RuleChecker(ProgramMetaData metaData, AttributeCollector collector){
@@ -30,7 +30,7 @@ public class RuleChecker {
         }
         return true;
     }
-
+    @Override
     public boolean checkRules(AttributedPath path, IAttributed attr){
         if(attr==null){
             return true;
@@ -55,7 +55,9 @@ public class RuleChecker {
         ProcessAttributes pattr = (ProcessAttributes) collector.getAttributes(rootProcess);
         if(!pattr.isReachE() && attr.getStateName().equals("error"))return false;
         if(!pattr.isReachS() && !pattr.isStartS() && attr.getStateName().equals("stop")) return false;
+
         //boolean res = true;
+
         Iterator<IAttributed> iter = path.descendingIterator();
         while(iter.hasNext()){
             IAttributed newAttr = iter.next();
@@ -71,6 +73,28 @@ public class RuleChecker {
                     case Error -> {
                         return attr.getStateName().equals("error");
                     }
+                }
+            }
+
+            if(newAttr instanceof StateAttributes anotherAttr){
+                ProcessAttributes anotherPAttr = (ProcessAttributes) collector.getAttributes(anotherAttr.getRootProcess());
+                if (pattr.getGroup()==anotherPAttr.getGroup()){
+                    String stateName = attr.getStateName();
+                    String anotherStateName = anotherAttr.getStateName();
+                    if(stateName.equals("stop")&&!anotherStateName.equals("stop") || !stateName.equals("stop")&&anotherStateName.equals("stop"))
+                        return false;
+                    if(stateName.equals("error")&&!anotherStateName.equals("error") || !stateName.equals("error")&&anotherStateName.equals("error"))
+                        return false;
+                    if(stateName.equals(metaData.firstState(rootProcess.getProcessName()))
+                            && !anotherStateName.equals(metaData.firstState(anotherAttr.getRootProcess().getProcessName()))
+                            && attr.getReachFrom().isEmpty()
+                            && attr.isStateChanging())
+                        return false;
+                    if(!stateName.equals(metaData.firstState(rootProcess.getProcessName()))
+                            && anotherStateName.equals(metaData.firstState(anotherAttr.getRootProcess().getProcessName()))
+                            && anotherAttr.getReachFrom().isEmpty()
+                            && anotherAttr.isStateChanging())
+                        return false;
                 }
             }
         }

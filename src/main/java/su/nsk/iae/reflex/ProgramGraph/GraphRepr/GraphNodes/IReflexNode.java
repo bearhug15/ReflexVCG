@@ -1,11 +1,10 @@
-package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Map;
 
 
 public interface IReflexNode extends Serializable {

@@ -1,24 +1,29 @@
-package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
-import su.nsk.iae.reflex.antlr.ReflexParser;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProgramMetaData;
 
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Map;
 
-public class ResetNode implements IReflexNode{
-    ReflexParser.ResetStatContext context;
+public class ProcessChangeNode implements IReflexNode{
+    //Could be start process/ stop process/ error process;
+    ParserRuleContext context;
+
     String processName;
+    ChangeType ty;
+    ProgramMetaData metaData;
     int branchNum=0;
-
     int numOfNextNodes=0;
-    public ResetNode(ReflexParser.ResetStatContext context, String processName){
+
+    public ProcessChangeNode(ParserRuleContext context, String processName, ChangeType ty, ProgramMetaData metaData){
         this.context = context;
         this.processName = processName;
+        this.ty = ty;
+        this.metaData = metaData;
     }
+
     @Override
     public ParserRuleContext getContext() {
         return context;
@@ -26,7 +31,16 @@ public class ResetNode implements IReflexNode{
 
     @Override
     public ArrayList<String> createStatements(IStatementCreator creator, int stateNumber) {
-        return new ArrayList<>(Arrays.asList(creator.createResetStatement(stateNumber,processName)));
+        String res = switch (ty){
+            case Start -> creator.createStartProcessStatement(stateNumber,processName,metaData.startState(processName));
+
+            case Stop -> creator.createStopProcessStatement(stateNumber,processName);
+
+            case Error -> creator.createErrorProcessStatement(stateNumber,processName);
+
+            default -> throw new RuntimeException("Unexpected ChangeType");
+        };
+        return new ArrayList<>(Arrays.asList(res));
     }
 
     @Override
@@ -74,6 +88,7 @@ public class ResetNode implements IReflexNode{
 
     @Override
     public String toString() {
-        return "Reset: "+processName;
+        return "Process change: "+processName+" in "+ ty.toString();
+
     }
 }

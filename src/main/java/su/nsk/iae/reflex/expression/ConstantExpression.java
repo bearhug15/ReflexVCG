@@ -25,6 +25,16 @@ public class ConstantExpression implements SymbolicExpression{
         return true;
     }
 
+    @Override
+    public SymbolicExpression trim() {
+        return this;
+    }
+
+    @Override
+    public SymbolicExpression innerExp() {
+        return this;
+    }
+
     public String toString(IStatementCreator creator){
         return value;
     }

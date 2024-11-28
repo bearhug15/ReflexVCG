@@ -1,4 +1,4 @@
-package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
@@ -8,33 +8,22 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Map;
 
-public class TimeoutNode implements IReflexNode{
-
-    ReflexParser.TimeoutFunctionContext context;
+public class SwitchNode implements IReflexNode{
+    ReflexParser.SwitchStatContext context;
     boolean opener;
-    TimeoutNode nodeBind;
+    SwitchNode nodeBind;
     int branchNum=0;
+
     int numOfNextNodes=0;
-    boolean isVariable;
-    public boolean isVariable() {
-        return isVariable;
-    }
 
-    public void setVariable(boolean variable) {
-        isVariable = variable;
-    }
-
-
-    TimeoutNode(ReflexParser.TimeoutFunctionContext context, boolean opener,boolean isVariable){
+    SwitchNode(ReflexParser.SwitchStatContext context, boolean opener){
         this.context = context;
         this.opener = opener;
-        this.isVariable = isVariable;
-
     }
 
     @Override
     public ParserRuleContext getContext() {
-        return null;
+        return context;
     }
 
     @Override
@@ -86,24 +75,21 @@ public class TimeoutNode implements IReflexNode{
         numOfNextNodes +=n;
     }
 
-    void bindWith(TimeoutNode node){
+    void bindWith(SwitchNode node){
         this.nodeBind = node;
         node.nodeBind = this;
     }
-    public static Map.Entry<TimeoutNode,TimeoutNode> TimeoutNodes(ReflexParser.TimeoutFunctionContext context, boolean isVariable){
-        AbstractMap.SimpleImmutableEntry<TimeoutNode,TimeoutNode> nodes =
-                new AbstractMap.SimpleImmutableEntry<>(
-                        new TimeoutNode(context,true,isVariable),
-                        new TimeoutNode(context,false,isVariable));
+    public static Map.Entry<SwitchNode, SwitchNode> SwitchNodes(ReflexParser.SwitchStatContext context){
+        AbstractMap.SimpleImmutableEntry<SwitchNode, SwitchNode> nodes = new AbstractMap.SimpleImmutableEntry<>(new SwitchNode(context,true),new SwitchNode(context,false));
         nodes.getKey().bindWith(nodes.getValue());
         return nodes;
     }
     @Override
     public String toString() {
         if(opener){
-            return "Timeout start";
+            return "Switch start";
         }else{
-            return "Timeout end";
+            return "Switch end";
         }
     }
 }

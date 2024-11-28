@@ -1,4 +1,4 @@
-package su.nsk.iae.reflex.vcg;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
 
 
 
@@ -7,6 +7,7 @@ import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 import su.nsk.iae.reflex.expression.types.ExprType;
 import su.nsk.iae.reflex.expression.types.TypeUtils;
+import su.nsk.iae.reflex.vcg.ValueParser;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -241,5 +242,13 @@ public class ProgramMetaData {
             }
         }
         return state;
+    }
+
+    public int getProcessId(String processName){
+        return IntStream
+                .range(0, processes.size())
+                .filter(e->processes.get(e).a.equals(processName))
+                .findFirst()
+                .getAsInt();
     }
 }

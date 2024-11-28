@@ -1,18 +1,17 @@
 package su.nsk.iae.reflex.ProgramGraph.staticAnalysis;
 
-import su.nsk.iae.reflex.ProgramGraph.ASTGraphProjection;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.*;
-import su.nsk.iae.reflex.ProgramGraph.ProgramGraph;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ASTGraphProjection;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.*;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProgramGraph;
 import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.*;
 import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.ChangeType;
 import su.nsk.iae.reflex.antlr.ReflexBaseVisitor;
 import su.nsk.iae.reflex.antlr.ReflexParser;
-import su.nsk.iae.reflex.vcg.ProgramMetaData;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProgramMetaData;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.Stack;
-import java.util.Vector;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
 
@@ -35,10 +34,11 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
     public AttributeCollector generateAttributes(ReflexParser.ProgramContext ctx){
         initialAttributeArrangement(ctx);
         additionalAttributeArrangement(ctx);
+        grouping();
         return collector;
     }
 
-    Void initialAttributeArrangement(ReflexParser.ProgramContext ctx){
+    void initialAttributeArrangement(ReflexParser.ProgramContext ctx){
         for(ReflexParser.ProcessContext pctx: ctx.processes){
             IReflexNode proj = projection.get(pctx);
             ProcessAttributes attr = new ProcessAttributes((ProcessNode) proj);
@@ -54,10 +54,10 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         IReflexNode proj = projection.get(firstProcess);
         ProcessAttributes attr = (ProcessAttributes)collector.getAttributes(proj);
         attr.setStartS(false);
-        return null;
+        return;
     }
 
-    Void additionalAttributeArrangement(ReflexParser.ProgramContext ctx){
+    void additionalAttributeArrangement(ReflexParser.ProgramContext ctx){
         for (ReflexParser.ProcessContext pctx1: ctx.processes){
             for (ReflexParser.ProcessContext pctx2: ctx.processes){
                 if(pctx1 ==pctx2)break;
@@ -74,7 +74,143 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
                 }
             }
         }
-        return null;
+        return;
+    }
+
+    private Set<Set<ProcessNode>> setsInter(Set<Set<ProcessNode>> setsSet, Set<ProcessNode> set){
+        Set<Set<ProcessNode>> buffSet =new HashSet<>();
+        for(Set<ProcessNode> s: setsSet){
+            Set<ProcessNode> inter = new HashSet<>(s);
+            inter.retainAll(set);
+            buffSet.add(inter);
+            Set<ProcessNode> excl = new HashSet<>(inter);
+            excl.removeAll(inter);
+            buffSet.add(excl);
+        }
+        return buffSet;
+    }
+    private Set<Set<ProcessNode>>setsDiv(Set<Set<ProcessNode>> setsSet,HashMap<ProcessNode,ChangeType> hPC, IAttributed st){
+        if (st instanceof StateAttributes){
+            currentState = (StateNode) st.getAttributedContext();
+        }
+        HashMap<ProcessNode,ChangeType> nhPC = new HashMap<>(hPC);
+        nhPC.putAll(st.getProcChange());
+        int currentId = metaData.getProcessId(currentProcess.getProcessName());
+
+        Set<ProcessNode> startPpred = nhPC.entrySet().stream()
+                .filter(entry->{
+                    return entry.getValue().equals(ChangeType.Start) && metaData.getProcessId(entry.getKey().getProcessName()) < currentId;
+                })
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
+        setsSet = setsInter(setsSet,startPpred);
+        Set<ProcessNode> startPsucc = nhPC.entrySet().stream()
+                .filter(entry->{
+                    if(entry.getValue().equals(ChangeType.Start)){
+                        int anotherId = metaData.getProcessId(entry.getKey().getProcessName());
+                        return anotherId > currentId || (anotherId == currentId && metaData.firstState(currentProcess.getProcessName()).equals(currentState.getStateName()));
+                    }
+                    return false;
+                })
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
+        setsSet = setsInter(setsSet,startPsucc);
+
+        Set<ProcessNode> stopPpred = nhPC.entrySet().stream()
+                .filter(entry->{
+                    return entry.getValue().equals(ChangeType.Stop) && metaData.getProcessId(entry.getKey().getProcessName()) < currentId;
+                })
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
+        setsSet = setsInter(setsSet,stopPpred);
+        Set<ProcessNode> stopPsucc = nhPC.entrySet().stream()
+                .filter(entry->{
+                    return entry.getValue().equals(ChangeType.Stop) && metaData.getProcessId(entry.getKey().getProcessName()) >= currentId;
+                })
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
+        setsSet = setsInter(setsSet,stopPsucc);
+
+        Set<ProcessNode> errorPpred = nhPC.entrySet().stream()
+                .filter(entry->{
+                    return entry.getValue().equals(ChangeType.Error) && metaData.getProcessId(entry.getKey().getProcessName()) < currentId;
+                })
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
+        setsSet = setsInter(setsSet,errorPpred);
+        Set<ProcessNode> errorPsucc = nhPC.entrySet().stream()
+                .filter(entry->{
+                    return entry.getValue().equals(ChangeType.Error) && metaData.getProcessId(entry.getKey().getProcessName()) >= currentId;
+                })
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
+        setsSet = setsInter(setsSet,errorPsucc);
+
+        for(IAttributed nst: st.getAttributes()){
+            setsSet = setsDiv(setsSet,nhPC,nst);
+        }
+        return setsSet;
+        /*
+        startPpred = {p$'$$\mid$nhPC(p$'$)=start$\land$p$'$.id<p.id};
+        setsSet = setsInter(setsSet,startPpred);
+        startPsucc = {p$'$$\mid$nhPC(p$'$)=start$\land$p$'$.id$\geq$p.id};
+        setsSet = setsInter(setsSet,startPsucc);
+
+        stopPpred = {p$'$$\mid$nhPC(p$'$)=stop$\land$p$'$.id<p.id};
+        setsSet = setsInter(setsSet,stopPpred);
+        stopPsucc = {p$'$$\mid$nhPC(p$'$)=stop$\land$p$'$.id>p.id};
+        setsSet = setsInter(setsSet,stopPsucc);
+
+        errorPpred = {p$'$$\mid$nhPC(p$'$)=error$\land$p$'$.id<p.id};
+        setsSet=setsInter(setsSet,errorPpred);
+        errorPsucc = {p$'$$\mid$nhPC(p$'$)=error$\land$p$'$.id>p.id};
+        setsSet=setsInter(setsSet,errorPsucc);
+
+        for nst in lines(st)
+            setsSet = setsDiv(setsSet,nhPC,nst);
+        return setsSet;
+        */
+
+    }
+
+    void grouping(){
+        List<Map.Entry<IReflexNode,IAttributed>> processes = collector
+                .getAttributeMap()
+                .entrySet()
+                .stream()
+                .filter(entry-> entry.getValue() instanceof ProcessAttributes)
+                .toList();
+
+        Set<ProcessNode> s1 = processes
+                .stream()
+                .filter(entry->!((ProcessAttributes) entry.getValue()).isStartS())
+                .map(entry->(ProcessNode)entry.getKey())
+                .collect(Collectors.toSet());
+        Set<ProcessNode> s2 = processes
+                .stream()
+                .filter(entry->((ProcessAttributes) entry.getValue()).isStartS())
+                .map(entry->(ProcessNode)entry.getKey())
+                .collect(Collectors.toSet());
+        Set<Set<ProcessNode>> set = new HashSet<>();
+        set.add(s1);
+        set.add(s2);
+        for (ProcessAttributes proc:processes.stream().map(entry->(ProcessAttributes)entry.getValue()).toList()){
+            currentProcess = ((ProcessNode) proc.getAttributedContext());
+            set = setsDiv(set,new HashMap<>(),proc);
+        }
+        List<Set<ProcessNode>>sets = set.stream().toList();
+        IntStream.range(0,set.size()).
+                forEachOrdered(i->sets.get(i).forEach(p->((ProcessAttributes)collector.getAttributes(p)).setGroup(i)));
+        /*
+        $s_1$={p$'$$\mid$p$'$.startS=false};
+        $s_2$={p$'$$\mid$p$'$.startS=true};
+        $s$={$s_1$,$s_2$}
+        for p in processes(r)
+            for st in states(p)
+                s = setsDiv(s,$\perp$,st);
+        for ($s_i$,i) in enumerate(s)
+            for p in $s_i$
+                p.group=i;*/
     }
 
     @Override

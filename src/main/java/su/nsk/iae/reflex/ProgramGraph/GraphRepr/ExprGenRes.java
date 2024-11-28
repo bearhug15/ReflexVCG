@@ -1,4 +1,4 @@
-package su.nsk.iae.reflex.vcg;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
 
 import su.nsk.iae.reflex.expression.SymbolicExpression;
 import su.nsk.iae.reflex.expression.types.StateType;
