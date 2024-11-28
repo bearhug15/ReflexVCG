@@ -1,30 +1,26 @@
-package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Map;
+import java.util.*;
 
-public class ProgramNode implements IReflexNode{
-    ReflexParser.ProgramContext context;
+public class ProcessNode implements IReflexNode{
+    ReflexParser.ProcessContext context;
     boolean opener;
-    ProgramNode nodeBind;
-    String programName;
-    ArrayList<ProcessNode> processes;
-    ArrayList<String> inputVars;
-    int branchNum = 0;
-
+    ProcessNode nodeBind;
+    ArrayList<StateNode> states;
+    String processName;
+    int branchNum=0;
     int numOfNextNodes=0;
 
-    ProgramNode(ReflexParser.ProgramContext context, boolean opener,String programName, ArrayList<String> inputVars){
+    ProcessNode(ReflexParser.ProcessContext context, boolean opener, String processName) {
         this.context = context;
         this.opener = opener;
-        this.programName=programName;
-        this.inputVars = inputVars;
+        this.processName = processName;
     }
+
 
     @Override
     public ParserRuleContext getContext() {
@@ -33,29 +29,22 @@ public class ProgramNode implements IReflexNode{
 
     @Override
     public ArrayList<String> createStatements(IStatementCreator creator, int stateNumber) {
-        if (!isOpener())
+        if(opener){
             return new ArrayList<>();
-        ArrayList<String> vec = new ArrayList<>();
-        for(String var: inputVars){
-            String res = creator.createInputVarInitStatement(stateNumber,var);
-            stateNumber++;
-            vec.add(res);
+        }else{
+            return new ArrayList<>(List.of(""));
         }
-        return vec;
+
     }
 
     @Override
     public Integer getStateShift() {
-        if(!isOpener())
-            return 0;
-        return inputVars.size();
+        return 0;
     }
 
     @Override
     public Integer getNumOfStatements() {
-        if(!isOpener())
-            return 0;
-        return inputVars.size();
+        return 0;
     }
 
     @Override
@@ -92,29 +81,34 @@ public class ProgramNode implements IReflexNode{
         numOfNextNodes +=n;
     }
 
-    void bindWith(ProgramNode node){
+    void bindWith(ProcessNode node){
         this.nodeBind = node;
         node.nodeBind = this;
     }
-    public static Map.Entry<ProgramNode,ProgramNode> ProgramNodes(ReflexParser.ProgramContext context,String programName, ArrayList<String> inputVars){
-        AbstractMap.SimpleImmutableEntry<ProgramNode,ProgramNode> nodes =
+
+    public static Map.Entry<ProcessNode,ProcessNode> ProcessNodes(ReflexParser.ProcessContext context, String processName){
+        AbstractMap.SimpleImmutableEntry<ProcessNode,ProcessNode> nodes =
                 new AbstractMap.SimpleImmutableEntry<>(
-                        new ProgramNode(context,true,programName,inputVars),
-                        new ProgramNode(context,false,programName,inputVars));
+                        new ProcessNode(context,true,processName),
+                        new ProcessNode(context,false,processName));
         nodes.getKey().bindWith(nodes.getValue());
         return nodes;
     }
 
-    public void setProcesses(ArrayList<ProcessNode> processes) {
-        this.processes = processes;
+    public void setStates(ArrayList<StateNode> states) {
+        this.states = states;
     }
 
     @Override
     public String toString() {
         if(opener){
-            return "Program start";
+            return "Process start: "+processName;
         }else{
-            return "Program end";
+            return "Process end "+processName;
         }
+    }
+
+    public String getProcessName(){
+        return processName;
     }
 }

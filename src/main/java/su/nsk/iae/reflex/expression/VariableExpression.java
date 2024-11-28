@@ -33,6 +33,16 @@ public class VariableExpression implements SymbolicExpression{
     }
 
     @Override
+    public SymbolicExpression trim() {
+        return this;
+    }
+
+    @Override
+    public SymbolicExpression innerExp() {
+        return this;
+    }
+
+    @Override
     public ExprType exprType() {
         return type;
     }

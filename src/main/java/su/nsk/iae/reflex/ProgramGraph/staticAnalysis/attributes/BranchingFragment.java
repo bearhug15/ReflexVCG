@@ -1,6 +1,6 @@
 package su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes;
 
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProcessNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ProcessNode;
 
 import java.util.ArrayList;
 import java.util.HashMap;

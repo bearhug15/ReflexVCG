@@ -1,26 +1,22 @@
-package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 
-import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Map;
+import java.util.Arrays;
 
-public class SwitchNode implements IReflexNode{
-    ReflexParser.SwitchStatContext context;
-    boolean opener;
-    SwitchNode nodeBind;
+public class ResetNode implements IReflexNode{
+    ReflexParser.ResetStatContext context;
+    String processName;
     int branchNum=0;
 
     int numOfNextNodes=0;
-
-    SwitchNode(ReflexParser.SwitchStatContext context, boolean opener){
+    public ResetNode(ReflexParser.ResetStatContext context, String processName){
         this.context = context;
-        this.opener = opener;
+        this.processName = processName;
     }
-
     @Override
     public ParserRuleContext getContext() {
         return context;
@@ -28,17 +24,17 @@ public class SwitchNode implements IReflexNode{
 
     @Override
     public ArrayList<String> createStatements(IStatementCreator creator, int stateNumber) {
-        return new ArrayList<>();
+        return new ArrayList<>(Arrays.asList(creator.createResetStatement(stateNumber,processName)));
     }
 
     @Override
     public Integer getStateShift() {
-        return 0;
+        return 1;
     }
 
     @Override
     public Integer getNumOfStatements() {
-        return 0;
+        return 1;
     }
 
     @Override
@@ -48,22 +44,21 @@ public class SwitchNode implements IReflexNode{
     @Override
     public void setBranchNum(Integer branchNum) {
         this.branchNum = branchNum;
-        nodeBind.branchNum = branchNum;
     }
 
     @Override
     public boolean hasPair() {
-        return true;
+        return false;
     }
 
     @Override
     public boolean isOpener() {
-        return opener;
+        return false;
     }
 
     @Override
     public IReflexNode getBind() {
-        return nodeBind;
+        return null;
     }
 
     @Override
@@ -75,21 +70,8 @@ public class SwitchNode implements IReflexNode{
         numOfNextNodes +=n;
     }
 
-    void bindWith(SwitchNode node){
-        this.nodeBind = node;
-        node.nodeBind = this;
-    }
-    public static Map.Entry<SwitchNode, SwitchNode> SwitchNodes(ReflexParser.SwitchStatContext context){
-        AbstractMap.SimpleImmutableEntry<SwitchNode, SwitchNode> nodes = new AbstractMap.SimpleImmutableEntry<>(new SwitchNode(context,true),new SwitchNode(context,false));
-        nodes.getKey().bindWith(nodes.getValue());
-        return nodes;
-    }
     @Override
     public String toString() {
-        if(opener){
-            return "Switch start";
-        }else{
-            return "Switch end";
-        }
+        return "Reset: "+processName;
     }
 }

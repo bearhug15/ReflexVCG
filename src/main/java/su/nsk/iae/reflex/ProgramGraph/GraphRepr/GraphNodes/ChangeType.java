@@ -1,4 +1,4 @@
-package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes;
 
 public enum ChangeType {
     Start,Stop,Error;

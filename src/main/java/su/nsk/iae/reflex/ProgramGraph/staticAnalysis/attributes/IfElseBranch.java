@@ -1,9 +1,9 @@
 package su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes;
 
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.IReflexNode;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.IfElseNode;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProcessNode;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.StateNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IfElseNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ProcessNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.StateNode;
 
 public class IfElseBranch extends LinearFragment {
     IReflexNode attributedNode;

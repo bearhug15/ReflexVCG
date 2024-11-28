@@ -1,6 +1,7 @@
 package su.nsk.iae.reflex.vcg;
 
 import org.junit.jupiter.api.Test;
+import su.nsk.iae.reflex.ProgramGraph.ValueParser;
 
 import static org.junit.jupiter.api.Assertions.*;
 

@@ -1,12 +1,10 @@
-package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Map;
 
 public class SetStateNode implements IReflexNode{
     //Could be set state s/ set next state/ stop/ error

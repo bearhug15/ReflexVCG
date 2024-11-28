@@ -1,7 +1,7 @@
 package su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes;
 
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.IReflexNode;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.TimeoutNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.TimeoutNode;
 
 public class TimeoutCore extends BranchingFragment{
     TimeoutNode node;

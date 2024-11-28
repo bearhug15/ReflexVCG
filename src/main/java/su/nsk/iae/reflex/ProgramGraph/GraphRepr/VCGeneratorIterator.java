@@ -1,14 +1,13 @@
-package su.nsk.iae.reflex.vcg;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
 
 import org.jgrapht.event.TraversalListenerAdapter;
 import org.jgrapht.event.VertexTraversalEvent;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.traverse.AbstractGraphIterator;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.IReflexNode;
-import su.nsk.iae.reflex.ProgramGraph.ProgramGraph;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
 import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.AttributeCollector;
 import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.AttributedPath;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.RuleChecker;
+import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.IRuleChecker;
 import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.*;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 
@@ -18,7 +17,7 @@ public class VCGeneratorIterator extends AbstractGraphIterator<IReflexNode, Defa
     //ProgramGraph graph;
     ArrayList<Map.Entry<IReflexNode,Integer>> branchPoints = new ArrayList<>();
 
-    RuleChecker checker;
+    IRuleChecker checker;
 
     IReflexNode init;
     //Cursor shows last returned element
@@ -26,7 +25,7 @@ public class VCGeneratorIterator extends AbstractGraphIterator<IReflexNode, Defa
     AttributeTraversal attributeTraversal;
     VCTraversal vcTraversal;
 
-    public VCGeneratorIterator(ProgramGraph graph,AttributeCollector collector,RuleChecker checker,IStatementCreator creator){
+    public VCGeneratorIterator(ProgramGraph graph,AttributeCollector collector,IRuleChecker checker,IStatementCreator creator){
         super(graph);
         //cursor = graph.getStartNode();
         cursor=null;
@@ -38,6 +37,24 @@ public class VCGeneratorIterator extends AbstractGraphIterator<IReflexNode, Defa
         this.addTraversalListener(trav2);
         vcTraversal = trav2;
         this.checker = checker;
+    }
+    public VCGeneratorIterator(ProgramGraph graph,AttributeCollector collector,IStatementCreator creator){
+        super(graph);
+        //cursor = graph.getStartNode();
+        cursor=null;
+        init = graph.getStartNode();
+        AttributeTraversal trav1 = new AttributeTraversal(collector);
+        this.addTraversalListener(trav1);
+        attributeTraversal = trav1;
+        VCTraversal trav2 = new VCTraversal(creator);
+        this.addTraversalListener(trav2);
+        vcTraversal = trav2;
+        this.checker = new IRuleChecker(){
+            @Override
+            public boolean checkRules(AttributedPath path, IAttributed attr) {
+                return true;
+            }
+        };
     }
     @Override
     public boolean hasNext() {
@@ -228,7 +245,7 @@ class AttributeTraversal extends TraversalListenerAdapter<IReflexNode, DefaultEd
         }
     }
 
-    public boolean isCompatible(RuleChecker checker){
+    public boolean isCompatible(IRuleChecker checker){
         if(path.size()<2){
             return true;
         }

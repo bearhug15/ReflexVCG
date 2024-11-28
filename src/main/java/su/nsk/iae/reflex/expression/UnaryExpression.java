@@ -19,7 +19,7 @@ public class UnaryExpression implements SymbolicExpression{
         return type;
     }
     public String toString(IStatementCreator creator){
-        return creator.createUnaryExpression(exp.toString(creator),op);
+        return creator.createUnaryExpression(exp.toString(creator),exp.exprType(), op);
     }
 
     @Override
@@ -30,5 +30,22 @@ public class UnaryExpression implements SymbolicExpression{
     @Override
     public boolean isActuated() {
         return exp.isActuated();
+    }
+
+    @Override
+    public SymbolicExpression trim() {
+        SymbolicExpression res = exp.trim();
+        if(res instanceof UnaryExpression && op.equals(((UnaryExpression) res).op)){
+            return res.innerExp();
+        }else if(op.equals(UnaryOp.Plus)){
+            return res;
+        }
+        this.exp = res;
+        return this;
+    }
+
+    @Override
+    public SymbolicExpression innerExp() {
+        return exp;
     }
 }

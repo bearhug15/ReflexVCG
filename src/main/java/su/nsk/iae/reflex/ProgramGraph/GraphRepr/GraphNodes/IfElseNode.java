@@ -1,26 +1,23 @@
-package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 
-import java.util.*;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Map;
 
-public class ProcessNode implements IReflexNode{
-    ReflexParser.ProcessContext context;
+public class IfElseNode implements IReflexNode{
+    ReflexParser.IfElseStatContext context;
     boolean opener;
-    ProcessNode nodeBind;
-    ArrayList<StateNode> states;
-    String processName;
+    IfElseNode nodeBind;
     int branchNum=0;
     int numOfNextNodes=0;
-
-    ProcessNode(ReflexParser.ProcessContext context, boolean opener, String processName) {
+    IfElseNode(ReflexParser.IfElseStatContext context, boolean opener){
         this.context = context;
         this.opener = opener;
-        this.processName = processName;
     }
-
 
     @Override
     public ParserRuleContext getContext() {
@@ -29,12 +26,7 @@ public class ProcessNode implements IReflexNode{
 
     @Override
     public ArrayList<String> createStatements(IStatementCreator creator, int stateNumber) {
-        if(opener){
-            return new ArrayList<>();
-        }else{
-            return new ArrayList<>(List.of(""));
-        }
-
+        return new ArrayList<>();
     }
 
     @Override
@@ -81,34 +73,21 @@ public class ProcessNode implements IReflexNode{
         numOfNextNodes +=n;
     }
 
-    void bindWith(ProcessNode node){
+    void bindWith(IfElseNode node){
         this.nodeBind = node;
         node.nodeBind = this;
     }
-
-    public static Map.Entry<ProcessNode,ProcessNode> ProcessNodes(ReflexParser.ProcessContext context, String processName){
-        AbstractMap.SimpleImmutableEntry<ProcessNode,ProcessNode> nodes =
-                new AbstractMap.SimpleImmutableEntry<>(
-                        new ProcessNode(context,true,processName),
-                        new ProcessNode(context,false,processName));
+    public static Map.Entry<IfElseNode,IfElseNode> IfElseNodes(ReflexParser.IfElseStatContext context){
+        AbstractMap.SimpleImmutableEntry<IfElseNode,IfElseNode> nodes = new AbstractMap.SimpleImmutableEntry<>(new IfElseNode(context,true),new IfElseNode(context,false));
         nodes.getKey().bindWith(nodes.getValue());
         return nodes;
     }
-
-    public void setStates(ArrayList<StateNode> states) {
-        this.states = states;
-    }
-
     @Override
     public String toString() {
         if(opener){
-            return "Process start: "+processName;
+            return "If start";
         }else{
-            return "Process end "+processName;
+            return "if end";
         }
-    }
-
-    public String getProcessName(){
-        return processName;
     }
 }

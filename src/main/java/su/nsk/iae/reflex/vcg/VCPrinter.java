@@ -1,7 +1,7 @@
 package su.nsk.iae.reflex.vcg;
 
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProgramMetaData;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
-import su.nsk.iae.reflex.formulas.ImplicationFormula;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -11,7 +11,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.StringJoiner;
 
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
@@ -53,7 +52,7 @@ public class VCPrinter {
         }
     }
     public void createGlobalTheory(){
-        String clock = metaData.clockValue;
+        String clock = metaData.getClockValue();
         String dirName = destination.getFileName().toString();
         String fileName;
         if (sourceName==null) {

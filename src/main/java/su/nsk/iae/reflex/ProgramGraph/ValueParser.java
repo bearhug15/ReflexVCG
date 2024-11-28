@@ -1,4 +1,4 @@
-package su.nsk.iae.reflex.vcg;
+package su.nsk.iae.reflex.ProgramGraph;
 
 import java.math.BigDecimal;
 

@@ -1,7 +1,6 @@
 package su.nsk.iae.reflex.ProgramGraph.staticAnalysis;
 
-import org.antlr.v4.runtime.ParserRuleContext;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.IReflexNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
 import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.IAttributed;
 
 import java.util.HashMap;
@@ -15,5 +14,8 @@ public class AttributeCollector {
 
     public IAttributed getAttributes(IReflexNode node){
         return attributeMap.get(node);
+    }
+    public HashMap<IReflexNode, IAttributed> getAttributeMap(){
+        return attributeMap;
     }
 }

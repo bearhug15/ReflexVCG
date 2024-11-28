@@ -1,4 +1,4 @@
-package su.nsk.iae.reflex.vcg;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
 
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexBaseVisitor;
@@ -10,6 +10,7 @@ import su.nsk.iae.reflex.formulas.ConjuctionFormula;
 import su.nsk.iae.reflex.formulas.EqualityFormula;
 import su.nsk.iae.reflex.formulas.Formula;
 import su.nsk.iae.reflex.formulas.TrueFormula;
+import su.nsk.iae.reflex.ProgramGraph.ValueParser;
 
 public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
     final VariableMapper mapper;
@@ -157,10 +158,10 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         String newState = res.getState();
         Formula domain = res.getDomain();
         UnaryOp unOp = switch (op) {
-            case "+" -> new UnPlus();
-            case "-" -> new UnMinus();
-            case "!" -> new UnNeg();
-            case "~" -> new UnInvert(expr.exprType());
+            case "+" -> UnaryOp.Plus;
+            case "-" -> UnaryOp.Minus;
+            case "!" -> UnaryOp.Neg;
+            case "~" -> UnaryOp.Invert;
             default -> throw new RuntimeException("Unknown unary op");
         };
         //SymbolicExpression newExpr = new UnaryExpression(unOp,expr,expr.exprType());

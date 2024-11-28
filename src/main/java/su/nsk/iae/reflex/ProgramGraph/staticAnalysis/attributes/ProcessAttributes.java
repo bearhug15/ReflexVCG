@@ -1,7 +1,7 @@
 package su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes;
 
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.IReflexNode;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProcessNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ProcessNode;
 
 public class ProcessAttributes extends BranchingFragment {
 
@@ -10,6 +10,8 @@ public class ProcessAttributes extends BranchingFragment {
     boolean reachE = false;
     boolean reachS = false;
     boolean startS = true;
+
+    int group = 0;
 
     public ProcessAttributes(ProcessNode attributedNode){
         this.attributedNode = attributedNode;
@@ -47,5 +49,13 @@ public class ProcessAttributes extends BranchingFragment {
 
     public void setStartS(boolean startS) {
         this.startS = startS;
+    }
+
+    public int getGroup() {
+        return group;
+    }
+
+    public void setGroup(int group) {
+        this.group = group;
     }
 }

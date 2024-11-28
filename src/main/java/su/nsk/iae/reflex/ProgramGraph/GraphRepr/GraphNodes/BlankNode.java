@@ -1,43 +1,31 @@
-package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
-import su.nsk.iae.reflex.antlr.ReflexParser;
 
-import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Map;
 
-public class ExpressionNode implements IReflexNode {
-    ReflexParser.ExpressionContext context;
-
-    String value;
-    int branchNum=0;
-    int numOfNextNodes;
-    public ExpressionNode(ReflexParser.ExpressionContext context, String value){
-        this.context = context;
-        this.value = value;
-    }
-
+public class BlankNode implements IReflexNode{
+    int branchNum =0;
+    int numOfNextNodes=0;
     @Override
     public ParserRuleContext getContext() {
-        return context;
+        return null;
     }
 
     @Override
     public ArrayList<String> createStatements(IStatementCreator creator, int stateNumber) {
-        return new ArrayList<>(Arrays.asList(creator.createExpressionStatement(stateNumber,value)));
+        return new ArrayList<>();
     }
 
     @Override
     public Integer getStateShift() {
-        return 1;
+        return 0;
     }
 
     @Override
     public Integer getNumOfStatements() {
-        return 1;
+        return 0;
     }
 
     @Override
@@ -72,8 +60,10 @@ public class ExpressionNode implements IReflexNode {
     public void incNumOfNextNodes(int n){
         numOfNextNodes +=n;
     }
+
+
     @Override
     public String toString() {
-        return "Expression: "+value;
+        return "Blank node";
     }
 }

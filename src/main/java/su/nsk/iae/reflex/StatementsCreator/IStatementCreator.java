@@ -30,7 +30,7 @@ public interface IStatementCreator {
      String createTrue();
      String createFalse();
      String createBinaryExpression(String left, String right, BinaryOp op);
-     String createUnaryExpression(String exp, UnaryOp op);
+     String createUnaryExpression(String exp, ExprType type, UnaryOp op);
      String createCastExpression(String exp, ExprType type);
      String createInvariant(String state);
      String createEmptyState();

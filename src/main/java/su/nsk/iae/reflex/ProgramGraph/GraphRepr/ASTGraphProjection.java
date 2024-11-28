@@ -1,7 +1,7 @@
-package su.nsk.iae.reflex.ProgramGraph;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
 
 import org.antlr.v4.runtime.ParserRuleContext;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.IReflexNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
 
 import java.util.HashMap;
 

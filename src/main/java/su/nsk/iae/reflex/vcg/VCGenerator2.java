@@ -1,9 +1,7 @@
 package su.nsk.iae.reflex.vcg;
 
-import su.nsk.iae.reflex.ProgramGraph.ASTGraphProjection;
-import su.nsk.iae.reflex.ProgramGraph.GraphBuilder;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.IReflexNode;
-import su.nsk.iae.reflex.ProgramGraph.ProgramGraph;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.*;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
 import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.AttributeCollector;
 import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.ProgramAnalyzer2;
 import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.RuleChecker;
@@ -12,8 +10,6 @@ import su.nsk.iae.reflex.StatementsCreator.IsabelleCreator;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 
 public class VCGenerator2 {
 

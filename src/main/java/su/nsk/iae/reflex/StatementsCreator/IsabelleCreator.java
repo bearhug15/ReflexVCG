@@ -3,7 +3,7 @@ package su.nsk.iae.reflex.StatementsCreator;
 import su.nsk.iae.reflex.expression.ops.BinaryOp;
 import su.nsk.iae.reflex.expression.ops.UnaryOp;
 import su.nsk.iae.reflex.expression.types.ExprType;
-import su.nsk.iae.reflex.vcg.ProgramMetaData;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProgramMetaData;
 
 import java.util.ArrayList;
 import java.util.StringJoiner;
@@ -144,8 +144,14 @@ public class IsabelleCreator implements IStatementCreator {
     }
 
     @Override
-    public String createUnaryExpression(String exp, UnaryOp op) {
-        return "("+getUnOp(op)+exp+")";
+    public String createUnaryExpression(String exp,ExprType type, UnaryOp op) {
+        String res = switch(op){
+            case Neg -> "\\<not>";
+            case Plus -> "+";
+            case Minus -> "-";
+            case Invert -> type.invertBorder() + "-";
+        };
+        return "("+res+" "+exp+")";
     }
 
     @Override
@@ -210,9 +216,10 @@ public class IsabelleCreator implements IStatementCreator {
 
         };
     }
-    public String getUnOp(UnaryOp op){
+    /*public String getUnOp(UnaryOp op){
+        return switch (op);
         return null;
-    }
+    }*/
 
     public String IString(String str){
         return "''"+str+"''";
