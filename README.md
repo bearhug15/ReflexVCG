@@ -1,6 +1,11 @@
-Reflex Verification Condition Generator.
+#ReflexCVG
+##Quick Overview
+Verification conditions generator for Reflex programs. Saves generated conditions as Isabelle/HOL lemmas. One lemma per theory. Also provides theories containing type definitions, lemmas and proof patterns.
+Implements simple static analysis to discard impossible verification conditions.
 
-To launch generator use: ``java -jar ReflexVCG.jar [key/value]``
+##Running
+To launch generator use: ``java -jar ReflexVCG.jar [key/value]``.
+Specification of path to source file is required. Output path is optional and set to source folder if not defined.
 
 | key    | value | meaning                   |
 |--------|-------|---------------------------|
