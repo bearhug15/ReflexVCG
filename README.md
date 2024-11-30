@@ -1,4 +1,4 @@
-# ReflexCVG
+# Reflex verification conditions generator
 
 ## Quick Overview
 
