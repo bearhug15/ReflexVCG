@@ -37,7 +37,7 @@ public class ProgramNode implements IReflexNode{
             return new ArrayList<>();
         ArrayList<String> vec = new ArrayList<>();
         for(String var: inputVars){
-            String res = creator.createInputVarInitStatement(stateNumber,var);
+            String res = creator.InputVarInitStatement(stateNumber,var);
             stateNumber++;
             vec.add(res);
         }

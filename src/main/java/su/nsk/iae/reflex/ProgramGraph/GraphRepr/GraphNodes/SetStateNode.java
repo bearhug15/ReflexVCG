@@ -27,7 +27,7 @@ public class SetStateNode implements IReflexNode{
 
     @Override
     public ArrayList<String> createStatements(IStatementCreator creator, int stateNumber) {
-        return new ArrayList<>(Arrays.asList(creator.createSetStateStatement(stateNumber,processName,state)));
+        return new ArrayList<>(Arrays.asList(creator.SetStateStatement(stateNumber,processName,state)));
     }
 
     @Override

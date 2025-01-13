@@ -25,7 +25,7 @@ public class ExpressionNode implements IReflexNode {
 
     @Override
     public ArrayList<String> createStatements(IStatementCreator creator, int stateNumber) {
-        return new ArrayList<>(Arrays.asList(creator.createExpressionStatement(stateNumber,value)));
+        return new ArrayList<>(Arrays.asList(creator.ExpressionStatement(stateNumber,value)));
     }
 
     @Override

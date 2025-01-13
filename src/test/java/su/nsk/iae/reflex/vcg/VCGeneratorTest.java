@@ -3,11 +3,20 @@ package su.nsk.iae.reflex.vcg;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.nio.Attribute;
+import org.jgrapht.nio.DefaultAttribute;
+import org.jgrapht.nio.dot.DOTExporter;
 import org.junit.jupiter.api.Test;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
 import su.nsk.iae.reflex.antlr.ReflexLexer;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 
+import java.io.StringWriter;
+import java.io.Writer;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 class VCGeneratorTest {
 
@@ -697,7 +706,7 @@ class VCGeneratorTest {
             });
             Writer writer = new StringWriter();
             exporter.exportGraph(gen.graph, writer);
-            System.out.println(writer.toString());*/
+            System.out.println(writer.toString());//*/
 
             gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
             System.out.println("VC conditions generated: " + gen.VCGenerated());

@@ -41,13 +41,13 @@ public class CastExpression implements SymbolicExpression{
     @Override
     public String toString(IStatementCreator creator) {
         if (expr.exprType() == null){
-            return creator.createCastExpression(expr.toString(creator),type);
+            return creator.CastExpression(expr.toString(creator),type);
             //return "("+type.toString(creator)+" "+expr.toString(creator)+")";
         }
         if (type.toString(creator).equals(expr.exprType().toString(creator))){
             return expr.toString(creator);
         }else{
-            return creator.createCastExpression(expr.toString(creator),type);
+            return creator.CastExpression(expr.toString(creator),type);
             //return "("+type.toString(creator)+" "+expr.toString(creator)+")";
         }
     }

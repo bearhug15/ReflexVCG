@@ -1,7 +1,6 @@
 package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
 
 import org.antlr.v4.runtime.Token;
-import su.nsk.iae.reflex.ProgramGraph.GraphNodes.*;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.*;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexBaseVisitor;
@@ -48,7 +47,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
     public ProgramGraph visitProgram(ReflexParser.ProgramContext ctx) {
         ArrayList<String> varInits = new ArrayList<>();
         for (Map.Entry<String, ExprType> variable: metaData.getInputVariablesNames().entrySet()){
-            varInits.add(creator.createSetter(variable.getValue(),creator.createPlaceHolder(),variable.getKey(),variable.getKey()));
+            varInits.add(creator.Setter(variable.getValue(),creator.PlaceHolder(),variable.getKey(),variable.getKey()));
         }
         Map.Entry<ProgramNode,ProgramNode> nodes = ProgramNode.ProgramNodes(ctx,ctx.name.getText(),varInits);
         projection.put(ctx, nodes.getKey());
@@ -121,7 +120,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             if(mapper.is_variable(currentProcess,var.getText())){
                 ExprType t= mapper.variableType(currentProcess,var.getText());
                 VariableExpression subExp = new VariableExpression(ctx.timeAmountOrRef().ref.getText(),t,true);
-                subExp.actuate(creator.createPlaceHolder(),creator);
+                subExp.actuate(creator.PlaceHolder(),creator);
                 exp = subExp;
                 isVariable = true;
             } else if (mapper.is_const(var.getText())){
@@ -138,7 +137,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         projection.put(ctx, nodes.getKey());
         ProgramGraph graph = new ProgramGraph(nodes.getKey(), nodes.getValue());
 
-        IReflexNode exceedCondition = new ConditionNode(ctx, creator.createTimeoutExceed(creator.createPlaceHolder(),condition,currentProcess),isVariable);
+        IReflexNode exceedCondition = new ConditionNode(ctx, creator.TimeoutExceed(creator.PlaceHolder(),condition,currentProcess),isVariable);
         ProgramGraph exceedGraph = new ProgramGraph(exceedCondition,exceedCondition);
         ProgramGraph exceed;
         if(ctx.statement()!=null){
@@ -149,7 +148,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         exceedGraph.extendGraph(exceed);
         graph.insertGraph(exceedGraph);
 
-        IReflexNode loseCondition = new ConditionNode(ctx, creator.createTimeoutLose(creator.createPlaceHolder(),condition,currentProcess),isVariable);
+        IReflexNode loseCondition = new ConditionNode(ctx, creator.TimeoutLose(creator.PlaceHolder(),condition,currentProcess),isVariable);
         ProgramGraph loseGraph = new ProgramGraph(loseCondition,loseCondition);
         graph.insertGraph(loseGraph);
 
@@ -187,7 +186,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         projection.put(ctx, nodes.getKey());
 
         ReflexParser.ExpressionContext e=ctx.expression();
-        ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,creator.createPlaceHolder(),creator);
+        ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,creator.PlaceHolder(),creator);
         ExprGenRes res = vis.visitExpression(e);
         SymbolicExpression exp = res.getExpr();
         String newState = res.getState();
@@ -201,9 +200,9 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         String condition = exp.toString(creator);
 
 
-        ConditionNode trueCond = new ConditionNode(ctx,creator.createBinaryExpression(condition,creator.createTrue(), BinaryOp.Eq));
+        ConditionNode trueCond = new ConditionNode(ctx,creator.BinaryExpression(condition,creator.True(), BinaryOp.Eq));
         ProgramGraph trueGraph = new ProgramGraph(trueCond,trueCond);
-        if (!newState.equals(creator.createPlaceHolder())){
+        if (!newState.equals(creator.PlaceHolder())){
             ExpressionNode expNode = new ExpressionNode(ctx.expression(),newState);
             trueGraph.extendGraph(new ProgramGraph(expNode,expNode));
         }
@@ -212,9 +211,9 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         }
         graph.insertGraph(trueGraph);
 
-        ConditionNode falseCond = new ConditionNode(ctx,creator.createBinaryExpression(condition,creator.createFalse(), BinaryOp.Eq));
+        ConditionNode falseCond = new ConditionNode(ctx,creator.BinaryExpression(condition,creator.False(), BinaryOp.Eq));
         ProgramGraph falseGraph = new ProgramGraph(falseCond,falseCond);
-        if (!newState.equals(creator.createPlaceHolder())){
+        if (!newState.equals(creator.PlaceHolder())){
             ExpressionNode expNode = new ExpressionNode(ctx.expression(),newState);
             falseGraph.extendGraph(new ProgramGraph(expNode,expNode));
         }
@@ -237,7 +236,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         projection.put(ctx, nodes.getKey());
 
         ReflexParser.ExpressionContext e=ctx.expression();
-        ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,creator.createPlaceHolder(),creator);
+        ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,creator.PlaceHolder(),creator);
         ExprGenRes res = vis.visitExpression(e);
         SymbolicExpression exp = res.getExpr();
         String newState = res.getState();
@@ -255,21 +254,21 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         String passedConditions = null;
         for(ReflexParser.CaseStatContext newCtx:ctx.options){
             ReflexParser.ExpressionContext e0 = newCtx.expression();
-            ExpressionVisitor vis0 = new ExpressionVisitor(mapper,currentProcess,creator.createPlaceHolder(),creator);
+            ExpressionVisitor vis0 = new ExpressionVisitor(mapper,currentProcess,creator.PlaceHolder(),creator);
             ExprGenRes res0 = vis0.visitExpression(e0);
             String exp0 = res0.getExpr().toString(creator);
 
             if (passedConditions !=null){
-                exp0 = creator.createBinaryExpression(passedConditions,creator.createBinaryExpression(condition,exp0,BinaryOp.Eq),BinaryOp.And);
-                passedConditions = creator.createBinaryExpression(passedConditions,creator.createBinaryExpression(condition,exp0,BinaryOp.NotEq),BinaryOp.And);
+                exp0 = creator.BinaryExpression(passedConditions,creator.BinaryExpression(condition,exp0,BinaryOp.Eq),BinaryOp.And);
+                passedConditions = creator.BinaryExpression(passedConditions,creator.BinaryExpression(condition,exp0,BinaryOp.NotEq),BinaryOp.And);
             }else{
-                exp0 = creator.createBinaryExpression(condition,exp0,BinaryOp.Eq);
-                passedConditions = creator.createBinaryExpression(condition,exp0,BinaryOp.NotEq);
+                exp0 = creator.BinaryExpression(condition,exp0,BinaryOp.Eq);
+                passedConditions = creator.BinaryExpression(condition,exp0,BinaryOp.NotEq);
             }
             ConditionNode cnode = new ConditionNode(ctx,exp0);
             ProgramGraph cgraph = new ProgramGraph(cnode,cnode);
 
-            if (!newState.equals(creator.createPlaceHolder())){
+            if (!newState.equals(creator.PlaceHolder())){
                 ExpressionNode expNode = new ExpressionNode(ctx.expression(),newState);
                 cgraph.extendGraph(new ProgramGraph(expNode,expNode));
             }
@@ -402,7 +401,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
     @Override
     public ProgramGraph visitExprSt(ReflexParser.ExprStContext ctx) {
         ReflexParser.ExpressionContext e=ctx.expression();
-        ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,creator.createPlaceHolder(),creator);
+        ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,creator.PlaceHolder(),creator);
         ExprGenRes res = vis.visitExpression(e);
         String newState = res.getState();
         Formula domain = res.getDomain();
@@ -417,13 +416,13 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             ConditionNode cnode = new ConditionNode(ctx.expression(),domain.toString(creator),true);
             projection.put(ctx, cnode);
             graph.insertDanglingGraph(new ProgramGraph(cnode,cnode));
-            if (!newState.equals(creator.createPlaceHolder())){
+            if (!newState.equals(creator.PlaceHolder())){
                 ExpressionNode expNode = new ExpressionNode(ctx.expression(),newState);
                 graph.extendGraph(new ProgramGraph(expNode,expNode));
             }
             return graph;
         }else{
-            if (!newState.equals(creator.createPlaceHolder())){
+            if (!newState.equals(creator.PlaceHolder())){
                 ExpressionNode expNode = new ExpressionNode(ctx.expression(),newState);
                 projection.put(ctx, expNode);
                 graph = new ProgramGraph(expNode,expNode);

@@ -2,9 +2,7 @@ package su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes;
 
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ProcessNode;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public abstract class LinearFragment implements IAttributed{
 
@@ -123,13 +121,25 @@ public abstract class LinearFragment implements IAttributed{
             for(IAttributed attr: attributes){
                 newReset = newReset || attr.isReset();
                 newStateChanging = newStateChanging || attr.isStateChanging();
+
+                Set<ProcessNode> buff = new HashSet<>(newProcChange.keySet());
+                buff.retainAll(attr.getPotProcChange().keySet());
+                for (ProcessNode node: buff){
+                    PotChange res = newPotProcChange.get(node);
+                    if(newProcChange.get(node).equals(ChangeType.Start)&&!(!res.stop && !res.error))
+                        newProcChange.remove(node);
+                    if(newProcChange.get(node).equals(ChangeType.Stop)&&!(!res.start && !res.error))
+                        newProcChange.remove(node);
+                    if(newProcChange.get(node).equals(ChangeType.Error)&&!(!res.start && !res.stop))
+                        newProcChange.remove(node);
+                }
                 newProcChange.putAll(attr.getProcChange());
-                for (Map.Entry<ProcessNode, PotChange> e: attr.getPotProcChange().entrySet()){
+                for(Map.Entry<ProcessNode,PotChange> e : attr.getPotProcChange().entrySet()){
                     PotChange res = newPotProcChange.get(e.getKey());
-                    if(res!=null){
-                        newPotProcChange.put(e.getKey(),res.add(e.getValue()));
-                    }else{
+                    if(res==null){
                         newPotProcChange.put(e.getKey(),e.getValue());
+                    }else{
+                        newPotProcChange.put(e.getKey(),e.getValue().add(res));
                     }
                 }
             }

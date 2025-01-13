@@ -62,7 +62,7 @@ primrec getVarReal:: "state \<Rightarrow> variable \<Rightarrow>real" where
 | "getVarReal (reset s _) x = getVarReal s x"
 
 primrec getPstate:: "state \<Rightarrow> process \<Rightarrow> pstate" where
-"getPstate emptyState _ = ''''"
+"getPstate emptyState _ = ''stop''"
 | "getPstate (toEnv s) p = getPstate s p" 
 | "getPstate (setVarBool s _ _) p = getPstate s p" 
 | "getPstate (setVarInt s _ _) p = getPstate s p"

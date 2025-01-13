@@ -32,7 +32,7 @@ public class StateNode implements IReflexNode{
     @Override
     public ArrayList<String> createStatements(IStatementCreator creator, int stateNumber) {
         if(isOpener())
-            return new ArrayList<>(Arrays.asList(creator.createStateStatement(stateNumber,processName,stateName)));
+            return new ArrayList<>(Arrays.asList(creator.StateStatement(stateNumber,processName,stateName)));
         else
             return new ArrayList<>();
     }

@@ -6,6 +6,8 @@ import su.nsk.iae.reflex.expression.types.ExprType;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProgramMetaData;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.StringJoiner;
 
 public class IsabelleCreator implements IStatementCreator {
@@ -13,90 +15,90 @@ public class IsabelleCreator implements IStatementCreator {
     public IsabelleCreator(){}
 
     @Override
-    public String createInputVarInitStatement(int stateNumber, String variableName) {
-        String res = variableName.replace(createPlaceHolder(),createStateName(stateNumber));
+    public String InputVarInitStatement(int stateNumber, String variableName) {
+        String res = variableName.replace(PlaceHolder(),createStateName(stateNumber));
         res = createStateName(stateNumber+1)+":"+"\""+createStateName(stateNumber+1)+"="+res+"\"";
         return res;
     }
 
     @Override
-    public String createExpressionStatement(int stateNumber, String value) {
-        String res = value.replace(createPlaceHolder(),createStateName(stateNumber));
+    public String ExpressionStatement(int stateNumber, String value) {
+        String res = value.replace(PlaceHolder(),createStateName(stateNumber));
         res = createStateName(stateNumber+1)+":"+"\""+createStateName(stateNumber+1)+"="+res+"\"";
         return res;
     }
 
     @Override
-    public String createConditionStatement(int stateNumber, String value) {
-        String res = value.replace(createPlaceHolder(),createStateName(stateNumber));
+    public String ConditionStatement(int stateNumber, String value) {
+        String res = value.replace(PlaceHolder(),createStateName(stateNumber));
         res = createStateName(stateNumber)+"_condition:"+"\""+res+"\"";
         return res;
     }
 
     @Override
-    public String createStateStatement(int stateNumber, String processName, String stateName) {
-        return createStateName(stateNumber)+"_state:\""+"getPstate "+createStateName(stateNumber)+" ''"+processName+"'' = ''"+stateName+"''\"";
+    public String StateStatement(int stateNumber, String processName, String stateName) {
+        return createStateName(stateNumber)+"_state:\""+ PstateGetter(createStateName(stateNumber),processName)+"="+IString(stateName)+"\"";
     }
 
     @Override
-    public String createSetStateStatement(int stateNumber, String processName, String stateName) {
-        return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+"setPstate "+createStateName(stateNumber)+" ''"+processName+"'' = ''"+stateName+"''\"";
+    public String SetStateStatement(int stateNumber, String processName, String stateName) {
+        return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+ PstateSetter(createStateName(stateNumber),processName,stateName)+"\"";
     }
 
     @Override
-    public String createStartProcessStatement(int stateNumber, String processName, String stateName) {
-        return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+"setPstate "+createStateName(stateNumber)+" ''"+processName+"'' = ''"+stateName+"''\"";
+    public String StartProcessStatement(int stateNumber, String processName, String stateName) {
+        return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+"setPstate "+ PstateSetter(createStateName(stateNumber),processName,stateName)+"\"";
     }
 
     @Override
-    public String createStopProcessStatement(int stateNumber, String processName) {
-        return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+"setPstate "+createStateName(stateNumber)+" ''"+processName+"'' = ''stop''\"";
+    public String StopProcessStatement(int stateNumber, String processName) {
+        return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+ PstateSetter(createStateName(stateNumber),processName,"stop")+"\"";
     }
 
     @Override
-    public String createErrorProcessStatement(int stateNumber, String processName) {
-        return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+"setPstate "+createStateName(stateNumber)+" ''"+processName+"'' = ''error''\"";
+    public String ErrorProcessStatement(int stateNumber, String processName) {
+        return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+ PstateSetter(createStateName(stateNumber),processName,"error")+"\"";
     }
 
     @Override
-    public String createResetStatement(int stateNumber, String processName) {
+    public String ResetStatement(int stateNumber, String processName) {
         return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+"reset "+createStateName(stateNumber)+"\"";
     }
 
     @Override
-    public String createEnvStatement(int stateNumber) {
+    public String EnvStatement(int stateNumber) {
         return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+"toEnv "+createStateName(stateNumber)+"\"";
     }
 
     @Override
-    public String createFinalStatement(int stateNumber) {
-        return createFinalStatementName()+":\""+createFinalStatementName()+"="+createStateName(stateNumber)+"\"";
+    public String FinalStatement(int stateNumber) {
+        return FinalStatementName()+":\""+ FinalStatementName()+"="+createStateName(stateNumber)+"\"";
     }
 
     @Override
-    public String createFinalStatementName(){
+    public String FinalStatementName(){
         return "st_final";
     }
 
     @Override
-    public String createEmptyStateStatement() {
-        return createStateName(0)+":\""+createStateName(0)+"="+createEmptyState()+"\"";
+    public String EmptyStateStatement() {
+        return createStateName(0)+":\""+createStateName(0)+"="+ EmptyState()+"\"";
     }
 
     @Override
-    public String createInitInvariantStatement() {
-        return "base_inv:\""+createInvariant(createStateName(0))+"\"";
+    public String InitInvariantStatement() {
+        return "base_inv:\""+ Invariant(createStateName(0))+"\"";
     }
 
 
     @Override
-    public String createImplInvariantStatement(String state) {
-        return "\""+createInvariant(state)+"\"";
+    public String ImplInvariantStatement(String state) {
+        return "\""+ Invariant(state)+"\"";
     }
 
     @Override
-    public String createLemma(String init, ArrayList<String> inter, String impl) {
-        StringJoiner joiner = new StringJoiner("\n\tand ","lemma\n","\n");
+    public String Lemma(String init, ArrayList<String> inter, String impl) {
+        StringJoiner joiner = new StringJoiner("\n\tand ","lemma\nassumes ","\n");
         if(init!=null){
             joiner.add(init);
         }
@@ -118,33 +120,33 @@ public class IsabelleCreator implements IStatementCreator {
     }
 
     @Override
-    public String createTimeoutExceed(String stateHolder, String condition, String processName) {
+    public String TimeoutExceed(String stateHolder, String condition, String processName) {
         return "(ltime "+stateHolder+" "+IString(processName)+" "+getBiOp(BinaryOp.MoreEq)+" "+condition+")";
 
     }
 
     @Override
-    public String createTimeoutLose(String stateHolder, String condition, String processName) {
+    public String TimeoutLose(String stateHolder, String condition, String processName) {
         return "(ltime "+stateHolder+" "+IString(processName)+" "+getBiOp(BinaryOp.Less)+" "+condition+")";
     }
 
     @Override
-    public String createTrue() {
+    public String True() {
         return "True";
     }
 
     @Override
-    public String createFalse() {
+    public String False() {
         return "False";
     }
 
     @Override
-    public String createBinaryExpression(String left, String right, BinaryOp op) {
+    public String BinaryExpression(String left, String right, BinaryOp op) {
         return "("+left+getBiOp(op)+right+")";
     }
 
     @Override
-    public String createUnaryExpression(String exp,ExprType type, UnaryOp op) {
+    public String UnaryExpression(String exp, ExprType type, UnaryOp op) {
         String res = switch(op){
             case Neg -> "\\<not>";
             case Plus -> "+";
@@ -155,37 +157,38 @@ public class IsabelleCreator implements IStatementCreator {
     }
 
     @Override
-    public String createCastExpression(String exp, ExprType type) {
+    public String CastExpression(String exp, ExprType type) {
         return "("+type.toString(this)+" "+exp+")";
     }
 
     @Override
-    public String createInvariant(String state) {
+    public String Invariant(String state) {
         return "inv("+state+")";
     }
 
     @Override
-    public String createEmptyState() {
+    public String EmptyState() {
         return "emptyState";
     }
 
 
-    public String createGetter(ExprType type, String state, String variable){
-        return "("+type.takeGetter()+" "+state+" ''"+variable+"'')";
-    }
+
 
     @Override
-    public String createPstateSetter(String stateHolder, String processName, String stateName) {
+    public String PstateSetter(String stateHolder, String processName, String stateName) {
         return "setPstate" + stateHolder +" "+IString(processName)+" "+IString(stateName);
     }
 
     @Override
-    public String createPstateGetter(String stateHolder, String processName) {
+    public String PstateGetter(String stateHolder, String processName) {
         return "getPstate" + stateHolder +" "+IString(processName);
     }
 
-    public String createSetter(ExprType type, String state, String variable, String value){
-        return "("+type.takeSetter()+" "+state+" ''"+variable+"'' "+value+")";
+    public String Getter(ExprType type, String state, String variableName){
+        return "("+type.takeGetter()+" "+state+" "+IString(variableName)+")";
+    }
+    public String Setter(ExprType type, String state, String variableName, String value){
+        return "("+type.takeSetter()+" "+state+" "+IString(variableName)+" "+value+")";
     }
 
     String createStateName(int stateNumber){
@@ -225,5 +228,87 @@ public class IsabelleCreator implements IStatementCreator {
         return "''"+str+"''";
     }
 
-    public String createPlaceHolder(){return "###";}
+    public String PlaceHolder(){return "###";}
+
+    @Override
+    public String Substate(String state1, String state2) {
+        return null;
+    }
+
+    @Override
+    public String ToEnvNum(String state1, String state2) {
+        return null;
+    }
+
+    @Override
+    public String ToEnvP(String state) {
+        return null;
+    }
+
+    @Override
+    public String ForAll(List<String> states, String condition) {
+        return null;
+    }
+
+    @Override
+    public String Exist(List<String> states, String condition) {
+        return null;
+    }
+
+    @Override
+    public String Conjunction(List<String> args) {
+        StringJoiner sj = new StringJoiner(" \\<and> ");
+        args.forEach(sj::add);
+        return sj.toString();
+    }
+
+    @Override
+    public String Disjunction(List<String> args) {
+        StringJoiner sj = new StringJoiner(" \\<or> ");
+        args.forEach(sj::add);
+        return sj.toString();
+    }
+
+    @Override
+    public String Implication(String from, String to) {
+        return from + " \\<longrightarrow> " + to;
+    }
+
+    @Override
+    public String PartOfSet(String value, List<String> set) {
+        StringJoiner sj = new StringJoiner(",");
+        set.forEach(sj::add);
+        return value + "\\<in>"+"{"+sj.toString()+"}";
+    }
+
+    @Override
+    public String Definition(String name, List<String> variables, String definition) {
+        StringJoiner builder = new StringJoiner("\n","","\n");
+        builder.add("definition "+ name + " where");
+        StringJoiner vars = new StringJoiner(" ");
+        variables.forEach(vars::add);
+        builder.add("\""+name+" "+vars.toString()+" =");
+        builder.add(definition);
+        builder.add("\"");
+        return builder.toString();
+    }
+
+    @Override
+    public String TypedDefinition(String name, List<Map.Entry<String, String>> variablesWithTypes, String definition) {
+        //TODO
+        return null;
+    }
+
+    @Override
+    public String Theory(String name, List<String> imports, String inner) {
+        StringJoiner builder = new StringJoiner("\n");
+        builder.add("theory " +name);
+        StringJoiner sj = new StringJoiner(" ");
+        imports.forEach(sj::add);
+        builder.add("\timports "+sj.toString());
+        builder.add("begin");
+        builder.add(inner);
+        builder.add("end");
+        return builder.toString();
+    }
 }

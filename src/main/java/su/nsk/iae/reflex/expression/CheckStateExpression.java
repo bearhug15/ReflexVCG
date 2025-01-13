@@ -43,20 +43,20 @@ public class CheckStateExpression implements SymbolicExpression{
     @Override
     public String toString(IStatementCreator creator){
         if (processState.equals("inactive"))
-            return creator.createBinaryExpression(
-                    creator.createBinaryExpression(creator.createPstateGetter(state,process),"stop",BinaryOp.Eq),
-                    creator.createBinaryExpression(creator.createPstateGetter(state,process),"error",BinaryOp.Eq),
+            return creator.BinaryExpression(
+                    creator.BinaryExpression(creator.PstateGetter(state,process),"stop",BinaryOp.Eq),
+                    creator.BinaryExpression(creator.PstateGetter(state,process),"error",BinaryOp.Eq),
                     BinaryOp.Or
             );
             //return "((getPstate "+state+" ''"+process+"'' = ''stop'') \\<or> "+"(getPstate "+state+" "+process+" = ''error''))" ;
         if (processState.equals("active"))
-            return creator.createBinaryExpression(
-                    creator.createUnaryExpression(creator.createBinaryExpression(creator.createPstateGetter(state,process),"stop",BinaryOp.Eq),new StateType(""), UnaryOp.Neg),
-                    creator.createUnaryExpression(creator.createBinaryExpression(creator.createPstateGetter(state,process),"error",BinaryOp.Eq),new StateType("") , UnaryOp.Neg),
+            return creator.BinaryExpression(
+                    creator.UnaryExpression(creator.BinaryExpression(creator.PstateGetter(state,process),"stop",BinaryOp.Eq),new StateType(""), UnaryOp.Neg),
+                    creator.UnaryExpression(creator.BinaryExpression(creator.PstateGetter(state,process),"error",BinaryOp.Eq),new StateType("") , UnaryOp.Neg),
                     BinaryOp.And
             );
             //return "(\\<not>(getPstate "+state+" ''"+process+"'' = ''stop'') \\<and> "+"\\<not>(getPstate "+state+" "+process+" = ''error''))" ;
-        return creator.createBinaryExpression(creator.createPstateGetter(state,process),processState,BinaryOp.Eq);
+        return creator.BinaryExpression(creator.PstateGetter(state,process),processState,BinaryOp.Eq);
         //return "(getPstate "+state+" ''"+process+"'' = ''"+processState+"'')";
     }
 }

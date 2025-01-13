@@ -32,11 +32,11 @@ public class ProcessChangeNode implements IReflexNode{
     @Override
     public ArrayList<String> createStatements(IStatementCreator creator, int stateNumber) {
         String res = switch (ty){
-            case Start -> creator.createStartProcessStatement(stateNumber,processName,metaData.startState(processName));
+            case Start -> creator.StartProcessStatement(stateNumber,processName,metaData.startState(processName));
 
-            case Stop -> creator.createStopProcessStatement(stateNumber,processName);
+            case Stop -> creator.StopProcessStatement(stateNumber,processName);
 
-            case Error -> creator.createErrorProcessStatement(stateNumber,processName);
+            case Error -> creator.ErrorProcessStatement(stateNumber,processName);
 
             default -> throw new RuntimeException("Unexpected ChangeType");
         };

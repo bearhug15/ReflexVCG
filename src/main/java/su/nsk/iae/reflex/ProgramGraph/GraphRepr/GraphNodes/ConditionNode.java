@@ -65,7 +65,7 @@ public class ConditionNode implements IReflexNode{
 
     @Override
     public ArrayList<String> createStatements(IStatementCreator creator, int stateNumber) {
-        String cond = creator.createConditionStatement(stateNumber,condition);
+        String cond = creator.ConditionStatement(stateNumber,condition);
         ArrayList<String> stmts = new ArrayList<>();
         stmts.add(cond);
         return stmts;

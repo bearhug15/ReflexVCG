@@ -19,7 +19,7 @@ public class UnaryExpression implements SymbolicExpression{
         return type;
     }
     public String toString(IStatementCreator creator){
-        return creator.createUnaryExpression(exp.toString(creator),exp.exprType(), op);
+        return creator.UnaryExpression(exp.toString(creator),exp.exprType(), op);
     }
 
     @Override

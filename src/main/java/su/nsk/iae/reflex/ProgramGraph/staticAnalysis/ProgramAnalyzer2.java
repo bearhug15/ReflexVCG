@@ -46,6 +46,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
             for(ReflexParser.StateContext sctx:pctx.states){
                 IReflexNode sproj= projection.get(sctx);
                 StateAttributes sattr = new StateAttributes((ProcessNode) proj,(StateNode)sproj);
+                attr.addAttributes(sattr);
                 collector.addAttributes(sproj,sattr);
             }
         }
@@ -77,19 +78,20 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         return;
     }
 
-    private Set<Set<ProcessNode>> setsInter(Set<Set<ProcessNode>> setsSet, Set<ProcessNode> set){
+    static Set<Set<ProcessNode>> setsInter(Set<Set<ProcessNode>> setsSet, Set<ProcessNode> set){
         Set<Set<ProcessNode>> buffSet =new HashSet<>();
         for(Set<ProcessNode> s: setsSet){
             Set<ProcessNode> inter = new HashSet<>(s);
-            inter.retainAll(set);
+            if (!set.isEmpty())
+                inter.retainAll(set);
             buffSet.add(inter);
-            Set<ProcessNode> excl = new HashSet<>(inter);
+            Set<ProcessNode> excl = new HashSet<>(s);
             excl.removeAll(inter);
             buffSet.add(excl);
         }
         return buffSet;
     }
-    private Set<Set<ProcessNode>>setsDiv(Set<Set<ProcessNode>> setsSet,HashMap<ProcessNode,ChangeType> hPC, IAttributed st){
+    Set<Set<ProcessNode>>setsDiv(Set<Set<ProcessNode>> setsSet,HashMap<ProcessNode,ChangeType> hPC, IAttributed st){
         if (st instanceof StateAttributes){
             currentState = (StateNode) st.getAttributedContext();
         }
@@ -325,6 +327,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
 
         attributesContainers.pop();
         attr.liftAttributes();
+        attributesContainers.peek().addAttributes(attr);
         //addIfElseIntersection(attr);
         return null;
     }
@@ -383,357 +386,112 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         attr.addAttributes(caseAttr);
         attributesContainers.pop();
         attr.liftAttributes();
+        attributesContainers.peek().addAttributes(attr);
         //addSwitchCaseIntersection(attr);
         return null;
     }
 
     @Override
     public Void visitStartProcStat(ReflexParser.StartProcStatContext ctx) {
-        IAttributed attr = attributesContainers.peek();
+        IAttributed prevAttr = attributesContainers.peek();
+        IReflexNode thisProj = projection.get(ctx);
+        UniversalAttributes attr = new UniversalAttributes(thisProj);
         if(ctx.processId==null || ctx.processId.getText().equals(currentProcess.getProcessName())){
             IReflexNode proj = projection.get(metaData.getProcessByName(currentProcess.getProcessName()));
             attr.addProcessChange((ProcessNode) proj,ChangeType.Start);
             attr.setReset(true);
-            attr.setStateChanging(true);
-        }else{
+            if(!currentState.getStateName().equals(metaData.firstState(currentProcess.getProcessName())))
+                attr.setStateChanging(true);
+            prevAttr.addAttributes(attr);
+        }else {
             IReflexNode proj = projection.get(metaData.getProcessByName(ctx.processId.getText()));
             attr.addProcessChange((ProcessNode)proj,ChangeType.Start);
+            prevAttr.addAttributes(attr);
         }
-
-        /*switch (attributesContainers.peek().getContextType()){
-            case IfElse:{
-                IfElseAttributes attr = (IfElseAttributes)attributesContainers.peek();
-                if(ctx.processId==null || ctx.processId.getText().equals(currentProcess.getProcessName())){
-                    IReflexNode proj = projection.get(metaData.getProcessByName(currentProcess.getProcessName()));
-                    attr.addProcessChange((ProcessNode) proj,ChangeType.Start);
-                    attr.setReset(true);
-                    attr.setStateChanging(true);
-                }else{
-                    IReflexNode proj = projection.get(metaData.getProcessByName(ctx.processId.getText()));
-                    attr.addProcessChange((ProcessNode)proj,ChangeType.Start);
-                }
-            } break;
-            case SwitchCase:{
-                SwitchCaseAttributes attr = (SwitchCaseAttributes)attributesContainers.peek();
-                if(ctx.processId==null || ctx.processId.getText().equals(currentProcess.getProcessName())){
-                    IReflexNode proj = projection.get(metaData.getProcessByName(currentProcess.getProcessName()));
-                    attr.addProcessChange((ProcessNode) proj,ChangeType.Start);
-                    attr.setReset(true);
-                    attr.setStateChange(true);
-                }else{
-                    IReflexNode proj = projection.get(metaData.getProcessByName(ctx.processId.getText()));
-                    attr.addProcessChange((ProcessNode) proj,ChangeType.Start);
-                }
-            } break;
-            case State:{
-                StateAttributes attr = (StateAttributes)attributesContainers.peek();
-                if(ctx.processId==null || ctx.processId.getText().equals(currentProcess.getProcessName())){
-                    IReflexNode proj = projection.get(metaData.getProcessByName(currentProcess.getProcessName()));
-                    attr.addProcessChange((ProcessNode) proj,ChangeType.Start);
-                    attr.setReset(true);
-                    attr.setStateChange(true);
-                }else{
-                    IReflexNode proj = projection.get(metaData.getProcessByName(ctx.processId.getText()));
-                    attr.addProcessChange((ProcessNode) proj,ChangeType.Start);
-                }
-            } break;
-        }*/
+        prevAttr.addAttributes(attr);
         return null;
     }
 
     @Override
     public Void visitStopProcStat(ReflexParser.StopProcStatContext ctx) {
-        IAttributed attr = attributesContainers.peek();
+        IAttributed prevAttr = attributesContainers.peek();
+        IReflexNode thisProj = projection.get(ctx);
+        UniversalAttributes attr = new UniversalAttributes(thisProj);
         if (ctx.processId==null || ctx.processId.getText().equals(currentProcess.getProcessName())){
             IReflexNode proj = projection.get(metaData.getProcessByName(currentProcess.getProcessName()));
             attr.addProcessChange(currentProcess,ChangeType.Stop);
             attr.setReset(true);
             attr.setStateChanging(true);
+            prevAttr.addAttributes(attr);
             ((ProcessAttributes)collector.getAttributes(currentProcess)).setReachS(true);
 
         }else{
             IReflexNode proj = projection.get(metaData.getProcessByName(ctx.processId.getText()));
             attr.addProcessChange((ProcessNode) proj,ChangeType.Stop);
+            prevAttr.addAttributes(attr);
             ((ProcessAttributes)collector.getAttributes(proj)).setReachS(true);
         }
-        /*switch (attributesContainers.peek().getContextType()){
-            case IfElse:{
-                IfElseAttributes attr = (IfElseAttributes)attributesContainers.peek();
-                if (ctx.processId==null || ctx.processId.getText().equals(currentProcess.getProcessName())){
-                    IReflexNode proj = projection.get(metaData.getProcessByName(currentProcess.getProcessName()));
-                    attr.addProcessChange(currentProcess,ChangeType.Stop);
-                    attr.setReset(true);
-                    attr.setStateChanging(true);
-                    ((ProcessAttributes)collector.getAttributes(currentProcess)).setReachS(true);
-
-                }else{
-                    IReflexNode proj = projection.get(metaData.getProcessByName(ctx.processId.getText()));
-                    attr.addProcessChange((ProcessNode) proj,ChangeType.Stop);
-                    ((ProcessAttributes)collector.getAttributes(proj)).setReachS(true);
-                }
-            } break;
-            case SwitchCase:{
-                SwitchCaseAttributes attr = (SwitchCaseAttributes)attributesContainers.peek();
-                if (ctx.processId==null || ctx.processId.getText().equals(currentProcess.getProcessName())){
-                    attr.addProcessChange(currentProcess,ChangeType.Stop);
-                    attr.setReset(true);
-                    attr.setStateChange(true);
-                    ((ProcessAttributes)collector.getAttributes(currentProcess)).setReachS(true);
-                }else{
-                    IReflexNode proj = projection.get(metaData.getProcessByName(ctx.processId.getText()));
-                    attr.addProcessChange((ProcessNode) proj,ChangeType.Stop);
-                    ((ProcessAttributes)collector.getAttributes(proj)).setReachS(true);
-                }
-            } break;
-            case State: {
-                StateAttributes attr = (StateAttributes)attributesContainers.peek();
-                if (ctx.processId==null || ctx.processId.getText().equals(currentProcess.getProcessName())){
-                    attr.addProcessChange(currentProcess,ChangeType.Stop);
-                    attr.setReset(true);
-                    attr.setStateChange(true);
-                    ((ProcessAttributes)collector.getAttributes(currentProcess)).setReachS(true);
-
-                }else{
-                    IReflexNode proj = projection.get(metaData.getProcessByName(ctx.processId.getText()));
-                    attr.addProcessChange((ProcessNode) proj,ChangeType.Stop);
-                    ((ProcessAttributes)collector.getAttributes(proj)).setReachS(true);
-                }
-            }break;
-        }*/
+        prevAttr.addAttributes(attr);
         return null;
     }
 
     @Override
     public Void visitErrorProcStat(ReflexParser.ErrorProcStatContext ctx) {
-        IAttributed attr = attributesContainers.peek();
+        IAttributed prevAttr = attributesContainers.peek();
+        IReflexNode thisProj = projection.get(ctx);
+        UniversalAttributes attr = new UniversalAttributes(thisProj);
         if (ctx.processId==null || ctx.processId.getText().equals(currentProcess.getProcessName())){
+            IReflexNode proj = projection.get(metaData.getProcessByName(currentProcess.getProcessName()));
             attr.addProcessChange(currentProcess,ChangeType.Error);
             attr.setReset(true);
             attr.setStateChanging(true);
+            prevAttr.addAttributes(attr);
             ((ProcessAttributes)collector.getAttributes(currentProcess)).setReachE(true);
         }else{
             IReflexNode proj = projection.get(metaData.getProcessByName(ctx.processId.getText()));
             attr.addProcessChange((ProcessNode) proj,ChangeType.Error);
+            prevAttr.addAttributes(attr);
             ((ProcessAttributes)collector.getAttributes(proj)).setReachE(true);
         }
-        /*switch (attributesContainers.peek().getContextType()){
-            case IfElse:{
-                IfElseAttributes attr = (IfElseAttributes)attributesContainers.peek();
-                if (ctx.processId==null || ctx.processId.getText().equals(currentProcess.getProcessName())){
-                    attr.addProcessChange(currentProcess,ChangeType.Error);
-                    attr.setReset(true);
-                    attr.setStateChanging(true);
-                    ((ProcessAttributes)collector.getAttributes(currentProcess)).setReachE(true);
-                }else{
-                    IReflexNode proj = projection.get(metaData.getProcessByName(ctx.processId.getText()));
-                    attr.addProcessChange((ProcessNode) proj,ChangeType.Error);
-                    ((ProcessAttributes)collector.getAttributes(proj)).setReachE(true);
-                }
-            } break;
-            case SwitchCase:{
-                SwitchCaseAttributes attr = (SwitchCaseAttributes)attributesContainers.peek();
-                if (ctx.processId==null || ctx.processId.getText().equals(currentProcess.getProcessName())){
-                    attr.addProcessChange(currentProcess,ChangeType.Error);
-                    attr.setReset(true);
-                    attr.setStateChange(true);
-                    ((ProcessAttributes)collector.getAttributes(currentProcess)).setReachE(true);
-                }else{
-                    IReflexNode proj = projection.get(metaData.getProcessByName(ctx.processId.getText()));
-                    attr.addProcessChange((ProcessNode) proj,ChangeType.Error);
-                    ((ProcessAttributes)collector.getAttributes(proj)).setReachE(true);
-                }
-            } break;
-            case State: {
-                StateAttributes attr = (StateAttributes)attributesContainers.peek();
-                if (ctx.processId.getText()==null || ctx.processId.getText().equals(currentProcess.getProcessName())){
-                    attr.addProcessChange(currentProcess,ChangeType.Stop);
-                    attr.setReset(true);
-                    attr.setStateChange(true);
-                    ((ProcessAttributes)collector.getAttributes(currentProcess)).setReachS(true);
-
-                }else{
-                    IReflexNode proj = projection.get(metaData.getProcessByName(ctx.processId.getText()));
-                    attr.addProcessChange((ProcessNode) proj,ChangeType.Error);
-                    ((ProcessAttributes)collector.getAttributes(proj)).setReachE(true);
-                }
-            }break;
-        }*/
+        prevAttr.addAttributes(attr);
         return null;
     }
 
     @Override
     public Void visitRestartStat(ReflexParser.RestartStatContext ctx) {
-        IAttributed attr = attributesContainers.peek();
+        IAttributed prevAttr = attributesContainers.peek();
+        IReflexNode thisProj = projection.get(ctx);
+        UniversalAttributes attr = new UniversalAttributes(thisProj);
         attr.addProcessChange(currentProcess,ChangeType.Start);
         attr.setReset(true);
         attr.setStateChanging(true);
-        /*switch (attributesContainers.peek().getContextType()){
-            case IfElse:{
-                IfElseAttributes attr = (IfElseAttributes)attributesContainers.peek();
-                attr.addProcessChange(currentProcess,ChangeType.Start);
-                attr.setReset(true);
-                attr.setStateChanging(true);
-            } break;
-            case SwitchCase:{
-                SwitchCaseAttributes attr = (SwitchCaseAttributes)attributesContainers.peek();
-                attr.addProcessChange(currentProcess,ChangeType.Start);
-                attr.setReset(true);
-                attr.setStateChange(true);
-            } break;
-            case State: {
-                StateAttributes attr = (StateAttributes)attributesContainers.peek();
-                attr.addProcessChange(currentProcess,ChangeType.Start);
-                attr.setReset(true);
-                attr.setStateChange(true);
-            }break;
-        }*/
+        prevAttr.addAttributes(attr);
         return null;
     }
 
     @Override
     public Void visitResetStat(ReflexParser.ResetStatContext ctx) {
-        IAttributed attr = attributesContainers.peek();
+        IAttributed prevAttr = attributesContainers.peek();
+        IReflexNode thisProj = projection.get(ctx);
+        UniversalAttributes attr = new UniversalAttributes(thisProj);
         attr.setReset(true);
-        /*switch (attributesContainers.peek().getContextType()){
-            case IfElse:{
-                IfElseAttributes attr = (IfElseAttributes)attributesContainers.peek();
-                attr.setReset(true);
-            } break;
-            case SwitchCase:{
-                SwitchCaseAttributes attr = (SwitchCaseAttributes)attributesContainers.peek();
-                attr.setReset(true);
-            } break;
-            case State: {
-                StateAttributes attr = (StateAttributes)attributesContainers.peek();
-                attr.setReset(true);
-            }break;
-        }*/
+        prevAttr.addAttributes(attr);
         return null;
     }
 
     @Override
     public Void visitSetStateStat(ReflexParser.SetStateStatContext ctx) {
-        IAttributed attr = attributesContainers.peek();
+        IAttributed prevAttr = attributesContainers.peek();
+        IReflexNode thisProj = projection.get(ctx);
+        UniversalAttributes attr = new UniversalAttributes(thisProj);
         attr.setReset(true);
+        prevAttr.addAttributes(attr);
         if (ctx.stateId!=null){
             ((StateAttributes)collector.getAttributes(currentState)).addReachFrom(ctx.stateId.getText());
         } else{
             ((StateAttributes)collector.getAttributes(currentState)).addReachFrom(metaData.nextState(currentProcess.getProcessName(),currentState.getStateName()));
         }
-        /*switch (attributesContainers.peek().getContextType()){
-            case IfElse:{
-                IfElseAttributes attr = (IfElseAttributes)attributesContainers.peek();
-                attr.setReset(true);
-                if (ctx.stateId!=null){
-                    attr.setSetState(ctx.stateId.getText());
-                } else{
-                    attr.setSetState(metaData.nextState(currentProcess.getProcessName(),currentState.getStateName()));
-                }
-            } break;
-            case SwitchCase:{
-                SwitchCaseAttributes attr = (SwitchCaseAttributes)attributesContainers.peek();
-                attr.setReset(true);
-                if (ctx.stateId!=null){
-                    attr.setSetState(ctx.stateId.getText());
-                } else{
-                    attr.setSetState(metaData.nextState(currentProcess.getProcessName(),currentState.getStateName()));
-                }
-            } break;
-            case State: {
-                StateAttributes attr = (StateAttributes)attributesContainers.peek();
-                attr.setReset(true);
-                if (ctx.stateId!=null){
-                    attr.setSetState(ctx.stateId.getText());
-                } else{
-                    attr.setSetState(metaData.nextState(currentProcess.getProcessName(),currentState.getStateName()));
-                }
-            }break;
-        }*/
         return null;
     }
-
-    /*Void addIfElseIntersection(IfElseCore core){
-        IAttributed attr = attributesContainers.peek();
-        switch (attr.getContextType()){
-            case IfElse:{
-                IfElseAttributes newAttr =(IfElseAttributes)attr;
-                newAttr.addReset(core.getTrueAttributes().resetIntersection(core.getFalseAttributes()));
-                newAttr.addProcessChange(core.getTrueAttributes().procChangeIntersection(core.getFalseAttributes()));
-                break;
-            }
-            case SwitchCase:{
-                SwitchCaseAttributes newAttr =(SwitchCaseAttributes)attr;
-                newAttr.addReset(core.getTrueAttributes().resetIntersection(core.getFalseAttributes()));
-                newAttr.addProcessChange(core.getTrueAttributes().procChangeIntersection(core.getFalseAttributes()));
-                break;
-            }
-            case State:{
-                StateAttributes newAttr =(StateAttributes)attr;
-                newAttr.addReset(core.getTrueAttributes().resetIntersection(core.getFalseAttributes()));
-                newAttr.addProcessChange(core.getTrueAttributes().procChangeIntersection(core.getFalseAttributes()));
-                break;
-            }
-        }
-        return null;
-    }
-    Void addSwitchCaseIntersection(SwitchCaseCore core){
-        IAttributed attr = attributesContainers.peek();
-        switch (attr.getContextType()){
-            case IfElse:{
-                if (core.getDefaultBranchAttributes() == null){break;}
-
-                IfElseAttributes newAttr =(IfElseAttributes)attr;
-                boolean reset = true;
-                HashMap<ProcessNode,ChangeType> procChange = core.getBranchAttributes().firstElement().getProcChange();
-                for (SwitchCaseAttributes at: core.getBranchAttributes()){
-                    if(!at.isReset()) reset = false;
-                    procChange = at.procChangeIntersection(procChange);
-                }
-                if(!core.getDefaultBranchAttributes().isReset()) reset = false;
-                procChange = core.getDefaultBranchAttributes().procChangeIntersection(procChange);
-                newAttr.addReset(reset);
-                newAttr.addProcessChange(procChange);
-                break;
-            }
-            case SwitchCase:{
-                if (core.getDefaultBranchAttributes() == null){break;}
-
-                SwitchCaseAttributes newAttr =(SwitchCaseAttributes)attr;
-                boolean reset = true;
-                HashMap<ProcessNode,ChangeType> procChange = core.getBranchAttributes().firstElement().getProcChange();
-                for (SwitchCaseAttributes at: core.getBranchAttributes()){
-                    if(!at.isReset()) reset = false;
-                    procChange = at.procChangeIntersection(procChange);
-                }
-                if (core.getDefaultBranchAttributes() != null){
-                    if(!core.getDefaultBranchAttributes().isReset()) reset = false;
-                    procChange = core.getDefaultBranchAttributes().procChangeIntersection(procChange);
-                }
-                newAttr.addReset(reset);
-                newAttr.addProcessChange(procChange);
-                break;
-            }
-            case State:{
-                if (core.getDefaultBranchAttributes() == null){break;}
-
-                StateAttributes newAttr =(StateAttributes)attr;
-                boolean reset = true;
-                HashMap<ProcessNode,ChangeType> procChange = core.getBranchAttributes().firstElement().getProcChange();
-                for (SwitchCaseAttributes at: core.getBranchAttributes()){
-                    if(!at.isReset()) reset = false;
-                    procChange = at.procChangeIntersection(procChange);
-                }
-                if (core.getDefaultBranchAttributes() != null){
-                    if(!core.getDefaultBranchAttributes().isReset()) reset = false;
-                    procChange = core.getDefaultBranchAttributes().procChangeIntersection(procChange);
-                }
-                newAttr.addReset(reset);
-                newAttr.addProcessChange(procChange);
-                break;
-            }
-        }
-        return null;
-    }*/
-
 
 }

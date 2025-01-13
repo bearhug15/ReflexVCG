@@ -7,7 +7,6 @@ import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 import su.nsk.iae.reflex.expression.types.ExprType;
 import su.nsk.iae.reflex.expression.types.TypeUtils;
-import su.nsk.iae.reflex.ProgramGraph.ValueParser;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -83,11 +82,11 @@ public class ProgramMetaData {
                     ExpressionVisitor vis = new ExpressionVisitor(mapper,processName,state,creator);
                     ExprGenRes res = vis.visitExpression(programVariable.expression());
                     ExprType ty = mapper.variableType(processName,variableName);
-                    state = creator.createSetter(ty,state,mapper.mapVariable(processName,variableName),res.getExpr().toString(creator));
+                    state = creator.Setter(ty,state,mapper.mapVariable(processName,variableName),res.getExpr().toString(creator));
                     //state = StringUtils.constructSetter();
                 }else{
                     ExprType ty = mapper.variableType(processName,variableName);
-                    state = creator.createSetter(ty,state,mapper.mapVariable(processName,variableName),ty.defaultValue());
+                    state = creator.Setter(ty,state,mapper.mapVariable(processName,variableName),ty.defaultValue());
                     //state = StringUtils.constructSetter(ty,state,mapper.mapVariable(processName,variableName),ty.defaultValue());
                 }
             }
@@ -103,9 +102,9 @@ public class ProgramMetaData {
         ReflexParser.ClockDefinitionContext clockCtx = ctx.clock;
         String value;
         if (clockCtx.intValue != null){
-            value = ValueParser.parseInteger(clockCtx.intValue.getText());
+            value = ASTGraphProjection.ValueParser.parseInteger(clockCtx.intValue.getText());
         } else{
-            value = ValueParser.parseTime(clockCtx.timeValue.getText());
+            value = ASTGraphProjection.ValueParser.parseTime(clockCtx.timeValue.getText());
         }
         this.setClockValue(value);
 
@@ -232,11 +231,11 @@ public class ProgramMetaData {
                     ExpressionVisitor vis = new ExpressionVisitor(mapper,processName,state,creator);
                     ExprGenRes res = vis.visitExpression(programVariable.expression());
                     ExprType ty = mapper.variableType(processName,variableName);
-                    state = creator.createSetter(ty,state,mapper.mapVariable(processName,variableName),res.getExpr().toString(creator));
+                    state = creator.Setter(ty,state,mapper.mapVariable(processName,variableName),res.getExpr().toString(creator));
                     //state = StringUtils.constructSetter(ty,state,mapper.mapVariable(processName,variableName),res.getExpr().toString());
                 }else{
                     ExprType ty = mapper.variableType(processName,variableName);
-                    state = creator.createSetter(ty,state,mapper.mapVariable(processName,variableName),ty.defaultValue());
+                    state = creator.Setter(ty,state,mapper.mapVariable(processName,variableName),ty.defaultValue());
                     //state = StringUtils.constructSetter(ty,state,mapper.mapVariable(processName,variableName),ty.defaultValue());
                 }
             }
@@ -250,5 +249,9 @@ public class ProgramMetaData {
                 .filter(e->processes.get(e).a.equals(processName))
                 .findFirst()
                 .getAsInt();
+    }
+
+    public List<String> getProcessStates(String processName){
+        return processes.stream().filter(p->p.a.equals(processName)).findFirst().get().b;
     }
 }

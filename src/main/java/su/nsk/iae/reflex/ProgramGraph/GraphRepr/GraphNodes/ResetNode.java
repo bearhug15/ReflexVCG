@@ -24,7 +24,7 @@ public class ResetNode implements IReflexNode{
 
     @Override
     public ArrayList<String> createStatements(IStatementCreator creator, int stateNumber) {
-        return new ArrayList<>(Arrays.asList(creator.createResetStatement(stateNumber,processName)));
+        return new ArrayList<>(Arrays.asList(creator.ResetStatement(stateNumber,processName)));
     }
 
     @Override
