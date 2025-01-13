@@ -7,6 +7,7 @@ import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 import su.nsk.iae.reflex.expression.types.ExprType;
 import su.nsk.iae.reflex.expression.types.TypeUtils;
+//import su.nsk.iae.reflex.vcg.ValueParser;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -250,7 +251,6 @@ public class ProgramMetaData {
                 .findFirst()
                 .getAsInt();
     }
-
     public List<String> getProcessStates(String processName){
         return processes.stream().filter(p->p.a.equals(processName)).findFirst().get().b;
     }

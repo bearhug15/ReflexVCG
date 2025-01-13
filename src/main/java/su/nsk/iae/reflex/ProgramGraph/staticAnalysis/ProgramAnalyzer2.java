@@ -91,6 +91,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         }
         return buffSet;
     }
+
     Set<Set<ProcessNode>>setsDiv(Set<Set<ProcessNode>> setsSet,HashMap<ProcessNode,ChangeType> hPC, IAttributed st){
         if (st instanceof StateAttributes){
             currentState = (StateNode) st.getAttributedContext();

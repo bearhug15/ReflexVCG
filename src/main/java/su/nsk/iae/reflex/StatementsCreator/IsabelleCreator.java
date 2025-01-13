@@ -146,7 +146,11 @@ public class IsabelleCreator implements IStatementCreator {
     }
 
     @Override
+<<<<<<< HEAD
     public String UnaryExpression(String exp, ExprType type, UnaryOp op) {
+=======
+    public String createUnaryExpression(String exp,ExprType type, UnaryOp op) {
+>>>>>>> 88a1068e3410f8636250832f5ed3206caf7ea7c7
         String res = switch(op){
             case Neg -> "\\<not>";
             case Plus -> "+";

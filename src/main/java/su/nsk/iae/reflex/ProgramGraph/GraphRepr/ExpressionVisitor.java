@@ -10,6 +10,7 @@ import su.nsk.iae.reflex.formulas.ConjuctionFormula;
 import su.nsk.iae.reflex.formulas.EqualityFormula;
 import su.nsk.iae.reflex.formulas.Formula;
 import su.nsk.iae.reflex.formulas.TrueFormula;
+import su.nsk.iae.reflex.vcg.ValueParser;
 
 public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
     final VariableMapper mapper;

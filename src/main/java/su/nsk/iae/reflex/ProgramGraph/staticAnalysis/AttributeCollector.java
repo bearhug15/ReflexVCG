@@ -22,7 +22,6 @@ public class AttributeCollector {
     public HashMap<IReflexNode, IAttributed> getAttributeMap(){
         return attributeMap;
     }
-
     public ProcessAttributes getProcessAttributeByName(String processName){
         return (ProcessAttributes)attributeMap.entrySet().stream().filter(entry->{
             if(entry.getKey() instanceof ProcessNode){
