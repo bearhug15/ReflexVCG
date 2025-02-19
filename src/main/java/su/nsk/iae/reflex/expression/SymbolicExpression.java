@@ -13,4 +13,6 @@ public interface SymbolicExpression {
     SymbolicExpression trim();
     SymbolicExpression innerExp();
 
+    SymbolicExpression clone();
+
 }

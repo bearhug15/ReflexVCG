@@ -24,13 +24,13 @@ public class VCGenerator2 {
     ASTGraphProjection projection;
     ReflexParser.ProgramContext context;
 
-    public VCGenerator2(ReflexParser.ProgramContext context){
+    public VCGenerator2(ReflexParser.ProgramContext context, boolean isSimpleExprVisitor){
         this.context = context;
         this.creator = new IsabelleCreator();
         this.mapper = new VariableMapper(context,creator);
         this.metaData = new ProgramMetaData(context,mapper,creator);
 
-        GraphBuilder builder = new GraphBuilder(metaData,mapper,creator);
+        GraphBuilder builder = new GraphBuilder(metaData,mapper,creator, isSimpleExprVisitor);
         this.graph = builder.buildProgramGraph(context);
         this.projection = builder.getASTtoGraphProjection();
 

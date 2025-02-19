@@ -1,5 +1,7 @@
-package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.ExpressionVisitor;
 
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ValueParser;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.VariableMapper;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexBaseVisitor;
 import su.nsk.iae.reflex.antlr.ReflexParser;
@@ -10,15 +12,18 @@ import su.nsk.iae.reflex.formulas.ConjuctionFormula;
 import su.nsk.iae.reflex.formulas.EqualityFormula;
 import su.nsk.iae.reflex.formulas.Formula;
 import su.nsk.iae.reflex.formulas.TrueFormula;
-import su.nsk.iae.reflex.vcg.ValueParser;
 
-public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+public class ExpressionVisitor1 extends ReflexBaseVisitor<ExprGenRes1> implements ExpressionVisitor{
     final VariableMapper mapper;
     final String process;
     final String state;
     final IStatementCreator creator;
 
-    public ExpressionVisitor(VariableMapper mapper, String processName, String state, IStatementCreator creator){
+    public ExpressionVisitor1(VariableMapper mapper, String processName, String state, IStatementCreator creator){
         this.mapper = mapper;
         this.process = processName;
         this.state = state;
@@ -26,89 +31,89 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
     }
 
     @Override
-    public ExprGenRes visitCheckStateExpression(ReflexParser.CheckStateExpressionContext ctx) {
+    public ExprGenRes1 visitCheckStateExpression(ReflexParser.CheckStateExpressionContext ctx) {
         String proc = ctx.processId.getText();
         String procState = ctx.stateId.getText();
         CheckStateExpression exp = new CheckStateExpression(proc,procState,state);
-        return new ExprGenRes(exp,state, new TrueFormula());
+        return new ExprGenRes1(exp,state);
     }
 
     @Override
-    public ExprGenRes visitId(ReflexParser.IdContext ctx){
+    public ExprGenRes1 visitId(ReflexParser.IdContext ctx){
         String id = ctx.ID().toString();
         if (mapper.is_const(id)){
             SymbolicExpression expr = new ConstantExpression(mapper.constantValue(id),mapper.constantType(id));
-            return new ExprGenRes(expr,state, new TrueFormula());
+            return new ExprGenRes1(expr,state);
         }
         if (mapper.is_variable(process,id)){
             String variable = mapper.mapVariable(process,id);
             SymbolicExpression expr = new VariableExpression(variable,mapper.variableType(process,id),true);
-            return new ExprGenRes(expr,state, new TrueFormula());
+            return new ExprGenRes1(expr,state);
         }
         //TODO enums
         throw new RuntimeException("Unknown variable ID");
     }
     @Override
-    public ExprGenRes visitInteger(ReflexParser.IntegerContext ctx) {
+    public ExprGenRes1 visitInteger(ReflexParser.IntegerContext ctx) {
         String val;
         if (ctx.INTEGER()!=null){
             val = ctx.INTEGER().getText();
         } else {
             val = ctx.UNSIGNED_INTEGER().getText();
         }
-        String value = ASTGraphProjection.ValueParser.parseInteger(val);
+        String value = ValueParser.parseInteger(val);
         SymbolicExpression expr;
         if (val.contains("u") || val.contains("U")){
             expr = new ConstantExpression(value, new NatType());
         }else{
             expr = new ConstantExpression(value, new IntType());
         }
-        return new ExprGenRes(expr,state,new TrueFormula());
+        return new ExprGenRes1(expr,state);
     }
 
     @Override
-    public ExprGenRes visitFloat(ReflexParser.FloatContext ctx) {
+    public ExprGenRes1 visitFloat(ReflexParser.FloatContext ctx) {
         String val =  ctx.FLOAT().getText();
-        String value = ASTGraphProjection.ValueParser.parseFloat(val);
+        String value = ValueParser.parseFloat(val);
         SymbolicExpression expr = new ConstantExpression(value,new FloatType());
-        return new ExprGenRes(expr,state,new TrueFormula());
+        return new ExprGenRes1(expr,state);
     }
 
     @Override
-    public ExprGenRes visitBool(ReflexParser.BoolContext ctx) {
+    public ExprGenRes1 visitBool(ReflexParser.BoolContext ctx) {
         String val = ctx.BOOL_VAL().getText();
         val = val.substring(0, 1).toUpperCase() + val.substring(1);
         SymbolicExpression expr = new ConstantExpression(val,new BoolType());
-        return new ExprGenRes(expr,state,new TrueFormula());
+        return new ExprGenRes1(expr,state);
     }
 
     @Override
-    public ExprGenRes visitTime(ReflexParser.TimeContext ctx) {
+    public ExprGenRes1 visitTime(ReflexParser.TimeContext ctx) {
         String val =  ctx.TIME().getText();
-        String value = ASTGraphProjection.ValueParser.parseTime(val);
+        String value = ValueParser.parseTime(val);
         SymbolicExpression expr = new ConstantExpression(value,new TimeType());
-        return new ExprGenRes(expr,state,new TrueFormula());
+        return new ExprGenRes1(expr,state);
     }
 
     @Override
-    public ExprGenRes visitClosedExpression(ReflexParser.ClosedExpressionContext ctx) {
+    public ExprGenRes1 visitClosedExpression(ReflexParser.ClosedExpressionContext ctx) {
         return super.visitClosedExpression(ctx);
     }
 
     @Override
-    public ExprGenRes visitPrimaryExpr(ReflexParser.PrimaryExprContext ctx) {
+    public ExprGenRes1 visitPrimaryExpr(ReflexParser.PrimaryExprContext ctx) {
         return visitPrimaryExpression(ctx.primaryExpression());
     }
 
     @Override
-    public ExprGenRes visitFuncCallExpr(ReflexParser.FuncCallExprContext ctx) {
+    public ExprGenRes1 visitFuncCallExpr(ReflexParser.FuncCallExprContext ctx) {
         //TODO not implemenated
         throw  new RuntimeException("Function call not implemented");
         //return super.visitFuncCallExpr(ctx);
     }
 
     @Override
-    public ExprGenRes visitPostfixOpExpr(ReflexParser.PostfixOpExprContext ctx) {
+    public ExprGenRes1 visitPostfixOpExpr(ReflexParser.PostfixOpExprContext ctx) {
         String op = ctx.postfixOp().op.getText();
         String id = ctx.postfixOp().varId.getText();
         String variable = mapper.mapVariable(process,id);
@@ -126,11 +131,11 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         String newState = creator.Setter(type,state,variable,get);
         SymbolicExpression expr = new VariableExpression(variable,type,true);
         expr.actuate(state, creator);
-        return new ExprGenRes(expr,newState,new TrueFormula());
+        return new ExprGenRes1(expr,newState,creator.True());
     }
 
     @Override
-    public ExprGenRes visitInfixOpExpr(ReflexParser.InfixOpExprContext ctx) {
+    public ExprGenRes1 visitInfixOpExpr(ReflexParser.InfixOpExprContext ctx) {
         String op = ctx.infixOp().op.getText();
         String id = ctx.infixOp().varId.getText();
         String variable = mapper.mapVariable(process,id);
@@ -147,16 +152,16 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         //String newState = StringUtils.constructSetter(type,state,variable,get);
         String newState = creator.Setter(type,state,variable,get);
         SymbolicExpression expr = new VariableExpression(variable,type,true);
-        return new ExprGenRes(expr,newState,new TrueFormula());
+        return new ExprGenRes1(expr,newState,creator.True());
     }
 
     @Override
-    public ExprGenRes visitUnaryOpExpr(ReflexParser.UnaryOpExprContext ctx) {
+    public ExprGenRes1 visitUnaryOpExpr(ReflexParser.UnaryOpExprContext ctx) {
         String op = ctx.unaryOp().getText();
-        ExprGenRes res = visitExpression(ctx.expression());
+        ExprGenRes1 res = visitExpression(ctx.expression());
         SymbolicExpression expr = res.getExpr();
         String newState = res.getState();
-        Formula domain = res.getDomain();
+        Optional<String> domain = res.getDomain();
         UnaryOp unOp = switch (op) {
             case "+" -> UnaryOp.Plus;
             case "-" -> UnaryOp.Minus;
@@ -166,37 +171,37 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         };
         //SymbolicExpression newExpr = new UnaryExpression(unOp,expr,expr.exprType());
         SymbolicExpression newExpr = new UnaryExpression(unOp,expr,expr.exprType());
-        return new ExprGenRes(newExpr,newState,domain);
+        return new ExprGenRes1(newExpr,newState,domain);
     }
 
     @Override
-    public ExprGenRes visitCast(ReflexParser.CastContext ctx) {
+    public ExprGenRes1 visitCast(ReflexParser.CastContext ctx) {
         ExprType castType = TypeUtils.defineType(ctx.varType.getText());
-        ExprGenRes res = visitExpression(ctx.expression());
+        ExprGenRes1 res = visitExpression(ctx.expression());
         SymbolicExpression expr = res.getExpr();
         String newState = res.getState();
-        Formula domain = res.getDomain();
+        Optional<String> domain = res.getDomain();
         expr.actuate(newState,creator);
-        SymbolicExpression newExpr = new CastExpression(castType,expr);
-        return new ExprGenRes(newExpr,newState,domain);
+        SymbolicExpression newExpr = new CastExpression(expr, castType);
+        return new ExprGenRes1(newExpr,newState,domain);
     }
 
     @Override
-    public ExprGenRes visitAdd(ReflexParser.AddContext ctx) {
+    public ExprGenRes1 visitAdd(ReflexParser.AddContext ctx) {
         ReflexParser.ExpressionContext ctx1 = ctx.expression(0);
         ReflexParser.ExpressionContext ctx2 = ctx.expression(1);
         String op = ctx.addOp().getText();
         BinaryOp binOp= BinaryOp.defineOp(op);
 
-        ExprGenRes res1 = visitExpression(ctx1);
+        ExprGenRes1 res1 = visitExpression(ctx1);
         SymbolicExpression expr1 = res1.getExpr();
         String newState1 = res1.getState();
-        Formula domain1 = res1.getDomain();
+        Optional<String> domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
+        ExprGenRes1 res2 = (new ExpressionVisitor1(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
-        Formula domain2 = res2.getDomain();
+        Optional<String> domain2 = res2.getDomain();
 
         if (!TypeUtils.isPossible(expr1.exprType(),expr2.exprType(),binOp)){
             throw new RuntimeException(String.format("Trying to apply %s operation to types: %s %s",binOp,expr1.exprType(),expr2.exprType()));
@@ -206,37 +211,40 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
 
         expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
-            expr1 = new CastExpression(cast,expr1);
+            expr1 = new CastExpression(expr1, cast);
         }
         expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
-            expr2 = new CastExpression(cast,expr2);
+            expr2 = new CastExpression(expr2, cast);
         }
         SymbolicExpression newExpr = new BinaryExpression(binOp,expr1,expr2,resType);
 
-        ConjuctionFormula newDomain = new ConjuctionFormula();
-        newDomain.addConjunct(domain1);
-        newDomain.addConjunct(domain2);
-
-        return new ExprGenRes(newExpr,newState2,newDomain);
+        ArrayList<String> domains = new ArrayList<>();
+        domain1.ifPresent(domains::add);
+        domain2.ifPresent(domains::add);
+        if(domains.isEmpty()){
+            return new ExprGenRes1(newExpr,newState2);
+        }else{
+            return new ExprGenRes1(newExpr,newState2,creator.Conjunction(domains));
+        }
     }
 
     @Override
-    public ExprGenRes visitShift(ReflexParser.ShiftContext ctx) {
+    public ExprGenRes1 visitShift(ReflexParser.ShiftContext ctx) {
         ReflexParser.ExpressionContext ctx1 = ctx.expression(0);
         ReflexParser.ExpressionContext ctx2 = ctx.expression(1);
         String op = ctx.SHIFT_OP().getText();
         BinaryOp binOp= BinaryOp.defineOp(op);
 
-        ExprGenRes res1 = visitExpression(ctx1);
+        ExprGenRes1 res1 = visitExpression(ctx1);
         SymbolicExpression expr1 = res1.getExpr();
         String newState1 = res1.getState();
-        Formula domain1 = res1.getDomain();
+        Optional<String> domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
+        ExprGenRes1 res2 = (new ExpressionVisitor1(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
-        Formula domain2 = res2.getDomain();
+        Optional<String> domain2 = res2.getDomain();
 
         if (!TypeUtils.isPossible(expr1.exprType(),expr2.exprType(),binOp)){
             throw new RuntimeException(String.format("Trying to apply %s operation to types: %s %s",binOp,expr1.exprType(),expr2.exprType()));
@@ -246,37 +254,40 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
 
         expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
-            expr1 = new CastExpression(cast,expr1);
+            expr1 = new CastExpression(expr1, cast);
         }
         expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
-            expr2 = new CastExpression(cast,expr2);
+            expr2 = new CastExpression(expr2, cast);
         }
         SymbolicExpression newExpr = new BinaryExpression(binOp,expr1,expr2,resType);
 
-        ConjuctionFormula newDomain = new ConjuctionFormula();
-        newDomain.addConjunct(domain1);
-        newDomain.addConjunct(domain2);
-
-        return new ExprGenRes(newExpr,newState2,newDomain);
+        ArrayList<String> domains = new ArrayList<>();
+        domain1.ifPresent(domains::add);
+        domain2.ifPresent(domains::add);
+        if(domains.isEmpty()){
+            return new ExprGenRes1(newExpr,newState2);
+        }else{
+            return new ExprGenRes1(newExpr,newState2,creator.Conjunction(domains));
+        }
     }
 
     @Override
-    public ExprGenRes visitBitOr(ReflexParser.BitOrContext ctx) {
+    public ExprGenRes1 visitBitOr(ReflexParser.BitOrContext ctx) {
         ReflexParser.ExpressionContext ctx1 = ctx.expression(0);
         ReflexParser.ExpressionContext ctx2 = ctx.expression(1);
         String op = ctx.BIT_OR_OP().getText();
         BinaryOp binOp= BinaryOp.BitOr;
 
-        ExprGenRes res1 = visitExpression(ctx1);
+        ExprGenRes1 res1 = visitExpression(ctx1);
         SymbolicExpression expr1 = res1.getExpr();
         String newState1 = res1.getState();
-        Formula domain1 = res1.getDomain();
+        Optional<String> domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
+        ExprGenRes1 res2 = (new ExpressionVisitor1(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
-        Formula domain2 = res2.getDomain();
+        Optional<String> domain2 = res2.getDomain();
 
         if (!TypeUtils.isPossible(expr1.exprType(),expr2.exprType(),binOp)){
             throw new RuntimeException(String.format("Trying to apply %s operation to types: %s %s",binOp,expr1.exprType(),expr2.exprType()));
@@ -286,37 +297,40 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
 
         expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
-            expr1 = new CastExpression(cast,expr1);
+            expr1 = new CastExpression(expr1, cast);
         }
         expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
-            expr2 = new CastExpression(cast,expr2);
+            expr2 = new CastExpression(expr2, cast);
         }
         SymbolicExpression newExpr = new BinaryExpression(binOp,expr1,expr2,resType);
 
-        ConjuctionFormula newDomain = new ConjuctionFormula();
-        newDomain.addConjunct(domain1);
-        newDomain.addConjunct(domain2);
-
-        return new ExprGenRes(newExpr,newState2,newDomain);
+        ArrayList<String> domains = new ArrayList<>();
+        domain1.ifPresent(domains::add);
+        domain2.ifPresent(domains::add);
+        if(domains.isEmpty()){
+            return new ExprGenRes1(newExpr,newState2);
+        }else{
+            return new ExprGenRes1(newExpr,newState2,creator.Conjunction(domains));
+        }
     }
 
     @Override
-    public ExprGenRes visitOr(ReflexParser.OrContext ctx) {
+    public ExprGenRes1 visitOr(ReflexParser.OrContext ctx) {
         ReflexParser.ExpressionContext ctx1 = ctx.expression(0);
         ReflexParser.ExpressionContext ctx2 = ctx.expression(1);
         String op = ctx.OR_OP().getText();
         BinaryOp binOp= BinaryOp.Or;
 
-        ExprGenRes res1 = visitExpression(ctx1);
+        ExprGenRes1 res1 = visitExpression(ctx1);
         SymbolicExpression expr1 = res1.getExpr();
         String newState1 = res1.getState();
-        Formula domain1 = res1.getDomain();
+        Optional<String> domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
+        ExprGenRes1 res2 = (new ExpressionVisitor1(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
-        Formula domain2 = res2.getDomain();
+        Optional<String> domain2 = res2.getDomain();
 
         if (!TypeUtils.isPossible(expr1.exprType(),expr2.exprType(),binOp)){
             throw new RuntimeException(String.format("Trying to apply %s operation to types: %s %s",binOp,expr1.exprType(),expr2.exprType()));
@@ -326,37 +340,40 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
 
         expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
-            expr1 = new CastExpression(cast,expr1);
+            expr1 = new CastExpression(expr1, cast);
         }
         expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
-            expr2 = new CastExpression(cast,expr2);
+            expr2 = new CastExpression(expr2, cast);
         }
         SymbolicExpression newExpr = new BinaryExpression(binOp,expr1,expr2,resType);
 
-        ConjuctionFormula newDomain = new ConjuctionFormula();
-        newDomain.addConjunct(domain1);
-        newDomain.addConjunct(domain2);
-
-        return new ExprGenRes(newExpr,newState2,newDomain);
+        ArrayList<String> domains = new ArrayList<>();
+        domain1.ifPresent(domains::add);
+        domain2.ifPresent(domains::add);
+        if(domains.isEmpty()){
+            return new ExprGenRes1(newExpr,newState2);
+        }else{
+            return new ExprGenRes1(newExpr,newState2,creator.Conjunction(domains));
+        }
     }
 
     @Override
-    public ExprGenRes visitMul(ReflexParser.MulContext ctx) {
+    public ExprGenRes1 visitMul(ReflexParser.MulContext ctx) {
         ReflexParser.ExpressionContext ctx1 = ctx.expression(0);
         ReflexParser.ExpressionContext ctx2 = ctx.expression(1);
         String op = ctx.MUL_OP().getText();
         BinaryOp binOp= BinaryOp.defineOp(op);
 
-        ExprGenRes res1 = visitExpression(ctx1);
+        ExprGenRes1 res1 = visitExpression(ctx1);
         SymbolicExpression expr1 = res1.getExpr();
         String newState1 = res1.getState();
-        Formula domain1 = res1.getDomain();
+        Optional<String> domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
+        ExprGenRes1 res2 = (new ExpressionVisitor1(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
-        Formula domain2 = res2.getDomain();
+        Optional<String> domain2 = res2.getDomain();
 
         if (!TypeUtils.isPossible(expr1.exprType(),expr2.exprType(),binOp)){
             throw new RuntimeException(String.format("Trying to apply %s operation to types: %s %s",binOp,expr1.exprType(),expr2.exprType()));
@@ -366,51 +383,53 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
 
         expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
-            expr1 = new CastExpression(cast,expr1);
+            expr1 = new CastExpression(expr1, cast);
         }
         expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
-            expr2 = new CastExpression(cast,expr2);
+            expr2 = new CastExpression(expr2, cast);
         }
         SymbolicExpression newExpr = new BinaryExpression(binOp,expr1,expr2,resType);
 
-        ConjuctionFormula newDomain = new ConjuctionFormula();
-        newDomain.addConjunct(domain1);
-        newDomain.addConjunct(domain2);
+        ArrayList<String> domains = new ArrayList<>();
+        domain1.ifPresent(domains::add);
+        domain2.ifPresent(domains::add);
         if (binOp.equals(BinaryOp.Div) || binOp.equals(BinaryOp.Mod)) {
-            Formula rule = new EqualityFormula("", false, expr2, new ConstantExpression("0", cast));
-            newDomain.addConjunct(rule);
+            domains.add(creator.BinaryExpression(expr2.toString(creator),"0",BinaryOp.NotEq));
         }
-
-        return new ExprGenRes(newExpr,newState2,newDomain);
+        if(domains.isEmpty()){
+            return new ExprGenRes1(newExpr,newState2);
+        }else{
+            return new ExprGenRes1(newExpr,newState2,creator.Conjunction(domains));
+        }
     }
 
     @Override
-    public ExprGenRes visitCheckState(ReflexParser.CheckStateContext ctx) {
+    public ExprGenRes1 visitCheckState(ReflexParser.CheckStateContext ctx) {
         return visitCheckStateExpression(ctx.checkStateExpression());
     }
 
     @Override
-    public ExprGenRes visitUnary(ReflexParser.UnaryContext ctx) {
+    public ExprGenRes1 visitUnary(ReflexParser.UnaryContext ctx) {
         return visitUnaryExpression(ctx.unaryExpression());
     }
 
     @Override
-    public ExprGenRes visitBitXor(ReflexParser.BitXorContext ctx) {
+    public ExprGenRes1 visitBitXor(ReflexParser.BitXorContext ctx) {
         ReflexParser.ExpressionContext ctx1 = ctx.expression(0);
         ReflexParser.ExpressionContext ctx2 = ctx.expression(1);
         String op = ctx.BIT_XOR_OP().getText();
         BinaryOp binOp= BinaryOp.BitXor;
 
-        ExprGenRes res1 = visitExpression(ctx1);
+        ExprGenRes1 res1 = visitExpression(ctx1);
         SymbolicExpression expr1 = res1.getExpr();
         String newState1 = res1.getState();
-        Formula domain1 = res1.getDomain();
+        Optional<String> domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
+        ExprGenRes1 res2 = (new ExpressionVisitor1(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
-        Formula domain2 = res2.getDomain();
+        Optional<String> domain2 = res2.getDomain();
 
         if (!TypeUtils.isPossible(expr1.exprType(),expr2.exprType(),binOp)){
             throw new RuntimeException(String.format("Trying to apply %s operation to types: %s %s",binOp,expr1.exprType(),expr2.exprType()));
@@ -420,37 +439,40 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
 
         expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
-            expr1 = new CastExpression(cast,expr1);
+            expr1 = new CastExpression(expr1, cast);
         }
         expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
-            expr2 = new CastExpression(cast,expr2);
+            expr2 = new CastExpression(expr2, cast);
         }
         SymbolicExpression newExpr = new BinaryExpression(binOp,expr1,expr2,resType);
 
-        ConjuctionFormula newDomain = new ConjuctionFormula();
-        newDomain.addConjunct(domain1);
-        newDomain.addConjunct(domain2);
-
-        return new ExprGenRes(newExpr,newState2,newDomain);
+        ArrayList<String> domains = new ArrayList<>();
+        domain1.ifPresent(domains::add);
+        domain2.ifPresent(domains::add);
+        if(domains.isEmpty()){
+            return new ExprGenRes1(newExpr,newState2);
+        }else{
+            return new ExprGenRes1(newExpr,newState2,creator.Conjunction(domains));
+        }
     }
 
     @Override
-    public ExprGenRes visitEqual(ReflexParser.EqualContext ctx) {
+    public ExprGenRes1 visitEqual(ReflexParser.EqualContext ctx) {
         ReflexParser.ExpressionContext ctx1 = ctx.expression(0);
         ReflexParser.ExpressionContext ctx2 = ctx.expression(1);
         String op = ctx.EQ_OP().getText();
         BinaryOp binOp= BinaryOp.defineOp(op);
 
-        ExprGenRes res1 = visitExpression(ctx1);
+        ExprGenRes1 res1 = visitExpression(ctx1);
         SymbolicExpression expr1 = res1.getExpr();
         String newState1 = res1.getState();
-        Formula domain1 = res1.getDomain();
+        Optional<String> domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
+        ExprGenRes1 res2 = (new ExpressionVisitor1(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
-        Formula domain2 = res2.getDomain();
+        Optional<String> domain2 = res2.getDomain();
 
         if (!TypeUtils.isPossible(expr1.exprType(),expr2.exprType(),binOp)){
             throw new RuntimeException(String.format("Trying to apply %s operation to types: %s %s",binOp,expr1.exprType(),expr2.exprType()));
@@ -460,37 +482,40 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
 
         expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
-            expr1 = new CastExpression(cast,expr1);
+            expr1 = new CastExpression(expr1, cast);
         }
         expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
-            expr2 = new CastExpression(cast,expr2);
+            expr2 = new CastExpression(expr2, cast);
         }
         SymbolicExpression newExpr = new BinaryExpression(binOp,expr1,expr2,resType);
 
-        ConjuctionFormula newDomain = new ConjuctionFormula();
-        newDomain.addConjunct(domain1);
-        newDomain.addConjunct(domain2);
-
-        return new ExprGenRes(newExpr,newState2,newDomain);
+        ArrayList<String> domains = new ArrayList<>();
+        domain1.ifPresent(domains::add);
+        domain2.ifPresent(domains::add);
+        if(domains.isEmpty()){
+            return new ExprGenRes1(newExpr,newState2);
+        }else{
+            return new ExprGenRes1(newExpr,newState2,creator.Conjunction(domains));
+        }
     }
 
     @Override
-    public ExprGenRes visitAnd(ReflexParser.AndContext ctx) {
+    public ExprGenRes1 visitAnd(ReflexParser.AndContext ctx) {
         ReflexParser.ExpressionContext ctx1 = ctx.expression(0);
         ReflexParser.ExpressionContext ctx2 = ctx.expression(1);
         String op = ctx.AND_OP().getText();
         BinaryOp binOp= BinaryOp.And;
 
-        ExprGenRes res1 = visitExpression(ctx1);
+        ExprGenRes1 res1 = visitExpression(ctx1);
         SymbolicExpression expr1 = res1.getExpr();
         String newState1 = res1.getState();
-        Formula domain1 = res1.getDomain();
+        Optional<String> domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
+        ExprGenRes1 res2 = (new ExpressionVisitor1(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
-        Formula domain2 = res2.getDomain();
+        Optional<String> domain2 = res2.getDomain();
 
         if (!TypeUtils.isPossible(expr1.exprType(),expr2.exprType(),binOp)){
             throw new RuntimeException(String.format("Trying to apply %s operation to types: %s %s",binOp,expr1.exprType(),expr2.exprType()));
@@ -500,37 +525,40 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
 
         expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
-            expr1 = new CastExpression(cast,expr1);
+            expr1 = new CastExpression(expr1, cast);
         }
         expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
-            expr2 = new CastExpression(cast,expr2);
+            expr2 = new CastExpression(expr2, cast);
         }
         SymbolicExpression newExpr = new BinaryExpression(binOp,expr1,expr2,resType);
 
-        ConjuctionFormula newDomain = new ConjuctionFormula();
-        newDomain.addConjunct(domain1);
-        newDomain.addConjunct(domain2);
-
-        return new ExprGenRes(newExpr,newState2,newDomain);
+        ArrayList<String> domains = new ArrayList<>();
+        domain1.ifPresent(domains::add);
+        domain2.ifPresent(domains::add);
+        if(domains.isEmpty()){
+            return new ExprGenRes1(newExpr,newState2);
+        }else{
+            return new ExprGenRes1(newExpr,newState2,creator.Conjunction(domains));
+        }
     }
 
     @Override
-    public ExprGenRes visitBitAnd(ReflexParser.BitAndContext ctx) {
+    public ExprGenRes1 visitBitAnd(ReflexParser.BitAndContext ctx) {
         ReflexParser.ExpressionContext ctx1 = ctx.expression(0);
         ReflexParser.ExpressionContext ctx2 = ctx.expression(1);
         String op = ctx.BIT_AND_OP().getText();
         BinaryOp binOp= BinaryOp.BitAnd;
 
-        ExprGenRes res1 = visitExpression(ctx1);
+        ExprGenRes1 res1 = visitExpression(ctx1);
         SymbolicExpression expr1 = res1.getExpr();
         String newState1 = res1.getState();
-        Formula domain1 = res1.getDomain();
+        Optional<String> domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
+        ExprGenRes1 res2 = (new ExpressionVisitor1(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
-        Formula domain2 = res2.getDomain();
+        Optional<String> domain2 = res2.getDomain();
 
         if (!TypeUtils.isPossible(expr1.exprType(),expr2.exprType(),binOp)){
             throw new RuntimeException(String.format("Trying to apply %s operation to types: %s %s",binOp,expr1.exprType(),expr2.exprType()));
@@ -540,46 +568,49 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
 
         expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
-            expr1 = new CastExpression(cast,expr1);
+            expr1 = new CastExpression(expr1, cast);
         }
         expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
-            expr2 = new CastExpression(cast,expr2);
+            expr2 = new CastExpression(expr2, cast);
         }
         SymbolicExpression newExpr = new BinaryExpression(binOp,expr1,expr2,resType);
 
-        ConjuctionFormula newDomain = new ConjuctionFormula();
-        newDomain.addConjunct(domain1);
-        newDomain.addConjunct(domain2);
-
-        return new ExprGenRes(newExpr,newState2,newDomain);
+        ArrayList<String> domains = new ArrayList<>();
+        domain1.ifPresent(domains::add);
+        domain2.ifPresent(domains::add);
+        if(domains.isEmpty()){
+            return new ExprGenRes1(newExpr,newState2);
+        }else{
+            return new ExprGenRes1(newExpr,newState2,creator.Conjunction(domains));
+        }
     }
 
-    public ExprGenRes visitSimpleAssign(ReflexParser.AssignContext ctx){
+    public ExprGenRes1 visitSimpleAssign(ReflexParser.AssignContext ctx){
         BinaryOp binOp = BinaryOp.Eq;
         ReflexParser.ExpressionContext ctx1 = ctx.expression();
         String id = ctx.ID().getText();
 
-        ExprGenRes res1 = visitExpression(ctx1);
+        ExprGenRes1 res1 = visitExpression(ctx1);
         SymbolicExpression expr1 = res1.getExpr();
         String newState1 = res1.getState();
-        Formula domain1 = res1.getDomain();
+        Optional<String> domain1 = res1.getDomain();
 
         expr1.actuate(newState1, creator);
 
         String variable = mapper.mapVariable(process,id);
         ExprType type = mapper.variableType(process,id);
 
-        CastExpression expr = new CastExpression(type,expr1);
+        CastExpression expr = new CastExpression(expr1, type);
         String newState = creator.Setter(type,newState1,variable,expr.toString(creator));
         //String newState = StringUtils.constructSetter();
 
         SymbolicExpression newExpr = new VariableExpression(variable,type,true);
-        return new ExprGenRes(newExpr,newState,domain1);
+        return new ExprGenRes1(newExpr,newState,domain1);
     }
 
     @Override
-    public ExprGenRes visitAssign(ReflexParser.AssignContext ctx) {
+    public ExprGenRes1 visitAssign(ReflexParser.AssignContext ctx) {
         String op = ctx.assignOp().getText();
         if (op.equals("=")){
             return visitSimpleAssign(ctx);
@@ -588,10 +619,10 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         String id = ctx.ID().getText();
         String variable = mapper.mapVariable(process,id);
 
-        ExprGenRes res1 = visitExpression(ctx.expression());
+        ExprGenRes1 res1 = visitExpression(ctx.expression());
         SymbolicExpression expr1 = res1.getExpr();
         String newState1 = res1.getState();
-        Formula domain1 = res1.getDomain();
+        Optional<String> domain1 = res1.getDomain();
 
         ExprType lastCast = mapper.variableType(process,id);
         ExprType cast = TypeUtils.castType(expr1.exprType(),lastCast,binOp);
@@ -603,39 +634,40 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
         String getter = creator.Getter(resType,newState1,variable);
         expr1.actuate(newState1, creator);
         SymbolicExpression assignedExpr = new BinaryExpression(binOp,
-                new CastExpression(cast,new ConstantExpression(getter,resType)),
-                new CastExpression(cast,expr1),
+                new CastExpression(new ConstantExpression(getter,resType), cast),
+                new CastExpression(expr1, cast),
                 resType);
-        String newState = creator.Getter(resType,newState1,(new CastExpression(lastCast,assignedExpr)).toString(creator));
-
-        if (binOp.equals(BinaryOp.Div) || binOp.equals(BinaryOp.Mod)) {
-            ConjuctionFormula newDomain = new ConjuctionFormula();
-            newDomain.addConjunct(domain1);
-            Formula rule = new EqualityFormula("", false, expr1, new ConstantExpression("0", cast));
-            newDomain.addConjunct(rule);
-            domain1 = newDomain;
-        }
+        String newState = creator.Getter(resType,newState1,(new CastExpression(assignedExpr, lastCast)).toString(creator));
 
         SymbolicExpression newExpr = new VariableExpression(variable,resType,true);
-        return new ExprGenRes(newExpr,newState,domain1);
+        ArrayList<String> domains = new ArrayList<>();
+        domain1.ifPresent(domains::add);
+        if (binOp.equals(BinaryOp.Div) || binOp.equals(BinaryOp.Mod)) {
+            domains.add(creator.BinaryExpression(expr1.toString(creator),"0",BinaryOp.NotEq));
+        }
+        if(domains.isEmpty()){
+            return new ExprGenRes1(newExpr,newState);
+        }else{
+            return new ExprGenRes1(newExpr,newState,creator.Conjunction(domains));
+        }
     }
 
     @Override
-    public ExprGenRes visitCompare(ReflexParser.CompareContext ctx) {
+    public ExprGenRes1 visitCompare(ReflexParser.CompareContext ctx) {
         ReflexParser.ExpressionContext ctx1 = ctx.expression(0);
         ReflexParser.ExpressionContext ctx2 = ctx.expression(1);
         String op = ctx.COMP_OP().getText();
         BinaryOp binOp= BinaryOp.defineOp(op);
 
-        ExprGenRes res1 = visitExpression(ctx1);
+        ExprGenRes1 res1 = visitExpression(ctx1);
         SymbolicExpression expr1 = res1.getExpr();
         String newState1 = res1.getState();
-        Formula domain1 = res1.getDomain();
+        Optional<String> domain1 = res1.getDomain();
 
-        ExprGenRes res2 = (new ExpressionVisitor(mapper,process,newState1,creator)).visitExpression(ctx2);
+        ExprGenRes1 res2 = (new ExpressionVisitor1(mapper,process,newState1,creator)).visitExpression(ctx2);
         SymbolicExpression expr2 = res2.getExpr();
         String newState2 = res2.getState();
-        Formula domain2 = res2.getDomain();
+        Optional<String> domain2 = res2.getDomain();
 
         if (!TypeUtils.isPossible(expr1.exprType(),expr2.exprType(),binOp)){
             throw new RuntimeException(String.format("Trying to apply %s operation to types: %s %s",binOp,expr1.exprType(),expr2.exprType()));
@@ -645,22 +677,25 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
 
         expr1.actuate(newState2, creator);
         if (!cast.equals(expr1.exprType())){
-            expr1 = new CastExpression(cast,expr1);
+            expr1 = new CastExpression(expr1, cast);
         }
         expr2.actuate(newState2, creator);
         if (!cast.equals(expr2.exprType())){
-            expr2 = new CastExpression(cast,expr2);
+            expr2 = new CastExpression(expr2, cast);
         }
         SymbolicExpression newExpr = new BinaryExpression(binOp,expr1,expr2,resType);
 
-        ConjuctionFormula newDomain = new ConjuctionFormula();
-        newDomain.addConjunct(domain1);
-        newDomain.addConjunct(domain2);
-
-        return new ExprGenRes(newExpr,newState2,newDomain);
+        ArrayList<String> domains = new ArrayList<>();
+        domain1.ifPresent(domains::add);
+        domain2.ifPresent(domains::add);
+        if(domains.isEmpty()){
+            return new ExprGenRes1(newExpr,newState2);
+        }else{
+            return new ExprGenRes1(newExpr,newState2,creator.Conjunction(domains));
+        }
     }
 
-    public ExprGenRes visitPrimaryExpression(ReflexParser.PrimaryExpressionContext ctx){
+    public ExprGenRes1 visitPrimaryExpression(ReflexParser.PrimaryExpressionContext ctx){
         if (ctx instanceof ReflexParser.IdContext)
             return visitId((ReflexParser.IdContext)ctx);
         if (ctx instanceof ReflexParser.IntegerContext)
@@ -676,7 +711,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
 
         return null;
     }
-    public ExprGenRes visitUnaryExpression(ReflexParser.UnaryExpressionContext ctx){
+    public ExprGenRes1 visitUnaryExpression(ReflexParser.UnaryExpressionContext ctx){
         if (ctx instanceof ReflexParser.PostfixOpExprContext)
             return visitPostfixOpExpr((ReflexParser.PostfixOpExprContext) ctx);
         if (ctx instanceof ReflexParser.InfixOpExprContext)
@@ -690,7 +725,7 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
 
         return null;
     }
-    public ExprGenRes visitExpression(ReflexParser.ExpressionContext ctx){
+    public ExprGenRes1 visitExpression(ReflexParser.ExpressionContext ctx){
         if (ctx instanceof ReflexParser.CastContext)
             return visitCast((ReflexParser.CastContext) ctx);
         if (ctx instanceof ReflexParser.AddContext)
@@ -721,5 +756,10 @@ public class ExpressionVisitor extends ReflexBaseVisitor<ExprGenRes> {
             return visitCompare((ReflexParser.CompareContext) ctx);
 
         return null;
+    }
+
+    @Override
+    public List<ExprRes> parseExpression(ReflexParser.ExpressionContext expr) {
+        return List.of(visitExpression(expr));
     }
 }

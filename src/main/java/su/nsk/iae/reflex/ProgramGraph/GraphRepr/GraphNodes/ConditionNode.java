@@ -43,7 +43,7 @@ public class ConditionNode implements IReflexNode{
         this.condition = condition;
         this.isTimeoutVariable = isTimeoutVariable;
     }
-    public ConditionNode(ReflexParser.ExpressionContext context,String condition,boolean isDomain){
+    public ConditionNode(ReflexParser.ExpressionContext context,String condition){
         this.ifContext = null;
         this.switchContext = null;
         this.timeoutContext = null;

@@ -11,44 +11,45 @@ public abstract class LinearFragment implements IAttributed{
     boolean reset = false;
     boolean stateChanging = false;
     ArrayList<IAttributed> attributes = new ArrayList<>();
+    HashMap<String,String> procStatuses = new HashMap<>();
 
     @Override
     public boolean isReset() {
         return reset;
     }
-    @Override
+    /*@Override
     public void setReset(boolean reset) {
         this.reset = reset;
-    }
+    }*/
     @Override
     public boolean isStateChanging() {
         return stateChanging;
     }
-    @Override
+    /*@Override
     public void setStateChanging(boolean stateChanging) {
         this.stateChanging = stateChanging;
-    }
+    }*/
     @Override
     public HashMap<ProcessNode, ChangeType> getProcChange() {
         return procChange;
     }
-    @Override
+    /*@Override
     public void setProcChange(HashMap<ProcessNode, ChangeType> procChange) {
         this.procChange = procChange;
-    }
-    @Override
+    }*/
+    /*@Override
     public void addProcessChange(ProcessNode ctx, ChangeType type){
         this.procChange.put(ctx,type);
-    }
+    }*/
     @Override
     public HashMap<ProcessNode, PotChange> getPotProcChange() {
         return potProcChange;
     }
-    @Override
+    /*@Override
     public void setPotProcChange(HashMap<ProcessNode, PotChange> potProcChange) {
         this.potProcChange = potProcChange;
-    }
-    @Override
+    }*/
+    /*@Override
     public void addPotProcChange(ProcessNode ctx, PotChange change) {
         PotChange res = potProcChange.get(ctx);
         if(res!=null){
@@ -56,7 +57,7 @@ public abstract class LinearFragment implements IAttributed{
         }else{
             potProcChange.put(ctx,change);
         }
-    }
+    }*/
 
     public void addPotProcChange(HashMap<ProcessNode, PotChange> potProcChange) {
         for (Map.Entry<ProcessNode, PotChange> e: potProcChange.entrySet()){
@@ -81,15 +82,18 @@ public abstract class LinearFragment implements IAttributed{
         this.stateChanging = this.stateChanging || stateChanging;
     }
 
+    public HashMap<String,String> getProcStatuses(){
+        return procStatuses;
+    }
     @Override
     public ArrayList<IAttributed> getAttributes() {
         return attributes;
     }
 
-    @Override
+    /*@Override
     public void setAttributes(ArrayList<IAttributed> attributes) {
         this.attributes = attributes;
-    }
+    }*/
 
     @Override
     public void addAttributes(IAttributed attr) {

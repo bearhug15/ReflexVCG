@@ -2,22 +2,24 @@ package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
 
 import org.antlr.v4.runtime.Token;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ExpressionVisitor.*;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.*;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexBaseVisitor;
 import su.nsk.iae.reflex.antlr.ReflexParser;
-import su.nsk.iae.reflex.expression.ConstantExpression;
-import su.nsk.iae.reflex.expression.SymbolicExpression;
-import su.nsk.iae.reflex.expression.VariableExpression;
+import su.nsk.iae.reflex.expression.*;
 import su.nsk.iae.reflex.expression.ops.BinaryOp;
+import su.nsk.iae.reflex.expression.ops.UnaryOp;
+import su.nsk.iae.reflex.expression.types.BoolType;
 import su.nsk.iae.reflex.expression.types.ExprType;
 import su.nsk.iae.reflex.expression.types.IntType;
 import su.nsk.iae.reflex.expression.types.TimeType;
 import su.nsk.iae.reflex.formulas.Formula;
 import su.nsk.iae.reflex.formulas.TrueFormula;
 
-import java.util.ArrayList;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 
 public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
@@ -29,12 +31,15 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
     VariableMapper mapper;
     IStatementCreator creator;
     ASTGraphProjection projection;
+    boolean isSimpleExprVisitor;
+    ExpressionVisitor visitor;
 
-    public GraphBuilder(ProgramMetaData metaData, VariableMapper mapper, IStatementCreator creator){
+    public GraphBuilder(ProgramMetaData metaData, VariableMapper mapper, IStatementCreator creator, boolean isSimpleExprVisitor){
         this.metaData = metaData;
         this.mapper = mapper;
         this.creator = creator;
         this.projection = new ASTGraphProjection();
+        this.isSimpleExprVisitor = isSimpleExprVisitor;
     }
     public ProgramGraph buildProgramGraph(ReflexParser.ProgramContext context){
         return visitProgram(context);
@@ -176,8 +181,45 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         return graph;
     }
 
+    private ProgramGraph visitIfElseResult(ReflexParser.IfElseStatContext ctx, ExprRes res,String resState, boolean trueRes){
+        Optional<String> condition = res.getFullCondition(currentProcess);
+        res.getExpr().actuate(res.getState(), creator);
+        String expr;
+        ConditionNode node;
+        if(trueRes){
+            if(!res.getExpr().toString(creator).equals(creator.True())) {
+                expr = res.getExpr().toString(creator);
+                node = condition
+                        .map(s -> new ConditionNode(ctx, creator.Conjunction(List.of(s, expr))))
+                        .orElseGet(() -> new ConditionNode(ctx, creator.Conjunction(List.of(expr))));
+            }else{
+                node = condition
+                        .map(s -> new ConditionNode(ctx, creator.Conjunction(List.of(s))))
+                        .orElseGet(() -> new ConditionNode(ctx, creator.True()));
+            }
+        }else{
+            if(!res.getExpr().toString(creator).equals(creator.False())){
+            expr = (new UnaryExpression(UnaryOp.Neg,res.getExpr(),res.getExpr().exprType())).toString(creator);
+            node = condition
+                    .map(s -> new ConditionNode(ctx, creator.Conjunction(List.of(s, expr))))
+                    .orElseGet(() -> new ConditionNode(ctx, creator.Conjunction(List.of(expr))));
+            }else{
+                node = condition
+                        .map(s -> new ConditionNode(ctx, creator.Conjunction(List.of(s))))
+                        .orElseGet(() -> new ConditionNode(ctx, creator.True()));
+            }
+        }
+        ProgramGraph g = new ProgramGraph(node, node);
+        if (!resState.equals(creator.PlaceHolder())) {
+            ExpressionNode enode = new ExpressionNode(ctx.expression(), resState);
+            g.extendGraph(enode);
+        }
+        res.getDomain().ifPresent(domain -> g.insertDanglingNode(new ConditionNode(ctx, domain)));
+        return g;
+    }
     @Override
     public ProgramGraph visitIfElseStat(ReflexParser.IfElseStatContext ctx) {
+        //TODO Добавить в condition атрибут
         if(ctx.expression()==null){
             throw new RuntimeException("If condition is null");
         }
@@ -187,43 +229,93 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         projection.put(ctx, nodes.getKey());
 
         ReflexParser.ExpressionContext e=ctx.expression();
-        ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,creator.PlaceHolder(),creator);
-        ExprGenRes res = vis.visitExpression(e);
-        SymbolicExpression exp = res.getExpr();
-        String newState = res.getState();
-        Formula domain = res.getDomain();
-        exp.actuate(newState, creator);
-        domain = domain.trim();
-        if (!(domain instanceof TrueFormula)){
-            ConditionNode cnode = new ConditionNode(ctx,domain.toString(creator));
-            graph.insertDanglingGraph(new ProgramGraph(cnode,cnode));
-        }
-        String condition = exp.toString(creator);
 
-
-        ConditionNode trueCond = new ConditionNode(ctx,creator.BinaryExpression(condition,creator.True(), BinaryOp.Eq));
-        ProgramGraph trueGraph = new ProgramGraph(trueCond,trueCond);
-        if (!newState.equals(creator.PlaceHolder())){
-            ExpressionNode expNode = new ExpressionNode(ctx.expression(),newState);
-            trueGraph.extendGraph(new ProgramGraph(expNode,expNode));
+        ExpressionVisitor vis;
+        if(isSimpleExprVisitor){
+            vis = new ExpressionVisitor1(mapper,currentProcess,creator.PlaceHolder(),creator);
+        }else{
+            vis = new ExpressionVisitor2(mapper,currentProcess,creator.PlaceHolder(),creator);
         }
+        List<ExprRes> results = vis.parseExpression(e);
+
+        //Grouped by resulting state change
+        Map<String,List<ExprRes>> trueCondGroups = results.stream()
+                .filter(res -> res.getBooleanValue().orElse(true))
+                .collect(Collectors.groupingBy(ExprRes::getState));
+        Map<String,List<ExprRes>> falseCondGroups = results.stream()
+                .filter(res -> !res.getBooleanValue().orElse(false))
+                .collect(Collectors.groupingBy(ExprRes::getState));
+
+        ProgramGraph trueGraph = new ProgramGraph(new BlankNode(),new BlankNode());
+        trueCondGroups.forEach((resState,resList)->{
+            ProgramGraph trueSubGraph;
+            if(resList.size()>1) {
+                trueSubGraph = new ProgramGraph(new BlankNode(),new BlankNode());
+                resList.forEach(res -> {
+                    trueSubGraph.insertGraph(visitIfElseResult(ctx,res,resState,true));
+                });
+            }else{
+                ExprRes res = resList.get(0);
+                trueSubGraph = visitIfElseResult(ctx,res,resState,true);
+            }
+            trueGraph.insertGraph(trueSubGraph);
+        });
         if(ctx.then!=null){
             trueGraph.extendGraph(visit(ctx.then));
         }
         graph.insertGraph(trueGraph);
 
-        ConditionNode falseCond = new ConditionNode(ctx,creator.BinaryExpression(condition,creator.False(), BinaryOp.Eq));
-        ProgramGraph falseGraph = new ProgramGraph(falseCond,falseCond);
-        if (!newState.equals(creator.PlaceHolder())){
-            ExpressionNode expNode = new ExpressionNode(ctx.expression(),newState);
-            falseGraph.extendGraph(new ProgramGraph(expNode,expNode));
-        }
+        ProgramGraph falseGraph = new ProgramGraph(new BlankNode(),new BlankNode());
+        falseCondGroups.forEach((resState,resList)->{
+            ProgramGraph falseSubGraph;
+            if(resList.size()>1) {
+                falseSubGraph = new ProgramGraph(new BlankNode(),new BlankNode());
+                resList.forEach(res->{
+                    falseSubGraph.insertGraph(visitIfElseResult(ctx,res,resState,false));
+                });
+            }else{
+                ExprRes res = resList.get(0);
+                falseSubGraph = visitIfElseResult(ctx,res,resState,false);
+            }
+            falseGraph.insertGraph(falseSubGraph);
+        });
         if(ctx.else_!=null){
             falseGraph.extendGraph(visit(ctx.else_));
         }
         graph.insertGraph(falseGraph);
 
         return graph;
+    }
+    /*
+    private ProgramGraph visitSwitchResult(ReflexParser.SwitchStatContext ctx, ExprRes res, String exp0){
+        Optional<String> condition = res.getFullCondition(currentProcess);
+        String expr = creator.Conjunction(List.of(
+                res.getExpr().toString(creator),
+                (new BinaryExpression(BinaryOp.Eq,
+                        res.getExpr(),
+                        new ConstantExpression(exp0,res.getExpr().exprType()),
+                        res.getExpr().exprType())
+                ).toString(creator)));
+        ConditionNode node = condition
+                .map(s -> new ConditionNode(ctx, creator.Conjunction(List.of(s, expr))))
+                .orElseGet(() -> new ConditionNode(ctx, creator.Conjunction(List.of(expr))));
+        ProgramGraph g = new ProgramGraph(node, node);
+        String resState = res.getState();
+        if (!resState.equals(creator.PlaceHolder())) {
+            ExpressionNode enode = new ExpressionNode(ctx.expression(), resState);
+            g.extendGraph(enode);
+        }
+        res.getDomain().ifPresent(domain -> g.insertDanglingNode(new ConditionNode(ctx, domain)));
+        return g;
+    }*/
+
+    @Override
+    public ProgramGraph visitSwitchOptionStatSeq(ReflexParser.SwitchOptionStatSeqContext ctx) {
+        ProgramGraph pathGraph = new ProgramGraph(null,null);
+        for(ReflexParser.StatementContext sctx: ctx.statement()){
+            pathGraph.extendGraph(visit(sctx));
+        }
+        return pathGraph;
     }
 
     @Override
@@ -237,90 +329,115 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         projection.put(ctx, nodes.getKey());
 
         ReflexParser.ExpressionContext e=ctx.expression();
-        ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,creator.PlaceHolder(),creator);
-        ExprGenRes res = vis.visitExpression(e);
-        SymbolicExpression exp = res.getExpr();
-        String newState = res.getState();
-        Formula domain = res.getDomain();
-        exp.actuate(newState, creator);
-        domain = domain.trim();
-        if (!(domain instanceof TrueFormula)){
-            ConditionNode cnode = new ConditionNode(ctx,domain.toString(creator));
-            graph.insertDanglingGraph(new ProgramGraph(cnode,cnode));
+        ExpressionVisitor vis;
+        if(isSimpleExprVisitor){
+            vis = new ExpressionVisitor1(mapper,currentProcess,creator.PlaceHolder(),creator);
+        }else{
+            vis = new ExpressionVisitor2(mapper,currentProcess,creator.PlaceHolder(),creator);
         }
-        String condition = exp.toString(creator);
+        List<ExprRes> results = vis.parseExpression(e);
+        results.forEach(res->res.getExpr().actuate(res.getState(), creator));
 
-
-        ArrayList<ProgramGraph> pathGraphs = new ArrayList<>();
-        String passedConditions = null;
+        ArrayList<Map.Entry<String,ProgramGraph>> pathGraphs = new ArrayList<>();
+        ArrayList<ProgramGraph> pathGraphsToExtend = new ArrayList<>();
         for(ReflexParser.CaseStatContext newCtx:ctx.options){
-            ReflexParser.ExpressionContext e0 = newCtx.expression();
-            ExpressionVisitor vis0 = new ExpressionVisitor(mapper,currentProcess,creator.PlaceHolder(),creator);
-            ExprGenRes res0 = vis0.visitExpression(e0);
-            String exp0 = res0.getExpr().toString(creator);
-
-            if (passedConditions !=null){
-                exp0 = creator.BinaryExpression(passedConditions,creator.BinaryExpression(condition,exp0,BinaryOp.Eq),BinaryOp.And);
-                passedConditions = creator.BinaryExpression(passedConditions,creator.BinaryExpression(condition,exp0,BinaryOp.NotEq),BinaryOp.And);
-            }else{
-                exp0 = creator.BinaryExpression(condition,exp0,BinaryOp.Eq);
-                passedConditions = creator.BinaryExpression(condition,exp0,BinaryOp.NotEq);
-            }
-            ConditionNode cnode = new ConditionNode(ctx,exp0);
-            ProgramGraph cgraph = new ProgramGraph(cnode,cnode);
-
-            if (!newState.equals(creator.PlaceHolder())){
-                ExpressionNode expNode = new ExpressionNode(ctx.expression(),newState);
-                cgraph.extendGraph(new ProgramGraph(expNode,expNode));
-            }
-
-            ProgramGraph pathGraph = new ProgramGraph(null,null);
-            for(ReflexParser.StatementContext sctx: newCtx.switchOptionStatSeq().statement()){
-                pathGraph.extendGraph(visit(sctx));
-            }
-
-            for(ProgramGraph path: pathGraphs) {
+            ExpressionVisitor1 vis0 = new ExpressionVisitor1(mapper,currentProcess,creator.PlaceHolder(),creator);
+            String cond = vis0.parseExpression(newCtx.expression()).get(0).getExpr().toString(creator);
+            ProgramGraph pathGraph = visitSwitchOptionStatSeq(newCtx.switchOptionStatSeq());
+            pathGraphs.add(new ImmutablePair<>(cond,pathGraph));
+            for(ProgramGraph path: pathGraphsToExtend){
                 path.extendGraph(pathGraph);
             }
+            pathGraphsToExtend.add(pathGraph);
 
-            boolean breakOp = newCtx.switchOptionStatSeq().break_!=null;
-            if(breakOp){
-                pathGraphs = new ArrayList<>();
-                cgraph.extendGraph(pathGraph);
-                graph.insertGraph(cgraph);
-            }else{
-                cgraph.extendGraph(pathGraph);
-                pathGraphs.add(cgraph);
-                graph.insertDanglingGraph(cgraph);
+            if(newCtx.switchOptionStatSeq().break_!=null){
+                pathGraphsToExtend.clear();
             }
         }
         if(ctx.defaultStat()!=null){
             if(ctx.defaultStat().switchOptionStatSeq()!=null){
-                ConditionNode cnode = new ConditionNode(ctx,passedConditions);
-                ProgramGraph cgraph = new ProgramGraph(cnode,cnode);
-                ProgramGraph defGraph = visit(ctx.defaultStat().switchOptionStatSeq());
-                cgraph.extendGraph(defGraph);
-                for(ProgramGraph path: pathGraphs) {
+                //ConditionNode cnode = new ConditionNode(ctx,passedConditions);
+                //ProgramGraph cgraph = new ProgramGraph(cnode,cnode);
+                ProgramGraph defGraph = visitSwitchOptionStatSeq(ctx.defaultStat().switchOptionStatSeq());
+                pathGraphs.add(new ImmutablePair<>(null,defGraph));
+                for(ProgramGraph path: pathGraphsToExtend){
                     path.extendGraph(defGraph);
                 }
-                graph.insertGraph(cgraph);
             }else{
-                ConditionNode cnode = new ConditionNode(ctx,passedConditions);
-                ProgramGraph cgraph = new ProgramGraph(cnode,cnode);
-                graph.insertGraph(cgraph);
-                if(!pathGraphs.isEmpty()){
-                    graph.connectEnds(pathGraphs.get(pathGraphs.size()-1));
+                if(pathGraphs.isEmpty()){
+                    graph.connectStartEnd();
+                }else{
+                    BlankNode node= new BlankNode();
+                    pathGraphs.add(new ImmutablePair<>(null,new ProgramGraph(node,node)));
                 }
             }
-        } else{
-            ConditionNode cnode = new ConditionNode(ctx,passedConditions);
-            ProgramGraph cgraph = new ProgramGraph(cnode,cnode);
-            graph.insertGraph(cgraph);
-            if(!pathGraphs.isEmpty()){
-                graph.connectEnds(pathGraphs.get(pathGraphs.size()-1));
+        }else{
+            if(pathGraphs.isEmpty()){
+                graph.connectStartEnd();
+            }else{
+                BlankNode node= new BlankNode();
+                pathGraphs.add(new ImmutablePair<>(null,new ProgramGraph(node,node)));
             }
         }
 
+        results.forEach(res->{
+            ProgramGraph subPath;
+            Optional<String> fullCond = res.getFullCondition(currentProcess);
+            if(fullCond.isPresent()){
+                ConditionNode cnode = new ConditionNode(ctx, fullCond.get());
+                subPath = new ProgramGraph(cnode,cnode);
+                if(res.getDomain().isPresent()){
+                    subPath.insertDanglingNode(new ConditionNode(ctx,res.getDomain().get()));
+                }
+            }else{
+                BlankNode n = new BlankNode();
+                subPath = new ProgramGraph(n,n);
+            }
+            if(res.getDomain().isPresent()){
+                subPath.insertDanglingNode(new ConditionNode(ctx,res.getDomain().get()));
+            }
+            SymbolicExpression expr = res.getExpr();
+            ProgramGraph resPath = new ProgramGraph(new BlankNode(),new BlankNode());
+            for(Map.Entry<String,ProgramGraph> path: pathGraphs){
+                ArrayList<String> conditions = new ArrayList<>();
+                for(Map.Entry<String,ProgramGraph> prevPath: pathGraphs){
+                    if(prevPath.getKey()==null){
+                        break;
+                    }else if (prevPath.getKey().equals(path.getKey())){
+                        conditions.add(new BinaryExpression(
+                                BinaryOp.Eq,
+                                expr,
+                                new ConstantExpression(prevPath.getKey(),expr.exprType()),
+                                expr.exprType()
+                        ).toString(creator));
+                        break;
+                    }else{
+                        conditions.add(new UnaryExpression(
+                                UnaryOp.Neg,
+                                new BinaryExpression(
+                                        BinaryOp.Eq,
+                                        expr,
+                                        new ConstantExpression(prevPath.getKey(),expr.exprType()),
+                                        expr.exprType()),
+                                expr.exprType()
+                        ).toString(creator));
+                    }
+                }
+
+
+                String condition = creator.Conjunction(conditions);
+                ConditionNode cnode= new ConditionNode(ctx,condition);
+                ProgramGraph  conPath = new ProgramGraph(cnode,cnode);
+                if(!res.getState().equals(creator.PlaceHolder())){
+                    ExpressionNode expNode= new ExpressionNode(e,res.getState());
+                    conPath.extendGraph(expNode);
+                }
+                conPath.extendGraph(path.getValue());
+                resPath.insertGraph(conPath);
+            }
+            subPath.extendGraph(resPath);
+            graph.insertGraph(subPath);
+        });
         return graph;
     }
 
@@ -402,37 +519,57 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
     @Override
     public ProgramGraph visitExprSt(ReflexParser.ExprStContext ctx) {
         ReflexParser.ExpressionContext e=ctx.expression();
-        ExpressionVisitor vis = new ExpressionVisitor(mapper,currentProcess,creator.PlaceHolder(),creator);
-        ExprGenRes res = vis.visitExpression(e);
-        String newState = res.getState();
-        Formula domain = res.getDomain();
-        domain = domain.trim();
-
-
-        ProgramGraph graph;
-
-        if (!(domain instanceof TrueFormula)){
-            BlankNode bnode = new BlankNode();
-            graph = new ProgramGraph(bnode,bnode);
-            ConditionNode cnode = new ConditionNode(ctx.expression(),domain.toString(creator),true);
-            projection.put(ctx, cnode);
-            graph.insertDanglingGraph(new ProgramGraph(cnode,cnode));
-            if (!newState.equals(creator.PlaceHolder())){
-                ExpressionNode expNode = new ExpressionNode(ctx.expression(),newState);
-                graph.extendGraph(new ProgramGraph(expNode,expNode));
-            }
-            return graph;
+        ExpressionVisitor vis;
+        if(isSimpleExprVisitor){
+            vis = new ExpressionVisitor1(mapper,currentProcess,creator.PlaceHolder(),creator);
         }else{
-            if (!newState.equals(creator.PlaceHolder())){
-                ExpressionNode expNode = new ExpressionNode(ctx.expression(),newState);
-                projection.put(ctx, expNode);
-                graph = new ProgramGraph(expNode,expNode);
-            }else{
-                BlankNode bnode = new BlankNode();
-                graph = new ProgramGraph(bnode,bnode);
+            vis = new ExpressionVisitor2(mapper,currentProcess,creator.PlaceHolder(),creator);
+        }
+        List<ExprRes> results = vis.parseExpression(e);
+        ProgramGraph graph;
+        if(results.size()>1){
+            graph = new ProgramGraph(new BlankNode(),new BlankNode());
+            results.forEach(res->{
+                ProgramGraph g;
+                Optional<String> condition = res.getFullCondition(currentProcess);
+                if(condition.isPresent()){
+                    ConditionNode node = new ConditionNode(e,condition.get());
+                    g = new ProgramGraph(node,node);
+                    if (res.getDomain().isPresent()){
+                        g.insertDanglingNode(new ConditionNode(e,res.getDomain().get()));
+                    }
+                }else if (res.getDomain().isPresent()){
+                    BlankNode node =new BlankNode();
+                    g = new ProgramGraph(node,node);
+                    g.insertDanglingNode(new ConditionNode(e,res.getDomain().get()));
+                } else{
+                    g= new ProgramGraph(null,null);
+                }
+                if(!res.getState().equals(creator.PlaceHolder())){
+                    g.extendGraph(new ExpressionNode(e,res.getState()));
+                }
+                graph.insertGraph(g);
+            });
+        }else{
+            ExprRes res= results.get(0);
+            Optional<String> condition = res.getFullCondition(currentProcess);
+            if(condition.isPresent()){
+                ConditionNode node = new ConditionNode(e,condition.get());
+                graph = new ProgramGraph(node,node);
+                if (res.getDomain().isPresent()){
+                    graph.insertDanglingNode(new ConditionNode(e,res.getDomain().get()));
+                }
+            }else if (res.getDomain().isPresent()){
+                BlankNode node =new BlankNode();
+                graph = new ProgramGraph(node,node);
+                graph.insertDanglingNode(new ConditionNode(e,res.getDomain().get()));
+            } else{
+                graph= new ProgramGraph(null,null);
+            }
+            if(!res.getState().equals(creator.PlaceHolder())){
+                graph.extendGraph(new ExpressionNode(e,res.getState()));
             }
         }
-
         return graph;
     }
 

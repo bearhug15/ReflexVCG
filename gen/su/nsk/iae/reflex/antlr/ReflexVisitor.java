@@ -1,7 +1,6 @@
 // Generated from C:/Users/iarte/IdeaProjects/ReflexVCG/src/main/java/su/nsk/iae/reflex/antlr/Reflex.g4 by ANTLR 4.13.1
 package su.nsk.iae.reflex.antlr;
 import org.antlr.v4.runtime.tree.ParseTreeVisitor;
-
 import su.nsk.iae.reflex.antlr.ReflexParser;
 /**
  * This interface defines a complete generic visitor for a parse tree produced
@@ -394,14 +393,14 @@ public interface ReflexVisitor<T> extends ParseTreeVisitor<T> {
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitAdd(ReflexParser.AddContext ctx);
+	T visitAdd(su.nsk.iae.reflex.antlr.ReflexParser.AddContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code Shift}
 	 * labeled alternative in {@link ReflexParser#expression}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitShift(ReflexParser.ShiftContext ctx);
+	T visitShift(su.nsk.iae.reflex.antlr.ReflexParser.ShiftContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code BitOr}
 	 * labeled alternative in {@link ReflexParser#expression}.

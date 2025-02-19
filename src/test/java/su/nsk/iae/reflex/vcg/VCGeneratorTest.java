@@ -3,14 +3,279 @@ package su.nsk.iae.reflex.vcg;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.nio.Attribute;
+import org.jgrapht.nio.DefaultAttribute;
+import org.jgrapht.nio.dot.DOTExporter;
 import org.junit.jupiter.api.Test;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
 import su.nsk.iae.reflex.antlr.ReflexLexer;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 
+import java.io.StringWriter;
+import java.io.Writer;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 class VCGeneratorTest {
+    @Test
+    void ifTest1(){
+        CharStream inputStream = CharStreams.fromString("program ifTest {\n" +
+                "\tclock 100;\n" +
+                "\tbool var1 = inp[1];\n" +
+                "\tbool var2 = inp[2];\n" +
+                "\t\n" +
+                "\tprocess Init {\n" +
+                "\t\tstate begin {\n" +
+                "\t\t\tif (var1 == true){\n" +
+                "\t\t\t\tvar1 = false;\n" +
+                "\t\t\t\tvar2 = false;\n" +
+                "\t\t\t}"+
+                "\t\t}\n" +
+                "\t}\n" +
+                "\t\n" +
+                "}");
+        try {
+            ReflexLexer lexer = new ReflexLexer(inputStream);
+            CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+            ReflexParser parser = new ReflexParser(tokenStream);
+            ReflexParser.ProgramContext context = parser.program();
 
+            VCGenerator2 gen = new VCGenerator2(context,false);
+
+            DOTExporter<IReflexNode, DefaultEdge> exporter =
+                    new DOTExporter<>();
+            exporter.setVertexAttributeProvider((v) -> {
+                Map<String, Attribute> map = new LinkedHashMap<>();
+                map.put("label", DefaultAttribute.createAttribute(v.toString().replace("\\<and>","\n\\<and>")));
+                return map;
+            });
+            Writer writer = new StringWriter();
+            exporter.exportGraph(gen.graph, writer);
+            System.out.println(writer.toString());//*/
+
+            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            System.out.println("VC conditions generated: " + gen.VCGenerated());
+
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+    }
+    @Test
+    void ifTest2(){
+        CharStream inputStream = CharStreams.fromString("program ifTest {\n" +
+                "\tclock 100;\n" +
+                "\tint8 var1 = inp[1];\n" +
+                "\tbool var2 = inp[2];\n" +
+                "\t\n" +
+                "\tprocess Init {\n" +
+                "\t\tstate begin {\n" +
+                "\t\t\tif (var1/2>0){\n" +
+                "\t\t\t\tvar1 = 0;\n" +
+                "\t\t\t\tvar2 = false;\n" +
+                "\t\t\t}"+
+                "\t\t}\n" +
+                "\t}\n" +
+                "\t\n" +
+                "}");
+        try {
+            ReflexLexer lexer = new ReflexLexer(inputStream);
+            CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+            ReflexParser parser = new ReflexParser(tokenStream);
+            ReflexParser.ProgramContext context = parser.program();
+
+            VCGenerator2 gen = new VCGenerator2(context,false);
+
+            DOTExporter<IReflexNode, DefaultEdge> exporter =
+                    new DOTExporter<>();
+            exporter.setVertexAttributeProvider((v) -> {
+                Map<String, Attribute> map = new LinkedHashMap<>();
+                map.put("label", DefaultAttribute.createAttribute(v.toString().replace("\\<and>","\n\\<and>")));
+                return map;
+            });
+            Writer writer = new StringWriter();
+            exporter.exportGraph(gen.graph, writer);
+            System.out.println(writer.toString());//*/
+
+            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            System.out.println("VC conditions generated: " + gen.VCGenerated());
+
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void ifTest3(){
+        CharStream inputStream = CharStreams.fromString("program ifTest {\n" +
+                "\tclock 100;\n" +
+                "\tint8 var1 = inp[1];\n" +
+                "\tbool var2 = inp[2];\n" +
+                "\t\n" +
+                "\tprocess Init {\n" +
+                "\t\tstate begin {\n" +
+                "\t\t\tif (var1>0 && var2){\n" +
+                "\t\t\t\tvar1 = 0;\n" +
+                "\t\t\t\tvar2 = false;\n" +
+                "\t\t\t}"+
+                "\t\t}\n" +
+                "\t}\n" +
+                "\t\n" +
+                "}");
+        try {
+            ReflexLexer lexer = new ReflexLexer(inputStream);
+            CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+            ReflexParser parser = new ReflexParser(tokenStream);
+            ReflexParser.ProgramContext context = parser.program();
+
+            VCGenerator2 gen = new VCGenerator2(context,false);
+
+            DOTExporter<IReflexNode, DefaultEdge> exporter =
+                    new DOTExporter<>();
+            exporter.setVertexAttributeProvider((v) -> {
+                Map<String, Attribute> map = new LinkedHashMap<>();
+                map.put("label", DefaultAttribute.createAttribute(v.toString().replace("\\<and>","\n\\<and>")));
+                return map;
+            });
+            Writer writer = new StringWriter();
+            exporter.exportGraph(gen.graph, writer);
+            System.out.println(writer.toString());//*/
+
+            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            System.out.println("VC conditions generated: " + gen.VCGenerated());
+
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+    }
+    @Test
+    void switchTest1(){
+        CharStream inputStream = CharStreams.fromString("program ifTest {\n" +
+                "\tclock 100;\n" +
+                "\tint8 var1 = inp[1];\n" +
+                "\tbool var2 = inp[2];\n" +
+                "\t\n" +
+                "\tprocess Init {\n" +
+                "\t\tstate begin {\n" +
+                "\t\t\tswitch (var1){\n" +
+                "\t\t\t\tcase 0 :{var1 = 0;}\n" +
+                "\t\t\t\tcase 1 :{var2 = false;}\n" +
+                "\t\t\t}"+
+                "\t\t}\n" +
+                "\t}\n" +
+                "\t\n" +
+                "}");
+        try {
+            ReflexLexer lexer = new ReflexLexer(inputStream);
+            CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+            ReflexParser parser = new ReflexParser(tokenStream);
+            ReflexParser.ProgramContext context = parser.program();
+
+            VCGenerator2 gen = new VCGenerator2(context,false);
+
+            DOTExporter<IReflexNode, DefaultEdge> exporter =
+                    new DOTExporter<>();
+            exporter.setVertexAttributeProvider((v) -> {
+                Map<String, Attribute> map = new LinkedHashMap<>();
+                map.put("label", DefaultAttribute.createAttribute(v.toString().replace("\\<and>","\n\\<and>")));
+                return map;
+            });
+            Writer writer = new StringWriter();
+            exporter.exportGraph(gen.graph, writer);
+            System.out.println(writer.toString());//*/
+
+            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            System.out.println("VC conditions generated: " + gen.VCGenerated());
+
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+    }
+    @Test
+    void switchTest2(){
+        CharStream inputStream = CharStreams.fromString("program ifTest {\n" +
+                "\tclock 100;\n" +
+                "\tint8 var1 = inp[1];\n" +
+                "\tbool var2 = inp[2];\n" +
+                "\t\n" +
+                "\tprocess Init {\n" +
+                "\t\tstate begin {\n" +
+                "\t\t\tswitch (var1){\n" +
+                "\t\t\t\tcase 0 :{var1 = 0;}\n" +
+                "\t\t\t\tcase 1 :{var2 = false;break;}\n" +
+                "\t\t\t\tcase 2 :{var1 = 2;}\n" +
+                "\t\t\t\tdefault :{var2 = true;}\n" +
+                "\t\t\t}"+
+                "\t\t}\n" +
+                "\t}\n" +
+                "\t\n" +
+                "}");
+        try {
+            ReflexLexer lexer = new ReflexLexer(inputStream);
+            CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+            ReflexParser parser = new ReflexParser(tokenStream);
+            ReflexParser.ProgramContext context = parser.program();
+
+            VCGenerator2 gen = new VCGenerator2(context,false);
+
+            DOTExporter<IReflexNode, DefaultEdge> exporter =
+                    new DOTExporter<>();
+            exporter.setVertexAttributeProvider((v) -> {
+                Map<String, Attribute> map = new LinkedHashMap<>();
+                map.put("label", DefaultAttribute.createAttribute(v.toString().replace("\\<and>","\n\\<and>")));
+                return map;
+            });
+            Writer writer = new StringWriter();
+            exporter.exportGraph(gen.graph, writer);
+            System.out.println(writer.toString());//*/
+
+            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            System.out.println("VC conditions generated: " + gen.VCGenerated());
+
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void exprTest(){
+        CharStream inputStream = CharStreams.fromString("program p1{\n" +
+                "clock 100;\n" +
+                "int8 var=0;\n" +
+                "\n" +
+                "    process p1{\n" +
+                "        state s1{\n" +
+                "        var = var+++var;\n" +
+                "        }\n" +
+                "    }\n" +
+                "}");
+        try {
+            ReflexLexer lexer = new ReflexLexer(inputStream);
+            CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+            ReflexParser parser = new ReflexParser(tokenStream);
+            ReflexParser.ProgramContext context = parser.program();
+
+            VCGenerator2 gen = new VCGenerator2(context,false);
+
+            DOTExporter<IReflexNode, DefaultEdge> exporter =
+                    new DOTExporter<>();
+            exporter.setVertexAttributeProvider((v) -> {
+                Map<String, Attribute> map = new LinkedHashMap<>();
+                map.put("label", DefaultAttribute.createAttribute(v.toString().replace("\\<and>","\n\\<and>")));
+                return map;
+            });
+            Writer writer = new StringWriter();
+            exporter.exportGraph(gen.graph, writer);
+            System.out.println(writer.toString());//*/
+
+            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            System.out.println("VC conditions generated: " + gen.VCGenerated());
+
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+    }
     /*@Test
     void escalator(){
         CharStream inputStream = CharStreams.fromString("program Escalator{\n" +
@@ -434,7 +699,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context);
+            VCGenerator2 gen = new VCGenerator2(context,true);
 
             /*DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -539,7 +804,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context);
+            VCGenerator2 gen = new VCGenerator2(context,true);
 
             /*DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -686,13 +951,13 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context);
+            VCGenerator2 gen = new VCGenerator2(context,false);
 
-            /*DOTExporter<IReflexNode, DefaultEdge> exporter =
+            DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
             exporter.setVertexAttributeProvider((v) -> {
                 Map<String, Attribute> map = new LinkedHashMap<>();
-                map.put("label", DefaultAttribute.createAttribute(v.toString()));
+                map.put("label", DefaultAttribute.createAttribute(v.toString().replace("\\<and>","\n\\<and>")));
                 return map;
             });
             Writer writer = new StringWriter();

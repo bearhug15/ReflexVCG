@@ -71,4 +71,9 @@ public class BinaryExpression implements SymbolicExpression{
     public SymbolicExpression innerExp() {
         return this;
     }
+
+    @Override
+    public SymbolicExpression clone() {
+        return new BinaryExpression(op,leftExp.clone(),rightExp.clone(),type);
+    }
 }

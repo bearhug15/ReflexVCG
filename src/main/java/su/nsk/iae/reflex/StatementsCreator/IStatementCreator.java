@@ -29,7 +29,6 @@ public interface IStatementCreator {
      String TimeoutExceed(String stateHolder, String condition, String processName);
      String TimeoutLose(String stateHolder, String condition, String processName);
 
-<<<<<<< HEAD
      String True();
      String False();
      String BinaryExpression(String left, String right, BinaryOp op);
@@ -37,15 +36,6 @@ public interface IStatementCreator {
      String CastExpression(String exp, ExprType type);
      String Invariant(String state);
      String EmptyState();
-=======
-     String createTrue();
-     String createFalse();
-     String createBinaryExpression(String left, String right, BinaryOp op);
-     String createUnaryExpression(String exp, ExprType type, UnaryOp op);
-     String createCastExpression(String exp, ExprType type);
-     String createInvariant(String state);
-     String createEmptyState();
->>>>>>> 88a1068e3410f8636250832f5ed3206caf7ea7c7
 
      String Setter(ExprType type, String stateHolder, String variable, String value);
      String Getter(ExprType type, String stateHolder, String variable);

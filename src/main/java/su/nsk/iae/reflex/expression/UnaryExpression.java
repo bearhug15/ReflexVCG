@@ -48,4 +48,9 @@ public class UnaryExpression implements SymbolicExpression{
     public SymbolicExpression innerExp() {
         return exp;
     }
+
+    @Override
+    public SymbolicExpression clone() {
+        return new UnaryExpression(op,exp.clone(),type);
+    }
 }

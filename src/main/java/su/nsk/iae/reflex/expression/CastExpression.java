@@ -8,7 +8,7 @@ public class CastExpression implements SymbolicExpression{
     ExprType type;
     SymbolicExpression expr;
 
-    public CastExpression(ExprType type, SymbolicExpression expr) {
+    public CastExpression(SymbolicExpression expr, ExprType type) {
         this.type = type;
         this.expr = expr;
     }
@@ -36,6 +36,11 @@ public class CastExpression implements SymbolicExpression{
     @Override
     public SymbolicExpression innerExp() {
         return expr;
+    }
+
+    @Override
+    public SymbolicExpression clone() {
+        return new CastExpression(expr.clone(), type);
     }
 
     @Override

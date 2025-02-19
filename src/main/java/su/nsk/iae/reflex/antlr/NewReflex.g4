@@ -1,4 +1,4 @@
-grammar Reflex;
+grammar NewReflex;
 program:
     ('[' annotations+=annotation']')*
     'program' name=ID '{'
@@ -21,8 +21,12 @@ state:
     ('[' annotations+=annotation']')*
     'state' name=ID looped='looped'? '{'
     stateFunction=statementSeq
+    (lightweightStates+=lightweightState)*
     (func=timeoutFunction)?
     '}';
+
+lightweightState:
+   guardingStatement statementSeq;
 
 annotation: key=annotationKey ':' value=STRING | key = annotationKey;
 annotationKey: ID '.' ID | ID;
@@ -32,6 +36,7 @@ globalVariable: (physicalVariable | programVariable) ';';
 physicalVariable: varType=type name=ID '=' mapping=portMapping;
 portMapping: portId=ID '[' (bit=UNSIGNED_INTEGER)? ']';
 programVariable: varType=type name=ID ('=' expression)?;
+
 timeoutFunction:'timeout' (timeAmountOrRef | '(' timeAmountOrRef ')') body=statement;
 timeAmountOrRef: time=TIME | intTime=UNSIGNED_INTEGER | ref=ID;
 functionDecl: returnType=type '(' argTypes+=type (',' argTypes+=type)*')';
@@ -40,6 +45,13 @@ PORT_TYPE: 'input' | 'output';
 const: 'const' varType=type  name=ID '=' value=expression ';';
 enum: 'enum' identifier=ID '{' enumMembers+=enumMember (',' enumMembers+=enumMember) '}';
 enumMember: name=ID ('=' value=expression)?;
+
+guardingStatement:
+    'wait''('expression ')'';'          #Wait
+    | 'slice'';'                        #Slice
+    | 'transition''(' expression')'';'  #Transition
+    ;
+
 statement:
     ';' # EmptySt
     | compoundStatement    #CompoundSt
@@ -70,11 +82,11 @@ setStateStat: 'set' ('next' 'state' | 'state' stateId=ID);
 functionCall: functionID=ID '(' (args+=expression (',' args+=expression)*) ')';
 checkStateExpression: 'process' processId=ID 'in' 'state' stateId=ID;
 STATE_QUAL:'active'|'inactive'|'stop'|'error';
-infixOp: op=INFIX_POSTFIX_OP varId=ID;
-postfixOp: varId=ID op=INFIX_POSTFIX_OP;
+infixOp: op=INFIX_POSTFIX_OP variable;
+postfixOp: variable op=INFIX_POSTFIX_OP;
 primaryExpression:
-    ID                      #Id
-    | (INTEGER | UNSIGNED_INTEGER) #Integer
+    variable                #Id
+    | integer #IntegerVal
     | FLOAT                 #Float
     | BOOL_VAL              #Bool
     | TIME                  #Time
@@ -90,12 +102,12 @@ unaryExpression:
 
 
 expression:
-    unaryExpression                            #Unary
+unaryExpression                            #Unary
+    | checkStateExpression                    #CheckState
     | '(' varType=type ')' expression           #Cast
     | expression op=MUL_OP expression        #Mul
     | expression op=addOp expression        #Add
     | expression op=SHIFT_OP expression    #Shift
-    | checkStateExpression                    #CheckState
     | expression op=COMP_OP expression      #Compare
     | expression op=EQ_OP expression          #Equal
     | expression BIT_AND_OP expression          #BitAnd
@@ -103,9 +115,9 @@ expression:
     | expression BIT_OR_OP expression           #BitOr
     | expression AND_OP expression              #And
     | expression OR_OP  expression              #Or
-    | ID assignOp expression                   #Assign
+    | variable assignOp expression              #Assign
     ;
-
+variable: varId=ID ('['idx=expression']')?;
 INFIX_POSTFIX_OP: '++' | '--';
 unaryOp: '+' | '-' | '~' | '!';
 MUL_OP: '*' | '/' | '%';
@@ -131,7 +143,8 @@ type:
     | 'int32' | 'uint32'
     | 'int64' | 'uint64'
     ;
-INTEGER: ('+' | '-') UNSIGNED_INTEGER;
+ID: [a-zA-Z]+ [a-zA-Z0-9_]*;
+integer: (sign='+' | sign='-')? UNSIGNED_INTEGER;
 UNSIGNED_INTEGER: (HEX | OCTAL | DECIMAL) LONG? UNSIGNED?;
 
 FLOAT: ('+' | '-')? (DEC_FLOAT | HEX_FLOAT);
@@ -158,4 +171,3 @@ MILISECOND: 'MS' | 'ms';
 BOOL_VAL: 'true' | 'false';
 STRING: '"'[a-zA-Z0-9 ]*'"';
 WS: [ \t\r\n\u000C]+ -> skip;
-ID: [a-zA-Z]+ [a-zA-Z0-9_]*;

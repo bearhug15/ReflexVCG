@@ -74,15 +74,43 @@ public class ProgramGraph extends DefaultDirectedGraph<IReflexNode, DefaultEdge>
             this.endNode = graph.endNode;
         }
     }
+    public void extendGraph(IReflexNode node){
+        if(node==null){
+            return;
+        }
+        this.addVertex(node);
+        if(this.startNode!=null) {
+            this.addEdge(endNode, node);
+            this.endNode.incNumOfNextNodes(1);
+            this.endNode = node;
+        } else{
+            this.startNode = node;
+            this.endNode = node;
+        }
+    }
     public void insertDanglingGraph(ProgramGraph graph){
         if(graph.startNode==null){
             return;
         }
-        Graphs.addGraph(this,graph);
         if(this.startNode!=null) {
+            Graphs.addGraph(this,graph);
             this.addEdge(startNode, graph.startNode);
             this.startNode.incNumOfNextNodes(1);
             graph.startNode.setBranchNum(branchNum);
+            branchNum++;
+        }
+    }
+    public void insertDanglingNode(IReflexNode node){
+        if(node==null){
+            return;
+        }
+        //this.addVertex(node)
+        //Graphs.addGraph(this,graph);
+        if(this.startNode!=null) {
+            this.addVertex(node);
+            this.addEdge(startNode, node);
+            this.startNode.incNumOfNextNodes(1);
+            node.setBranchNum(branchNum);
             branchNum++;
         }
     }

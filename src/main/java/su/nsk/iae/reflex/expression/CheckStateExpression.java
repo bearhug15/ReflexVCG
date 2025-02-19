@@ -41,6 +41,11 @@ public class CheckStateExpression implements SymbolicExpression{
     }
 
     @Override
+    public SymbolicExpression clone() {
+        return new CheckStateExpression(process,processState,state);
+    }
+
+    @Override
     public String toString(IStatementCreator creator){
         if (processState.equals("inactive"))
             return creator.BinaryExpression(

@@ -23,14 +23,7 @@ public class ASTGraphProjection {
         }
     }
 
-    public static class ValueParser {
-
-        /*public static String constructGetter(ExprType type, String state,String variable){
-            return "("+type.takeGetter()+" "+state+" ''"+variable+"'')";
-        }
-        public static String constructSetter(ExprType type, String state,String variable,String value){
-            return "("+type.takeSetter()+" "+state+" ''"+variable+"'' "+value+")";
-        }*/
+    /*public static class ValueParser {
 
         public static String parseInteger(String value){
             value=value.replace("L","");
@@ -122,5 +115,5 @@ public class ASTGraphProjection {
 
             return String.valueOf(res);
         }
-    }
+    }*/
 }

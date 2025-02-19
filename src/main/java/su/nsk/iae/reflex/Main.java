@@ -47,7 +47,7 @@ public class Main {
         ReflexParser.ProgramContext context = parser.program();
         System.out.println("Completed program parsing. Starting program analysis.");
 
-        VCGenerator2 generator = new VCGenerator2(context);
+        VCGenerator2 generator = new VCGenerator2(context,false);
         generator.generateVC(sourcePath,destPath);
 
         //VCGenerator generator = new VCGenerator();

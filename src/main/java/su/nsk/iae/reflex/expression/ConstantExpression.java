@@ -35,6 +35,11 @@ public class ConstantExpression implements SymbolicExpression{
         return this;
     }
 
+    @Override
+    public SymbolicExpression clone() {
+        return new ConstantExpression(value,type);
+    }
+
     public String toString(IStatementCreator creator){
         return value;
     }

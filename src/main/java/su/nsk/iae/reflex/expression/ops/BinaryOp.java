@@ -3,6 +3,8 @@ package su.nsk.iae.reflex.expression.ops;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.expression.types.ExprType;
 
+import java.util.Optional;
+
 public enum BinaryOp {
     Sum("+"),Sub("-"),Mul("*"),Div("/"),Mod("mod"),
     BitAnd("bit&"),BitOr("bit|"),BitXor("bit\\<oplus>"),BitRShift(">>"),BitLShift("<<"),
@@ -47,5 +49,14 @@ public enum BinaryOp {
     public static BinaryOp getAssignSubOp(String op){
 
         return defineOp(op.replace("=",""));
+    }
+    public boolean applyToBoolean(boolean left, boolean right){
+        return switch(this){
+            case And -> left&& right;
+            case Or -> left||right;
+            case Eq -> left==right;
+            case NotEq -> left!=right;
+            default -> throw new RuntimeException("Trying to apply non logical operation to boolean arguments");
+        };
     }
 }

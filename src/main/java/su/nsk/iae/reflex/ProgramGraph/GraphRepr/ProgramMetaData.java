@@ -3,6 +3,8 @@ package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
 
 
 import org.antlr.v4.runtime.misc.Pair;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ExpressionVisitor.ExprGenRes1;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ExpressionVisitor.ExpressionVisitor1;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 import su.nsk.iae.reflex.expression.types.ExprType;
@@ -80,8 +82,8 @@ public class ProgramMetaData {
                 String variableName = programVariable.name.getText();
                 String processName = ctx.processes.get(0).name.getText();
                 if(programVariable.expression()!=null){
-                    ExpressionVisitor vis = new ExpressionVisitor(mapper,processName,state,creator);
-                    ExprGenRes res = vis.visitExpression(programVariable.expression());
+                    ExpressionVisitor1 vis = new ExpressionVisitor1(mapper,processName,state,creator);
+                    ExprGenRes1 res = vis.visitExpression(programVariable.expression());
                     ExprType ty = mapper.variableType(processName,variableName);
                     state = creator.Setter(ty,state,mapper.mapVariable(processName,variableName),res.getExpr().toString(creator));
                     //state = StringUtils.constructSetter();
@@ -103,9 +105,9 @@ public class ProgramMetaData {
         ReflexParser.ClockDefinitionContext clockCtx = ctx.clock;
         String value;
         if (clockCtx.intValue != null){
-            value = ASTGraphProjection.ValueParser.parseInteger(clockCtx.intValue.getText());
+            value = ValueParser.parseInteger(clockCtx.intValue.getText());
         } else{
-            value = ASTGraphProjection.ValueParser.parseTime(clockCtx.timeValue.getText());
+            value = ValueParser.parseTime(clockCtx.timeValue.getText());
         }
         this.setClockValue(value);
 
@@ -121,8 +123,8 @@ public class ProgramMetaData {
         int idx = IntStream.range(0,process.b.size())
                 .filter(i -> process.b.get(i).equals(stateName))
                 .toArray()[0];
-        if (process.b.size()<=idx){
-            throw new RuntimeException("Trying to gen next state for last state");
+        if (process.b.size()<=idx+1){
+            throw new RuntimeException("Trying to get next state for last state");
         }
         return process.b.get(idx+1);
     }
@@ -229,8 +231,8 @@ public class ProgramMetaData {
                 ReflexParser.ProgramVariableContext programVariable = variable.programVariable();
                 String variableName = programVariable.name.getText();
                 if(programVariable.expression()!=null){
-                    ExpressionVisitor vis = new ExpressionVisitor(mapper,processName,state,creator);
-                    ExprGenRes res = vis.visitExpression(programVariable.expression());
+                    ExpressionVisitor1 vis = new ExpressionVisitor1(mapper,processName,state,creator);
+                    ExprGenRes1 res = vis.visitExpression(programVariable.expression());
                     ExprType ty = mapper.variableType(processName,variableName);
                     state = creator.Setter(ty,state,mapper.mapVariable(processName,variableName),res.getExpr().toString(creator));
                     //state = StringUtils.constructSetter(ty,state,mapper.mapVariable(processName,variableName),res.getExpr().toString());

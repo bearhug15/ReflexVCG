@@ -2,8 +2,8 @@ package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
 
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.misc.Pair;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ExprGenRes;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ExpressionVisitor;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ExpressionVisitor.ExprGenRes1;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ExpressionVisitor.ExpressionVisitor1;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 import su.nsk.iae.reflex.expression.types.ExprType;
@@ -52,8 +52,8 @@ public class VariableMapper {
             }
         }
         for (ReflexParser.ConstContext con: ctx.consts){
-            ExpressionVisitor vis = new ExpressionVisitor(this,"_",stateName(stateCount),creator);
-            ExprGenRes res = vis.visitExpression(con.expression());
+            ExpressionVisitor1 vis = new ExpressionVisitor1(this,"_",stateName(stateCount),creator);
+            ExprGenRes1 res = vis.visitExpression(con.expression());
             this.addConstant(
                     con.name.getText(),
                     res.getExpr().toString(creator),

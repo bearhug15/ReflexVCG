@@ -121,13 +121,13 @@ public class IsabelleCreator implements IStatementCreator {
 
     @Override
     public String TimeoutExceed(String stateHolder, String condition, String processName) {
-        return "(ltime "+stateHolder+" "+IString(processName)+" "+getBiOp(BinaryOp.MoreEq)+" "+condition+")";
+        return "(ltime "+stateHolder+" "+IString(processName)+" "+ getBinOp(BinaryOp.MoreEq)+" "+condition+")";
 
     }
 
     @Override
     public String TimeoutLose(String stateHolder, String condition, String processName) {
-        return "(ltime "+stateHolder+" "+IString(processName)+" "+getBiOp(BinaryOp.Less)+" "+condition+")";
+        return "(ltime "+stateHolder+" "+IString(processName)+" "+ getBinOp(BinaryOp.Less)+" "+condition+")";
     }
 
     @Override
@@ -142,15 +142,12 @@ public class IsabelleCreator implements IStatementCreator {
 
     @Override
     public String BinaryExpression(String left, String right, BinaryOp op) {
-        return "("+left+getBiOp(op)+right+")";
+        return "("+left+" "+ getBinOp(op)+" "+right+")";
     }
 
     @Override
-<<<<<<< HEAD
     public String UnaryExpression(String exp, ExprType type, UnaryOp op) {
-=======
-    public String createUnaryExpression(String exp,ExprType type, UnaryOp op) {
->>>>>>> 88a1068e3410f8636250832f5ed3206caf7ea7c7
+
         String res = switch(op){
             case Neg -> "\\<not>";
             case Plus -> "+";
@@ -180,12 +177,12 @@ public class IsabelleCreator implements IStatementCreator {
 
     @Override
     public String PstateSetter(String stateHolder, String processName, String stateName) {
-        return "setPstate" + stateHolder +" "+IString(processName)+" "+IString(stateName);
+        return "setPstate " + stateHolder +" "+IString(processName)+" "+IString(stateName);
     }
 
     @Override
     public String PstateGetter(String stateHolder, String processName) {
-        return "getPstate" + stateHolder +" "+IString(processName);
+        return "getPstate " + stateHolder +" "+IString(processName);
     }
 
     public String Getter(ExprType type, String state, String variableName){
@@ -199,7 +196,7 @@ public class IsabelleCreator implements IStatementCreator {
         return "st"+stateNumber;
     }
 
-    public String getBiOp(BinaryOp op){
+    public String getBinOp(BinaryOp op){
         return switch (op){
             case Sum ->"+";
             case Sub -> "-";
@@ -262,14 +259,14 @@ public class IsabelleCreator implements IStatementCreator {
     @Override
     public String Conjunction(List<String> args) {
         StringJoiner sj = new StringJoiner(" \\<and> ");
-        args.forEach(sj::add);
+        args.forEach(arg->{if(arg!=null&&!arg.isEmpty())sj.add(arg);});
         return sj.toString();
     }
 
     @Override
     public String Disjunction(List<String> args) {
         StringJoiner sj = new StringJoiner(" \\<or> ");
-        args.forEach(sj::add);
+        args.forEach(arg->{if(arg!=null&&!arg.isEmpty())sj.add(arg);});
         return sj.toString();
     }
 

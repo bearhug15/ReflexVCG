@@ -8,10 +8,10 @@ public class VariableExpression implements SymbolicExpression{
     ExprType type;
     boolean isMarked;
 
-    public VariableExpression(String variable, ExprType type, boolean is_marked){
+    public VariableExpression(String variable, ExprType type, boolean isMarked){
         this.variable = variable;
         this.type = type;
-        this.isMarked = is_marked;
+        this.isMarked = isMarked;
     }
 
     public String toString(IStatementCreator creator){
@@ -40,6 +40,11 @@ public class VariableExpression implements SymbolicExpression{
     @Override
     public SymbolicExpression innerExp() {
         return this;
+    }
+
+    @Override
+    public SymbolicExpression clone() {
+        return new VariableExpression(variable,type,isMarked);
     }
 
     @Override
