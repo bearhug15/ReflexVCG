@@ -8,7 +8,8 @@ program:
      | functions+=functionDecl
      | globalVars+=globalVariable
      | ports+=port
-     | processes+=process)*
+     | processes+=process
+     | structures+=structDeclaration)*
      '}' EOF;
 clockDefinition: 'clock' (intValue=UNSIGNED_INTEGER | timeValue=TIME) ';';
 process:
@@ -36,7 +37,7 @@ globalVariable: (physicalVariable | programVariable) ';';
 physicalVariable: varType=type name=ID '=' mapping=portMapping;
 portMapping: portId=ID '[' (bit=UNSIGNED_INTEGER)? ']';
 programVariable: varType=type name=ID ('=' expression)?;
-
+structDeclaration: 'struct' name=ID '{'(variables+=programVariable)+ '}';
 timeoutFunction:'timeout' (timeAmountOrRef | '(' timeAmountOrRef ')') body=statement;
 timeAmountOrRef: time=TIME | intTime=UNSIGNED_INTEGER | ref=ID;
 functionDecl: returnType=type '(' argTypes+=type (',' argTypes+=type)*')';
@@ -117,7 +118,9 @@ unaryExpression                            #Unary
     | expression OR_OP  expression              #Or
     | variable assignOp expression              #Assign
     ;
-variable: varId=ID ('['idx=expression']')?;
+variable:
+    (varId=ID ('['idx=expression']')?)
+    | varId=ID '.' varId=ID;
 INFIX_POSTFIX_OP: '++' | '--';
 unaryOp: '+' | '-' | '~' | '!';
 MUL_OP: '*' | '/' | '%';
