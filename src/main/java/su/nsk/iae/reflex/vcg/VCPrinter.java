@@ -140,7 +140,6 @@ public class VCPrinter {
             throw new RuntimeException(e);
         }
     }
-
     public void printBaseVCInDir(){
         if (!isGlobalTheory){
             createGlobalTheory();
@@ -227,6 +226,23 @@ public class VCPrinter {
             writer.write(theory.toString());
             writer.close();
             lemmasPrinted++;
+        }catch(Exception e){
+            throw new RuntimeException(e);
+        }
+    }
+    public void printGraph(String graph){
+        String dirName = destination.getFileName().toString();
+        String fileName;
+        if (sourceName==null) {
+            fileName = dirName.split("\\.")[0];
+        }else{
+            fileName = sourceName.split("\\.")[0];
+        }
+        fileName = fileName + "_" + "program_graph.gv";
+        try {
+            FileWriter writer = new FileWriter(new File(destination.toString() + "/" + fileName), StandardCharsets.UTF_8);
+            writer.write(graph);
+            writer.close();
         }catch(Exception e){
             throw new RuntimeException(e);
         }

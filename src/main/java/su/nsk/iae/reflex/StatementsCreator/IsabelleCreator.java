@@ -12,6 +12,12 @@ import java.util.StringJoiner;
 
 public class IsabelleCreator implements IStatementCreator {
     ProgramMetaData metaData;
+    int conditionCounter=0;
+
+    public void setConditionCounter(int conditionCounter) {
+        this.conditionCounter = conditionCounter;
+    }
+
     public IsabelleCreator(){}
 
     @Override
@@ -31,7 +37,8 @@ public class IsabelleCreator implements IStatementCreator {
     @Override
     public String ConditionStatement(int stateNumber, String value) {
         String res = value.replace(PlaceHolder(),createStateName(stateNumber));
-        res = createStateName(stateNumber)+"_condition:"+"\""+res+"\"";
+        res = createStateName(stateNumber)+"_condition_"+conditionCounter+":"+"\""+res+"\"";
+        conditionCounter++;
         return res;
     }
 

@@ -19,6 +19,8 @@ public class Main {
         Options options = new Options();
         options.addOption("s","source",true,"");
         options.addOption("o","output",true,"");
+        options.addOption("e","expr",true,"");
+        options.addOption("g","graph",true,"");
 
         CommandLineParser commandLineParser = new DefaultParser();
         CommandLine commandLine = commandLineParser.parse(options,args);
@@ -46,8 +48,34 @@ public class Main {
         ReflexParser parser = new ReflexParser(tokenStream);
         ReflexParser.ProgramContext context = parser.program();
         System.out.println("Completed program parsing. Starting program analysis.");
+        VCGenerator2 generator;
 
-        VCGenerator2 generator = new VCGenerator2(context,false);
+
+        boolean isSimpleExp;
+        String expressionKind = commandLine.getOptionValue("e");
+        if(expressionKind==null){
+            isSimpleExp = false;
+        }else if(expressionKind.equals("regular")){
+            isSimpleExp = false;
+        }else if(expressionKind.equals("simple")){
+            isSimpleExp = true;
+        }else{
+            throw new RuntimeException("Unknown argument for expression processing type");
+        }
+
+        boolean exportGraph;
+        String exportG = commandLine.getOptionValue("g");
+        if(exportG==null){
+            exportGraph = false;
+        }else if(exportG.equals("false")){
+            exportGraph = false;
+        }else if(exportG.equals("true")){
+            exportGraph = true;
+        }else{
+            throw new RuntimeException("Unknown argument for graph export");
+        }
+
+        generator = new VCGenerator2(context,isSimpleExp,exportGraph);
         generator.generateVC(sourcePath,destPath);
 
         //VCGenerator generator = new VCGenerator();

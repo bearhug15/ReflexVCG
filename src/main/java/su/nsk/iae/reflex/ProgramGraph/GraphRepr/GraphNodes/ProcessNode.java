@@ -29,11 +29,12 @@ public class ProcessNode implements IReflexNode{
 
     @Override
     public ArrayList<String> createStatements(IStatementCreator creator, int stateNumber) {
-        if(opener){
+        return new ArrayList<>();
+        /*if(opener){
             return new ArrayList<>();
         }else{
             return new ArrayList<>(List.of(""));
-        }
+        }*/
 
     }
 

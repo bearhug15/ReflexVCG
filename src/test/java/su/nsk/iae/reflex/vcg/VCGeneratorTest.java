@@ -42,7 +42,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false);
+            VCGenerator2 gen = new VCGenerator2(context,false,false);
 
             DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -85,7 +85,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false);
+            VCGenerator2 gen = new VCGenerator2(context,false,false);
 
             DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -129,7 +129,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false);
+            VCGenerator2 gen = new VCGenerator2(context,false,false);
 
             DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -172,7 +172,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false);
+            VCGenerator2 gen = new VCGenerator2(context,false,false);
 
             DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -217,7 +217,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false);
+            VCGenerator2 gen = new VCGenerator2(context,false,false);
 
             DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -256,7 +256,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false);
+            VCGenerator2 gen = new VCGenerator2(context,false,false);
 
             DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -578,14 +578,14 @@ class VCGeneratorTest {
                 "\tinput inp 0x00 0x00 8;\n" +
                 "\toutput out 0x00 0x01 8;\n" +
                 "\t\n" +
-                "\tbool userAtTop = inp[1];\n" +
-                "\tbool userAtBottom = inp[2];\n" +
-                "\tbool directionSwitch = inp[3];\n" +
-                "\tbool alarmButton = inp[4];\n" +
-                "\tbool stuck = inp[5];\n" +
+                "\tbool userAtTop = inp[0];\n" +
+                "\tbool userAtBottom = inp[1];\n" +
+                "\tbool directionSwitch = inp[2];\n" +
+                "\tbool alarmButton = inp[3];\n" +
+                "\tbool stuck = inp[4];\n" +
                 "\t\n" +
-                "\tbool up = out[1];\n" +
-                "\tbool down = out[2];\n" +
+                "\tbool up = out[0];\n" +
+                "\tbool down = out[1];\n" +
                 "\t\n" +
                 "\tconst bool UP = true;\n" +
                 "\tconst bool DOWN = false;\n" +
@@ -699,7 +699,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,true);
+            VCGenerator2 gen = new VCGenerator2(context,false,false);
 
             /*DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -804,7 +804,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,true);
+            VCGenerator2 gen = new VCGenerator2(context,true,false);
 
             /*DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -951,7 +951,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false);
+            VCGenerator2 gen = new VCGenerator2(context,false,false);
 
             DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
