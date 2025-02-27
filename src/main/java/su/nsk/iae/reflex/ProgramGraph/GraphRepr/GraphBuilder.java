@@ -262,6 +262,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         });
         if(ctx.then!=null){
             trueGraph.extendGraph(visit(ctx.then));
+            projection.put(ctx.then, trueGraph.startNode);
         }
         graph.insertGraph(trueGraph);
 
@@ -281,6 +282,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         });
         if(ctx.else_!=null){
             falseGraph.extendGraph(visit(ctx.else_));
+            projection.put(ctx.else_, falseGraph.startNode);
         }
         graph.insertGraph(falseGraph);
 
@@ -380,65 +382,77 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             }
         }
 
-        results.forEach(res->{
-            ProgramGraph subPath;
-            Optional<String> fullCond = res.getFullCondition(currentProcess);
-            if(fullCond.isPresent()){
-                ConditionNode cnode = new ConditionNode(ctx, fullCond.get());
-                subPath = new ProgramGraph(cnode,cnode);
-                if(res.getDomain().isPresent()){
-                    subPath.insertDanglingNode(new ConditionNode(ctx,res.getDomain().get()));
+        int i=0;
+        for(Map.Entry<String,ProgramGraph> path: pathGraphs){
+            ArrayList<String> conditions = new ArrayList<>();
+            ProgramGraph resPath;
+            if(results.size()>1){
+                resPath = new ProgramGraph(new BlankNode(),new BlankNode());
+                for (ExprRes res : results) {
+                    ProgramGraph condPath = switchResultProcessing(ctx, path, res, pathGraphs, conditions, e);
+                    resPath.insertGraph(condPath);
                 }
+                resPath.extendGraph(path.getValue());
             }else{
-                BlankNode n = new BlankNode();
-                subPath = new ProgramGraph(n,n);
+                resPath = switchResultProcessing(ctx, path, results.get(0), pathGraphs, conditions, e);
             }
-            if(res.getDomain().isPresent()){
-                subPath.insertDanglingNode(new ConditionNode(ctx,res.getDomain().get()));
+            resPath.extendGraph(path.getValue());
+            graph.insertGraph(resPath);
+            if(path.getKey()!=null) {
+                projection.put(ctx.options.get(i), resPath.startNode);
+                i++;
+            }else if (ctx.defaultStat()!=null){
+                projection.put(ctx.defaultStat(), resPath.startNode);
             }
-            SymbolicExpression expr = res.getExpr();
-            ProgramGraph resPath = new ProgramGraph(new BlankNode(),new BlankNode());
-            for(Map.Entry<String,ProgramGraph> path: pathGraphs){
-                ArrayList<String> conditions = new ArrayList<>();
-                for(Map.Entry<String,ProgramGraph> prevPath: pathGraphs){
-                    if(prevPath.getKey()==null){
-                        break;
-                    }else if (prevPath.getKey().equals(path.getKey())){
-                        conditions.add(new BinaryExpression(
-                                BinaryOp.Eq,
-                                expr,
-                                new ConstantExpression(prevPath.getKey(),expr.exprType()),
-                                expr.exprType()
-                        ).toString(creator));
-                        break;
-                    }else{
-                        conditions.add(new UnaryExpression(
-                                UnaryOp.Neg,
-                                new BinaryExpression(
-                                        BinaryOp.Eq,
-                                        expr,
-                                        new ConstantExpression(prevPath.getKey(),expr.exprType()),
-                                        expr.exprType()),
-                                expr.exprType()
-                        ).toString(creator));
-                    }
-                }
-
-
-                String condition = creator.Conjunction(conditions);
-                ConditionNode cnode= new ConditionNode(ctx,condition);
-                ProgramGraph  conPath = new ProgramGraph(cnode,cnode);
-                if(!res.getState().equals(creator.PlaceHolder())){
-                    ExpressionNode expNode= new ExpressionNode(e,res.getState());
-                    conPath.extendGraph(expNode);
-                }
-                conPath.extendGraph(path.getValue());
-                resPath.insertGraph(conPath);
-            }
-            subPath.extendGraph(resPath);
-            graph.insertGraph(subPath);
-        });
+        }
         return graph;
+    }
+
+    private ProgramGraph switchResultProcessing(ReflexParser.SwitchStatContext ctx, Map.Entry<String, ProgramGraph> path, ExprRes res, ArrayList<Map.Entry<String, ProgramGraph>> pathGraphs, ArrayList<String> conditions, ReflexParser.ExpressionContext e) {
+        ProgramGraph condPath;
+        Optional<String> fullCond = res.getFullCondition(currentProcess);
+        if(fullCond.isPresent()){
+            ConditionNode cnode = new ConditionNode(ctx, fullCond.get());
+            condPath = new ProgramGraph(cnode,cnode);
+            if(res.getDomain().isPresent()){
+                condPath.insertDanglingNode(new ConditionNode(ctx, res.getDomain().get()));
+            }
+        }else{
+            condPath = null;
+        }
+        SymbolicExpression expr = res.getExpr();
+        for(Map.Entry<String,ProgramGraph> prevPath: pathGraphs){
+            if(prevPath.getKey()==null){
+                break;
+            }else if (prevPath.getKey().equals(path.getKey())){
+                conditions.add(new BinaryExpression(
+                        BinaryOp.Eq,
+                        expr,
+                        new ConstantExpression(prevPath.getKey(),expr.exprType()),
+                        expr.exprType()
+                ).toString(creator));
+                break;
+            }else{
+                conditions.add(new BinaryExpression(
+                        BinaryOp.NotEq,
+                        expr,
+                        new ConstantExpression(prevPath.getKey(),expr.exprType()),
+                        expr.exprType()).toString(creator));
+            }
+        }
+        String condition = creator.Conjunction(conditions);
+        ConditionNode cnode= new ConditionNode(ctx,condition);
+        ProgramGraph  conPath = new ProgramGraph(cnode,cnode);
+        if(condPath==null){
+            condPath = conPath;
+        }else{
+            condPath.extendGraph(conPath);
+        }
+        if(!res.getState().equals(creator.PlaceHolder())){
+            ExpressionNode expNode= new ExpressionNode(e, res.getState());
+            condPath.extendGraph(expNode);
+        }
+        return condPath;
     }
 
     @Override

@@ -995,4 +995,101 @@ class VCGeneratorTest {
         }
         //System.out.println("VC conditions generated: " + generator.conditionsGenerated);
     }
+    @Test
+    void newBarrier(){
+        CharStream inputStream = CharStreams.fromString("program Barrier{\n" +
+                "\tclock 100;\n" +
+                "\tinput inp 0x00 0x00 32;\n" +
+                "\toutput out 0x00 0x04 32;\n" +
+                "\t\n" +
+                "\tbool carInFront = inp[0];\n" +
+                "\tbool peCarUnder = inp[1];\n" +
+                "\tbool opened = inp[2];\n" +
+                "\tbool closed = inp[3];\n" +
+                "\t\n" +
+                "\tbool up = out[0];\n" +
+                "\tbool down = out[1];\n" +
+                "\tbool green = out[2];\n" +
+                "\tbool red = out[3];\n" +
+                "\t\n" +
+                "\tconst time open_time = 0t10m;\n" +
+                "\t\n" +
+                "\tprocess CarController{\n" +
+                "\t\tstate waitingForCar{\n" +
+                "\t\t\tif (carInFront){\n" +
+                "\t\t\t\tstart Opening;\n" +
+                "\t\t\t\tset next state;\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t\tstate waitingForCarPassing{\n" +
+                "\t\t\tif (!carInFront){\n" +
+                "\t\t\t\tset state waitingForCar;\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t}\n" +
+                "\t\n" +
+                "\tprocess Opening{\n" +
+                "\t\tstate opening{\n" +
+                "\t\t\tup = true;\n" +
+                "\t\t\tdown = false;\n" +
+                "\t\t\tif (opened) {\n" +
+                "\t\t\t\tup = false;\n" +
+                "\t\t\t\tred = false;\n" +
+                "\t\t\t\tgreen = true;\n" +
+                "\t\t\t\tset next state;\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t\t\n" +
+                "\t\tstate open{\n" +
+                "\t\t  if (peCarUnder) {\n" +
+                "\t\t\treset timer;\n" +
+                "\t\t  }\n" +
+                "\t\t  timeout open_time {\n" +
+                "\t\t\tdown = true;\n" +
+                "\t\t\tgreen= false;\n" +
+                "\t\t\tred = true;\n" +
+                "\t\t\tset next state;\n" +
+                "\t\t  }\n" +
+                "\t\t} \n" +
+                "\t\n" +
+                "\t\tstate closing{\n" +
+                "\t\t  if (closed){\n" +
+                "\t\t\tdown = false;\n" +
+                "\t\t\tstop;\n" +
+                "\t\t  } else if (peCarUnder){\n" +
+                "\t\t\tdown = false;\n" +
+                "\t\t\tif (!opened) {\n" +
+                "\t\t\t  up = true;\n" +
+                "\t\t\t}\n" +
+                "\t\t\tset state opening;\n" +
+                "\t\t  }\n" +
+                "\t\t}\n" +
+                "\t}\n" +
+                "}");
+        try {
+            ReflexLexer lexer = new ReflexLexer(inputStream);
+            CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+            ReflexParser parser = new ReflexParser(tokenStream);
+            ReflexParser.ProgramContext context = parser.program();
+
+            VCGenerator2 gen = new VCGenerator2(context,false,false);
+
+            /*DOTExporter<IReflexNode, DefaultEdge> exporter =
+                    new DOTExporter<>();
+            exporter.setVertexAttributeProvider((v) -> {
+                Map<String, Attribute> map = new LinkedHashMap<>();
+                map.put("label", DefaultAttribute.createAttribute(v.toString()));
+                return map;
+            });
+            Writer writer = new StringWriter();
+            exporter.exportGraph(gen.graph, writer);
+            System.out.println(writer.toString());//*/
+
+            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            System.out.println("VC conditions generated: " + gen.VCGenerated());
+
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+    }
 }

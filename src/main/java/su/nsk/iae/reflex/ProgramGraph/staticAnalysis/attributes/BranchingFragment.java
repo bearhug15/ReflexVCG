@@ -81,6 +81,9 @@ public abstract class BranchingFragment implements IAttributed{
     }
     @Override
     public void liftAttributes(){
+        for (IAttributed attr: attributes){
+            attr.liftAttributes();
+        }
         Set<Map.Entry<ProcessNode,ChangeType>> procChangeSet = attributes.get(0).getProcChange().entrySet();
         HashMap<ProcessNode,PotChange> newPotProcChange = new HashMap<>();
         boolean newReset = true;

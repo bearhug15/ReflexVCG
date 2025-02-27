@@ -102,6 +102,9 @@ public abstract class LinearFragment implements IAttributed{
 
     @Override
     public void liftAttributes() {
+        for (IAttributed attr: attributes){
+            attr.liftAttributes();
+        }
         if(attributes.isEmpty()){
             return;
         } else if (attributes.size()==1) {

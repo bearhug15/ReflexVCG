@@ -1,5 +1,7 @@
 package su.nsk.iae.reflex.ProgramGraph.staticAnalysis;
 
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.traverse.DepthFirstIterator;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ASTGraphProjection;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.*;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProgramGraph;
@@ -33,6 +35,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
 
     public AttributeCollector generateAttributes(ReflexParser.ProgramContext ctx){
         initialAttributeArrangement(ctx);
+        liftAttributes();
         additionalAttributeArrangement(ctx);
         grouping();
         return collector;
@@ -56,6 +59,56 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         ProcessAttributes attr = (ProcessAttributes)collector.getAttributes(proj);
         attr.setStartS(false);
         return;
+    }
+    /*void initialAttributeArrangement(ReflexParser.ProgramContext ctx, ProgramGraph graph) {
+        for(ReflexParser.ProcessContext pctx: ctx.processes){
+            IReflexNode proj = projection.get(pctx);
+            ProcessAttributes attr = new ProcessAttributes((ProcessNode) proj);
+            collector.addAttributes(proj,attr);
+            for(ReflexParser.StateContext sctx:pctx.states){
+                IReflexNode sproj= projection.get(sctx);
+                StateAttributes sattr = new StateAttributes((ProcessNode) proj,(StateNode)sproj);
+                attr.addAttributes(sattr);
+                collector.addAttributes(sproj,sattr);
+            }
+        }
+        DepthFirstIterator<IReflexNode, DefaultEdge> iter = new DepthFirstIterator<>(graph);
+        while(iter.hasNext()){
+            IReflexNode node = iter.next();
+            if()
+        }
+    }
+    void ProcessAttributes(ProcessNode node){
+        if(node.isOpener()){
+            attributesContainers.push(collector.getAttributes(node));
+        }else{
+            attributesContainers.pop();
+        }
+    }
+    void StateAttributes(StateNode node){
+        if(node.isOpener()){
+            attributesContainers.push(collector.getAttributes(node));
+        }else{
+            attributesContainers.pop();
+        }
+    }
+    void IfElseAttributes(IfElseNode node){
+
+        if(node.isOpener()){
+            attributesContainers.push(collector.getAttributes(node));
+        }else{
+            attributesContainers.pop();
+        }
+    }*/
+
+    void liftAttributes(){
+        collector.getAttributeMap().entrySet().stream().filter(entry->{
+            if (entry instanceof ProcessNode){
+                return true;
+            }else{
+                return false;
+            }
+        }).forEach(entry->entry.getValue().liftAttributes());
     }
 
     void additionalAttributeArrangement(ReflexParser.ProgramContext ctx){
@@ -265,7 +318,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         /*if(ctx.timeoutFunction()!=null){
             visitTimeoutFunction(ctx.timeoutFunction());
         }*/
-        attr.liftAttributes();
+
         attributesContainers.pop();
         return null;
     }
@@ -288,7 +341,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
 
         attr.addAttributes(branchAttr0);
         attr.addAttributes(branchAttr1);
-        attr.liftAttributes();
+
 
         attributesContainers.pop();
         collector.addAttributes(proj,attr);
@@ -304,30 +357,29 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         collector.addAttributes(proj,attr);
 
         IfElseBranch trueAttr = new IfElseBranch(currentProcess,currentState,(IfElseNode) proj);
-        attributesContainers.push(trueAttr);
-        super.visit(ctx.then);
-        attributesContainers.pop();
+        if(ctx.then!=null){
+            attributesContainers.push(trueAttr);
+            super.visit(ctx.then);
+            collector.addAttributes(projection.get(ctx.then),trueAttr);
+            attributesContainers.pop();
+        }
         attr.addAttributes(trueAttr);
-        trueAttr.liftAttributes();
-        collector.addAttributes(graph.getOutgoingNeighbours(proj).get(0),trueAttr);
 
         IfElseBranch falseAttr;
         if(ctx.else_!=null){
             falseAttr = new IfElseBranch(currentProcess,currentState,(IfElseNode) proj);
             attributesContainers.push(falseAttr);
             super.visit(ctx.else_);
+            collector.addAttributes(projection.get(ctx.else_),falseAttr);
             attributesContainers.pop();
 
         }else{
             falseAttr = new IfElseBranch(currentProcess,currentState,(IfElseNode) proj);
         }
         attr.addAttributes(falseAttr);
-        falseAttr.liftAttributes();
-        collector.addAttributes(graph.getOutgoingNeighbours(proj).get(1),falseAttr);
-
 
         attributesContainers.pop();
-        attr.liftAttributes();
+
         attributesContainers.peek().addAttributes(attr);
         //addIfElseIntersection(attr);
         return null;
@@ -355,7 +407,6 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
             beforeBrake.add(caseAttr);
             if(cas.switchOptionStatSeq().break_!=null){
                 beforeBrake.forEach(b->{
-                    b.liftAttributes();
                     attr.addAttributes(b);
                     List<IReflexNode> out = graph.getOutgoingNeighbours(proj);
                     collector.addAttributes(out.get(out.size()-1),b);
@@ -378,7 +429,6 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
             caseAttr = new SwitchCaseBranch(currentProcess,currentState,(SwitchNode) proj);
         }
         beforeBrake.forEach(b->{
-            b.liftAttributes();
             attr.addAttributes(b);
             List<IReflexNode> out = graph.getOutgoingNeighbours(proj);
             collector.addAttributes(out.get(out.size()-1),b);
@@ -386,7 +436,6 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         beforeBrake.clear();
         attr.addAttributes(caseAttr);
         attributesContainers.pop();
-        attr.liftAttributes();
         attributesContainers.peek().addAttributes(attr);
         //addSwitchCaseIntersection(attr);
         return null;

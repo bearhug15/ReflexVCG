@@ -54,7 +54,7 @@ public class IsabelleCreator implements IStatementCreator {
 
     @Override
     public String StartProcessStatement(int stateNumber, String processName, String stateName) {
-        return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+"setPstate "+ PstateSetter(createStateName(stateNumber),processName,stateName)+"\"";
+        return createStateName(stateNumber+1)+":\""+createStateName(stateNumber+1)+"="+ PstateSetter(createStateName(stateNumber),processName,stateName)+"\"";
     }
 
     @Override
