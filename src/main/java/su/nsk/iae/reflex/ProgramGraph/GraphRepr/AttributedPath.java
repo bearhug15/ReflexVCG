@@ -1,11 +1,9 @@
-package su.nsk.iae.reflex.ProgramGraph.staticAnalysis;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
 
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.IAttributed;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.IAttributed;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 
 public class AttributedPath extends ArrayDeque<IAttributed> {
     ArrayDeque<IAttributed> path = new ArrayDeque<>();

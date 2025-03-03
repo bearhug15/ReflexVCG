@@ -42,7 +42,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false,false);
+            VCGenerator2 gen = new VCGenerator2(context,false,false,true);
 
             DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -85,7 +85,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false,false);
+            VCGenerator2 gen = new VCGenerator2(context,false,false,true);
 
             DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -129,7 +129,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false,false);
+            VCGenerator2 gen = new VCGenerator2(context,false,false,true);
 
             DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -172,7 +172,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false,false);
+            VCGenerator2 gen = new VCGenerator2(context,false,false,true);
 
             DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -217,7 +217,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false,false);
+            VCGenerator2 gen = new VCGenerator2(context,false,false,true);
 
             DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -256,7 +256,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false,false);
+            VCGenerator2 gen = new VCGenerator2(context,false,false,true);
 
             DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -699,7 +699,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false,false);
+            VCGenerator2 gen = new VCGenerator2(context,false,false,true);
 
             /*DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -804,7 +804,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,true,false);
+            VCGenerator2 gen = new VCGenerator2(context,true,false,true);
 
             /*DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -951,7 +951,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false,false);
+            VCGenerator2 gen = new VCGenerator2(context,false,false,true);
 
             DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
@@ -1072,7 +1072,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false,false);
+            VCGenerator2 gen = new VCGenerator2(context,false,false,true);
 
             /*DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();

@@ -1,4 +1,4 @@
-package su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes;
 
 public class PotChange {
     boolean start=false;

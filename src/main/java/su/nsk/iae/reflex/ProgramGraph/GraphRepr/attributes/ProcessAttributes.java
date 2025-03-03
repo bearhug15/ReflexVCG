@@ -1,4 +1,4 @@
-package su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes;
 
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ProcessNode;
@@ -18,7 +18,7 @@ public class ProcessAttributes extends BranchingFragment {
     }
 
     @Override
-    public IReflexNode getAttributedContext() {
+    public IReflexNode getAttributedNode() {
         return attributedNode  ;
     }
 

@@ -1,6 +1,6 @@
 package su.nsk.iae.reflex.ProgramGraph.GraphRepr.ExpressionVisitor;
 
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.UniversalAttributes;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.UniversalAttributes;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.expression.*;
 import su.nsk.iae.reflex.expression.ops.BinaryOp;

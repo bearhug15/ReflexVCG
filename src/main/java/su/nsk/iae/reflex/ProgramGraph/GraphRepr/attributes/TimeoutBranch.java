@@ -1,4 +1,4 @@
-package su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes;
 
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ConditionNode;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
@@ -15,7 +15,7 @@ public class TimeoutBranch extends LinearFragment{
     }
 
     @Override
-    public IReflexNode getAttributedContext() {
+    public IReflexNode getAttributedNode() {
         return node;
     }
 

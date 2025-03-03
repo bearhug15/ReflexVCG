@@ -1,10 +1,10 @@
 package su.nsk.iae.reflex.ProgramGraph.GraphRepr.ExpressionVisitor;
 
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.UniversalAttributes;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.UniversalAttributes;
 import su.nsk.iae.reflex.expression.SymbolicExpression;
 import su.nsk.iae.reflex.expression.types.StateType;
-import su.nsk.iae.reflex.formulas.Formula;
 
+import java.util.HashMap;
 import java.util.Optional;
 
 public class ExprGenRes1 implements ExprRes{
@@ -68,5 +68,10 @@ public class ExprGenRes1 implements ExprRes{
     @Override
     public Optional<UniversalAttributes> getAttributes() {
         return Optional.empty();
+    }
+
+    @Override
+    public HashMap<String, String> getProcessesStatuses() {
+        return new HashMap<>();
     }
 }

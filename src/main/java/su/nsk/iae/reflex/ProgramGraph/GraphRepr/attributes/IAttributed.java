@@ -1,13 +1,14 @@
-package su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes;
 
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ProcessNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ChangeType;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Map;
 
 public interface IAttributed {
-    IReflexNode getAttributedContext();
+    IReflexNode getAttributedNode();
     AttributedNodeType getContextType();
 
     boolean isReset();
@@ -16,16 +17,16 @@ public interface IAttributed {
     boolean isStateChanging();
     //void setStateChanging(boolean stateChanging);
 
-    HashMap<ProcessNode,ChangeType> getProcChange();
+    Map<ProcessNode,ChangeType> getProcChange();
 
     //void setProcChange(HashMap<ProcessNode, ChangeType> procChange);
 
     //void addProcessChange(ProcessNode ctx, ChangeType ty);
-    HashMap<ProcessNode,PotChange> getPotProcChange();
+    Map<Map.Entry<ProcessNode,ChangeType>,Boolean> getPotProcChange();
     //void setPotProcChange(HashMap<ProcessNode,PotChange> potProcChange);
     //void addPotProcChange(ProcessNode ctx, PotChange change);
 
-    HashMap<String,String> getProcStatuses();
+    Map<String,String> getProcStatuses();
 
     ArrayList<IAttributed> getAttributes();
     //void setAttributes(ArrayList<IAttributed> attributes);
