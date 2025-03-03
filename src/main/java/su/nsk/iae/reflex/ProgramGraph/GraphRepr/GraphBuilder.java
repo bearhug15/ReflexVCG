@@ -377,6 +377,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         attr.addAttributes(falseAttr);
         graph.insertGraph(falseGraph);
 
+        attributeContainers.pop();
         return graph;
     }
 
@@ -474,48 +475,6 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             graph.connectStartEnd();
         }
 
-        /*ArrayList<Map.Entry<String,ProgramGraph>> pathGraphs = new ArrayList<>();
-        ArrayList<ProgramGraph> pathGraphsToExtend = new ArrayList<>();
-        for(ReflexParser.CaseStatContext newCtx:ctx.options){
-            ExpressionVisitor1 vis0 = new ExpressionVisitor1(mapper,currentProcess.getProcessName(),creator.PlaceHolder(),creator);
-            String cond = vis0.parseExpression(newCtx.expression()).get(0).getExpr().toString(creator);
-            ProgramGraph pathGraph = visitSwitchOptionStatSeq(newCtx.switchOptionStatSeq());
-            pathGraphs.add(new ImmutablePair<>(cond,pathGraph));
-            for(ProgramGraph path: pathGraphsToExtend){
-                path.extendGraph(pathGraph);
-            }
-            pathGraphsToExtend.add(pathGraph);
-            if(newCtx.switchOptionStatSeq().break_!=null){
-                pathGraphsToExtend.clear();
-            }
-        }
-        if(ctx.defaultStat()!=null){
-            if(ctx.defaultStat().switchOptionStatSeq()!=null){
-                //ConditionNode cnode = new ConditionNode(ctx,passedConditions);
-                //ProgramGraph cgraph = new ProgramGraph(cnode,cnode);
-                ProgramGraph defGraph = visitSwitchOptionStatSeq(ctx.defaultStat().switchOptionStatSeq());
-                pathGraphs.add(new ImmutablePair<>(null,defGraph));
-                for(ProgramGraph path: pathGraphsToExtend){
-                    path.extendGraph(defGraph);
-                }
-            }else{
-                if(pathGraphs.isEmpty()){
-                    graph.connectStartEnd();
-                }else{
-                    BlankNode node= new BlankNode();
-                    pathGraphs.add(new ImmutablePair<>(null,new ProgramGraph(node,node)));
-                }
-            }
-        }else{
-            if(pathGraphs.isEmpty()){
-                graph.connectStartEnd();
-            }else{
-                BlankNode node= new BlankNode();
-                pathGraphs.add(new ImmutablePair<>(null,new ProgramGraph(node,node)));
-            }
-        }*/
-
-        int i=0;
         for(Map.Entry<String,ProgramGraph> path: pathGraphs){
             ArrayList<String> conditions = new ArrayList<>();
             ProgramGraph resPath;

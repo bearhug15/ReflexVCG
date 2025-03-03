@@ -1,10 +1,11 @@
 package su.nsk.iae.reflex.ProgramGraph.GraphRepr.RuleChecker;
 
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ChangeType;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ProcessNode;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.*;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.AttributeCollector;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.AttributedPath;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.*;
+
 
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProgramMetaData;
 
