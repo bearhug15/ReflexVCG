@@ -2,8 +2,8 @@ package su.nsk.iae.reflex.ProgramGraph.staticAnalysis;
 
 import org.junit.jupiter.api.Test;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ProcessNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProgramAnalyzer2;
 
-import java.util.HashSet;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;

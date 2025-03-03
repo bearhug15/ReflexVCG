@@ -1,11 +1,11 @@
-package su.nsk.iae.reflex.ProgramGraph.staticAnalysis;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
 
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ProcessNode;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.StateNode;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.IAttributed;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.ProcessAttributes;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.StateAttributes;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.IAttributed;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.ProcessAttributes;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.StateAttributes;
 
 import java.util.HashMap;
 

@@ -5,10 +5,10 @@ import org.jgrapht.event.VertexTraversalEvent;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.traverse.AbstractGraphIterator;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.AttributeCollector;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.AttributedPath;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.IRuleChecker;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.*;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.AttributedNodeType;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.IAttributed;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.StateAttributes;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.RuleChecker.IRuleChecker;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 
 import java.util.*;

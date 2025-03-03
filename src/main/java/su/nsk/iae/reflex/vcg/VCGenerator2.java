@@ -6,9 +6,9 @@ import org.jgrapht.nio.DefaultAttribute;
 import org.jgrapht.nio.dot.DOTExporter;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.*;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.AttributeCollector;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.ProgramAnalyzer2;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.RuleChecker;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.AttributeCollector;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProgramAnalyzer2;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.RuleChecker.RuleChecker;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.StatementsCreator.IsabelleCreator;
 import su.nsk.iae.reflex.antlr.ReflexParser;
@@ -33,21 +33,23 @@ public class VCGenerator2 {
     ReflexParser.ProgramContext context;
 
     boolean exportGraph;
+    boolean staticAnalysis;
 
-    public VCGenerator2(ReflexParser.ProgramContext context, boolean isSimpleExprVisitor, boolean exportGraph){
+    public VCGenerator2(ReflexParser.ProgramContext context, boolean isSimpleExprVisitor, boolean exportGraph, boolean staticAnalysis){
         this.context = context;
         this.creator = new IsabelleCreator();
         this.mapper = new VariableMapper(context,creator);
         this.metaData = new ProgramMetaData(context,mapper,creator);
         this.exportGraph = exportGraph;
+        this.staticAnalysis = staticAnalysis;
 
         GraphBuilder builder = new GraphBuilder(metaData,mapper,creator, isSimpleExprVisitor);
         this.graph = builder.buildProgramGraph(context);
         this.projection = builder.getASTtoGraphProjection();
 
-        ProgramAnalyzer2 analyzer = new ProgramAnalyzer2(metaData,projection,graph);
+        ProgramAnalyzer2 analyzer = new ProgramAnalyzer2(metaData,projection,graph,builder.getAttributeCollector());
 
-        this.collector = analyzer.generateAttributes(context);
+        this.collector = analyzer.updateAttributes();
 
         this.checker = new RuleChecker(metaData,collector);
         System.out.println("Completed program analysis.");
@@ -71,7 +73,12 @@ public class VCGenerator2 {
         }
 
         printer.printBaseVCInDir();
-        VCGeneratorIterator gen = new VCGeneratorIterator(graph,collector,checker,creator);
+        VCGeneratorIterator gen;
+        if(staticAnalysis){
+            gen = new VCGeneratorIterator(graph,collector,checker,creator);
+        }else{
+            gen = new VCGeneratorIterator(graph,collector,creator);
+        }
         while(gen.hasNext()){
             IReflexNode next = gen.next();
             if (next==null){

@@ -1,19 +1,25 @@
-package su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes;
 
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ProcessNode;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.StateNode;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.SwitchNode;
 
-public class SwitchCaseCore extends BranchingFragment {
+public class SwitchCaseBranch extends LinearFragment {
     IReflexNode attributedNode;
     ProcessNode rootProcess;
     StateNode rootState;
+    String setState = null;
 
-
-    public SwitchCaseCore(ProcessNode process, StateNode state, SwitchNode attributedNode){
+    public SwitchCaseBranch(ProcessNode process, StateNode state, SwitchNode attributedNode){
         rootProcess = process;
         rootState = state;
+        this.attributedNode = attributedNode;
+    }
+
+
+
+    public void setAttributedContext(IReflexNode attributedNode) {
         this.attributedNode = attributedNode;
     }
 
@@ -33,8 +39,9 @@ public class SwitchCaseCore extends BranchingFragment {
         this.rootState = rootState;
     }
 
+
     @Override
-    public IReflexNode getAttributedContext() {
+    public IReflexNode getAttributedNode() {
         return attributedNode;
     }
 

@@ -1,15 +1,9 @@
-package su.nsk.iae.reflex.ProgramGraph.staticAnalysis;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
 
-import org.jgrapht.graph.DefaultEdge;
-import org.jgrapht.traverse.DepthFirstIterator;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ASTGraphProjection;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.*;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProgramGraph;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.*;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.ChangeType;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.*;
 import su.nsk.iae.reflex.antlr.ReflexBaseVisitor;
 import su.nsk.iae.reflex.antlr.ReflexParser;
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProgramMetaData;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -27,21 +21,21 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
     ProcessNode currentProcess;
     StateNode currentState;
 
-    public ProgramAnalyzer2(ProgramMetaData metaData, ASTGraphProjection projection, ProgramGraph graph){
+    public ProgramAnalyzer2(ProgramMetaData metaData, ASTGraphProjection projection, ProgramGraph graph,AttributeCollector collector){
         this.metaData = metaData;
         this.projection = projection;
         this.graph = graph;
+        this.collector = collector;
     }
 
-    public AttributeCollector generateAttributes(ReflexParser.ProgramContext ctx){
-        initialAttributeArrangement(ctx);
+    public AttributeCollector updateAttributes(){
         liftAttributes();
-        additionalAttributeArrangement(ctx);
+        additionalAttributeArrangement();
         grouping();
         return collector;
     }
 
-    void initialAttributeArrangement(ReflexParser.ProgramContext ctx){
+    /*void initialAttributeArrangement(ReflexParser.ProgramContext ctx){
         for(ReflexParser.ProcessContext pctx: ctx.processes){
             IReflexNode proj = projection.get(pctx);
             ProcessAttributes attr = new ProcessAttributes((ProcessNode) proj);
@@ -59,46 +53,6 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         ProcessAttributes attr = (ProcessAttributes)collector.getAttributes(proj);
         attr.setStartS(false);
         return;
-    }
-    /*void initialAttributeArrangement(ReflexParser.ProgramContext ctx, ProgramGraph graph) {
-        for(ReflexParser.ProcessContext pctx: ctx.processes){
-            IReflexNode proj = projection.get(pctx);
-            ProcessAttributes attr = new ProcessAttributes((ProcessNode) proj);
-            collector.addAttributes(proj,attr);
-            for(ReflexParser.StateContext sctx:pctx.states){
-                IReflexNode sproj= projection.get(sctx);
-                StateAttributes sattr = new StateAttributes((ProcessNode) proj,(StateNode)sproj);
-                attr.addAttributes(sattr);
-                collector.addAttributes(sproj,sattr);
-            }
-        }
-        DepthFirstIterator<IReflexNode, DefaultEdge> iter = new DepthFirstIterator<>(graph);
-        while(iter.hasNext()){
-            IReflexNode node = iter.next();
-            if()
-        }
-    }
-    void ProcessAttributes(ProcessNode node){
-        if(node.isOpener()){
-            attributesContainers.push(collector.getAttributes(node));
-        }else{
-            attributesContainers.pop();
-        }
-    }
-    void StateAttributes(StateNode node){
-        if(node.isOpener()){
-            attributesContainers.push(collector.getAttributes(node));
-        }else{
-            attributesContainers.pop();
-        }
-    }
-    void IfElseAttributes(IfElseNode node){
-
-        if(node.isOpener()){
-            attributesContainers.push(collector.getAttributes(node));
-        }else{
-            attributesContainers.pop();
-        }
     }*/
 
     void liftAttributes(){
@@ -111,8 +65,26 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         }).forEach(entry->entry.getValue().liftAttributes());
     }
 
-    void additionalAttributeArrangement(ReflexParser.ProgramContext ctx){
-        for (ReflexParser.ProcessContext pctx1: ctx.processes){
+    void additionalAttributeArrangement(){
+        List<IReflexNode> processes = collector.getAttributeMap().keySet().stream()
+                .filter(iAttributed -> iAttributed instanceof ProcessNode)
+                .sorted(Comparator.comparingInt(IReflexNode::getBranchNum))
+                .toList();
+        for(IReflexNode node1: processes){
+            for(IReflexNode node2: processes){
+                ProcessAttributes attr1 = (ProcessAttributes)collector.getAttributes(node1);
+                ProcessAttributes attr2 = (ProcessAttributes)collector.getAttributes(node2);
+                if(!attr2.isStartS()){
+                    ChangeType changes = ((StateAttributes)collector.getAttributes(node1)).getProcChange().get(node1);
+                    if(changes!=null && changes.equals(ChangeType.Start)){
+                        attr1.setStartS(false);
+                        break;
+                    }
+                }
+            }
+        }
+
+        /*for (ReflexParser.ProcessContext pctx1: ctx.processes){
             for (ReflexParser.ProcessContext pctx2: ctx.processes){
                 if(pctx1 ==pctx2)break;
                 IReflexNode proj1 = projection.get(pctx1);
@@ -127,7 +99,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
                     }
                 }
             }
-        }
+        }*/
         return;
     }
 
@@ -147,7 +119,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
 
     Set<Set<ProcessNode>>setsDiv(Set<Set<ProcessNode>> setsSet,HashMap<ProcessNode,ChangeType> hPC, IAttributed st){
         if (st instanceof StateAttributes){
-            currentState = (StateNode) st.getAttributedContext();
+            currentState = (StateNode) st.getAttributedNode();
         }
         HashMap<ProcessNode,ChangeType> nhPC = new HashMap<>(hPC);
         nhPC.putAll(st.getProcChange());
@@ -251,7 +223,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         set.add(s1);
         set.add(s2);
         for (ProcessAttributes proc:processes.stream().map(entry->(ProcessAttributes)entry.getValue()).toList()){
-            currentProcess = ((ProcessNode) proc.getAttributedContext());
+            currentProcess = ((ProcessNode) proc.getAttributedNode());
             set = setsDiv(set,new HashMap<>(),proc);
         }
         List<Set<ProcessNode>>sets = set.stream().toList();

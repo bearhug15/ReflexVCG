@@ -21,6 +21,7 @@ public class Main {
         options.addOption("o","output",true,"");
         options.addOption("e","expr",true,"");
         options.addOption("g","graph",true,"");
+        options.addOption("a","analysis",true,"");
 
         CommandLineParser commandLineParser = new DefaultParser();
         CommandLine commandLine = commandLineParser.parse(options,args);
@@ -60,7 +61,8 @@ public class Main {
         }else if(expressionKind.equals("simple")){
             isSimpleExp = true;
         }else{
-            throw new RuntimeException("Unknown argument for expression processing type");
+            System.out.println("Unknown argument for expression processing type. Possible arguments: regular, simple");
+            return;
         }
 
         boolean exportGraph;
@@ -72,10 +74,24 @@ public class Main {
         }else if(exportG.equals("true")){
             exportGraph = true;
         }else{
-            throw new RuntimeException("Unknown argument for graph export");
+            System.out.println("Unknown argument for graph export. Possible arguments: true, false");
+            return;
         }
 
-        generator = new VCGenerator2(context,isSimpleExp,exportGraph);
+        boolean staticAnalysis;
+        String analysis = commandLine.getOptionValue("a");
+        if(analysis==null){
+            staticAnalysis = true;
+        }else if(analysis.equals("false")){
+            staticAnalysis = false;
+        }else if(analysis.equals("true")){
+            staticAnalysis = true;
+        }else{
+            System.out.println("Unknown argument for static analysis. Possible arguments: true, false");
+            return;
+        }
+
+        generator = new VCGenerator2(context,isSimpleExp,exportGraph,staticAnalysis);
         generator.generateVC(sourcePath,destPath);
 
         //VCGenerator generator = new VCGenerator();

@@ -179,6 +179,16 @@ public class ProgramMetaData {
         assert process != null;
         return process.b.get(0);
     }
+
+    public ReflexParser.StateContext firstStateCtx(String processName){
+        return processNameMapper.get(processName).states.get(0);
+    }
+
+    public ReflexParser.StateContext getState(String processName,String stateName){
+        Optional<ReflexParser.StateContext> stateCtx = processNameMapper.get(processName).states.stream().filter(state->state.name.getText().equals(stateName)).findFirst();
+        return stateCtx.get();
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (!(obj instanceof ProgramMetaData other))return false;

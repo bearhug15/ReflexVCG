@@ -16,5 +16,6 @@ To launch generator use: ``java -jar ReflexVCG.jar [key/value]``.
 | -o 	 | path           | output destination                                                               |
 | -e 	 | simple/regular | choose regular c-like expression semantics or simplified one. Regular by default |
 | -g 	 | true/false     | generate .gv program graph. False by default                                     |
+| -a 	 | true/false     | use static analysis to lower to discard unrelated VC                             |
 
 Specification of source file path  is required. Output path is optional and set to source folder if not defined.

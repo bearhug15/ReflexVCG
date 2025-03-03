@@ -1,9 +1,8 @@
 package su.nsk.iae.reflex.ProgramGraph;
 
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.ProgramMetaData;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.AttributeCollector;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.IAttributed;
-import su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes.ProcessAttributes;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.AttributeCollector;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.ProcessAttributes;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 
 import java.util.AbstractMap;

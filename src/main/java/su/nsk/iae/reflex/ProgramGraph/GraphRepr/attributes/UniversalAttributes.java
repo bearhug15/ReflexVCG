@@ -1,8 +1,10 @@
-package su.nsk.iae.reflex.ProgramGraph.staticAnalysis.attributes;
+package su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes;
 
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ProcessNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ChangeType;
 
+import java.util.AbstractMap;
 import java.util.HashMap;
 
 public class UniversalAttributes extends LinearFragment{
@@ -14,31 +16,26 @@ public class UniversalAttributes extends LinearFragment{
     void setAttributesContext(IReflexNode node){
         this.node = node;
     }
-    public void setReset(boolean reset) {
+    /*public void setReset(boolean reset) {
         this.reset = reset;
     }
     public void setStateChanging(boolean stateChanging) {
         this.stateChanging = stateChanging;
     }
-    public void setProcChange(HashMap<ProcessNode, ChangeType> procChange) {
+    public void setProcChange(Map<ProcessNode, ChangeType> procChange) {
         this.procChange = procChange;
     }
     public void addProcessChange(ProcessNode ctx, ChangeType type){
         this.procChange.put(ctx,type);
-    }
-    public void setPotProcChange(HashMap<ProcessNode, PotChange> potProcChange) {
+    }*/
+    /*public void setPotProcChange(Map<ProcessNode, PotChange> potProcChange) {
         this.potProcChange = potProcChange;
-    }
-    public void addPotProcChange(ProcessNode ctx, PotChange change) {
-        PotChange res = potProcChange.get(ctx);
-        if(res!=null){
-            potProcChange.put(ctx,res.add(change));
-        }else{
-            potProcChange.put(ctx,change);
-        }
+    }*/
+    public void addPotProcChange(ProcessNode node, ChangeType change) {
+        potProcChange.put(new AbstractMap.SimpleImmutableEntry<>(node,change),Boolean.TRUE);
     }
     @Override
-    public IReflexNode getAttributedContext() {
+    public IReflexNode getAttributedNode() {
         return node;
     }
 
