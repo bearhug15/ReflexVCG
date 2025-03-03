@@ -78,11 +78,13 @@ public abstract class BranchingFragment implements IAttributed{
             attr.liftAttributes();
         }
         if(!attributes.isEmpty()){
+            this.reset = true;
+            this.stateChanging = true;
             Map<ProcessNode,ChangeType> newProcChange = new HashMap<>(attributes.get(0).getProcChange());
             Map<Map.Entry<ProcessNode,ChangeType>,Boolean> newPotProcChange = new HashMap<>();
             for(IAttributed attr: attributes){
-                if(attr.isReset()) this.reset = true;
-                if(attr.isStateChanging()) this.stateChanging = true;
+                if(!attr.isReset()) this.reset = false;
+                if(!attr.isStateChanging()) this.stateChanging = false;
                 for (ProcessNode proc: newProcChange.keySet()){
                     if(!attr.getProcChange().containsKey(proc) || !attr.getProcChange().get(proc).equals(attr.getProcChange().get(proc)))
                         newProcChange.remove(proc);

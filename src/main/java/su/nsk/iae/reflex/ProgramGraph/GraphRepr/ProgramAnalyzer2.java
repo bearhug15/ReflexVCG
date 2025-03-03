@@ -56,13 +56,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
     }*/
 
     void liftAttributes(){
-        collector.getAttributeMap().entrySet().stream().filter(entry->{
-            if (entry instanceof ProcessNode){
-                return true;
-            }else{
-                return false;
-            }
-        }).forEach(entry->entry.getValue().liftAttributes());
+        collector.getProgramAttributes().liftAttributes();
     }
 
     void additionalAttributeArrangement(){
@@ -72,10 +66,11 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
                 .toList();
         for(IReflexNode node1: processes){
             for(IReflexNode node2: processes){
+                if(node1.equals(node2))break;
                 ProcessAttributes attr1 = (ProcessAttributes)collector.getAttributes(node1);
                 ProcessAttributes attr2 = (ProcessAttributes)collector.getAttributes(node2);
                 if(!attr2.isStartS()){
-                    ChangeType changes = ((StateAttributes)collector.getAttributes(node1)).getProcChange().get(node1);
+                    ChangeType changes = ((StateAttributes)collector.getAttributes(getFistState((ProgramNode) node2))).getProcChange().get(node1);
                     if(changes!=null && changes.equals(ChangeType.Start)){
                         attr1.setStartS(false);
                         break;
@@ -83,7 +78,6 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
                 }
             }
         }
-
         /*for (ReflexParser.ProcessContext pctx1: ctx.processes){
             for (ReflexParser.ProcessContext pctx2: ctx.processes){
                 if(pctx1 ==pctx2)break;
@@ -101,6 +95,9 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
             }
         }*/
         return;
+    }
+    private StateNode getFistState(ProgramNode node){
+        return (StateNode) graph.getOutgoingNeighbours(node).stream().min(Comparator.comparingInt(IReflexNode::getBranchNum)).get();
     }
 
     public static Set<Set<ProcessNode>> setsInter(Set<Set<ProcessNode>> setsSet, Set<ProcessNode> set){
