@@ -120,7 +120,7 @@ unaryExpression                            #Unary
     ;
 variable:
     (varId=ID ('['idx=expression']')?)
-    | varId=ID '.' varId=ID;
+    | varId=ID '.' fieldId=ID;
 INFIX_POSTFIX_OP: '++' | '--';
 unaryOp: '+' | '-' | '~' | '!';
 MUL_OP: '*' | '/' | '%';

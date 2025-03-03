@@ -59,19 +59,24 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
     }
 
     public void preparePSNodesAttr(ReflexParser.ProgramContext ctx){
-
+        int i=0;
         for(ReflexParser.ProcessContext pctx: ctx.processes){
             ProcessNode processNode = ProcessNode.ProcessNodes(pctx, pctx.name.getText()).getKey();
             ctxNodeProjection.put(pctx,processNode);
             ProcessAttributes pattr = new ProcessAttributes(processNode);
             collector.addAttributes(processNode,pattr);
+            if(i==0){
+                pattr.setStartS(false);
+            }
             for(ReflexParser.StateContext sctx:pctx.states){
                 StateNode stateNode = StateNode.StateNodes(sctx,sctx.name.getText(),pctx.name.getText()).getKey();
                 ctxNodeProjection.put(sctx,stateNode);
                 StateAttributes sattr = new StateAttributes(processNode,stateNode);
                 collector.addAttributes(stateNode,sattr);
             }
+            i++;
         }
+
     }
 
     @Override
@@ -198,6 +203,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         Map.Entry<TimeoutNode,TimeoutNode> nodes = TimeoutNode.TimeoutNodes(ctx,isVariable);
         TimeoutCore attr = new TimeoutCore(nodes.getKey(),nodes.getKey().isVariable());
         collector.addAttributes(nodes.getKey(),attr);
+        attributeContainers.peek().addAttributes(attr);
         attributeContainers.add(attr);
 
         //projection.put(ctx, nodes.getKey());
@@ -217,12 +223,14 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         attributeContainers.pop();
         exceedGraph.extendGraph(exceed);
         graph.insertGraph(exceedGraph);
+        collector.addAttributes(exceedGraph.startNode,attr1);
 
         ConditionNode loseCondition = new ConditionNode(ctx, creator.TimeoutLose(creator.PlaceHolder(),condition,currentProcess.getProcessName()),isVariable);
         ProgramGraph loseGraph = new ProgramGraph(loseCondition,loseCondition);
         graph.insertGraph(loseGraph);
         TimeoutBranch attr2 = new TimeoutBranch(loseCondition,false);
         attr.addAttributes(attr2);
+        collector.addAttributes(loseGraph.startNode,attr2);
 
         attributeContainers.pop();
         return graph;
@@ -290,6 +298,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
 
         Map.Entry<IfElseNode,IfElseNode> nodes = IfElseNode.IfElseNodes(ctx);
         IfElseCore attr = new IfElseCore(currentProcess,currentState, nodes.getKey());
+        attributeContainers.peek().addAttributes(attr);
         attributeContainers.push(attr);
         collector.addAttributes(nodes.getKey(),attr);
         ProgramGraph graph = new ProgramGraph(nodes.getKey(),nodes.getValue());
@@ -372,7 +381,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             falseGraph.extendGraph(visit(ctx.else_));
             projection.put(ctx.else_, falseGraph.startNode);
         }
-        collector.addAttributes(trueGraph.startNode, falseAttr);
+        collector.addAttributes(falseGraph.startNode, falseAttr);
         attributeContainers.pop();
         attr.addAttributes(falseAttr);
         graph.insertGraph(falseGraph);
@@ -455,8 +464,10 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         }
         Map.Entry<SwitchNode,SwitchNode> nodes = SwitchNode.SwitchNodes(ctx);
         SwitchCaseCore attr = new SwitchCaseCore(currentProcess,currentState, nodes.getKey());
+        attributeContainers.peek().addAttributes(attr);
         attributeContainers.push(attr);
         collector.addAttributes(nodes.getKey(),attr);
+
         ProgramGraph graph = new ProgramGraph(nodes.getKey(),nodes.getValue());
         //projection.put(ctx, nodes.getKey());
 

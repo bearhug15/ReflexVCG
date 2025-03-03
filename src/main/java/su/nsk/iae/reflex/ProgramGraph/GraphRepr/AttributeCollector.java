@@ -2,18 +2,30 @@ package su.nsk.iae.reflex.ProgramGraph.GraphRepr;
 
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ProcessNode;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ProgramNode;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.StateNode;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.IAttributed;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.ProcessAttributes;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.ProgramAttributes;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.StateAttributes;
 
 import java.util.HashMap;
 
 public class AttributeCollector {
     HashMap<IReflexNode, IAttributed> attributeMap = new HashMap<>();
+    ProgramNode programNode;
 
+    public void addAttributes(ProgramNode node,IAttributed attributed){
+        this.programNode = node;
+        attributeMap.put(node,attributed);
+    }
     public void addAttributes(IReflexNode node,IAttributed attributed){
         attributeMap.put(node,attributed);
+    }
+
+    public ProgramAttributes getProgramAttributes(){
+        assert programNode!=null;
+        return (ProgramAttributes) attributeMap.get(programNode);
     }
 
     public IAttributed getAttributes(IReflexNode node){

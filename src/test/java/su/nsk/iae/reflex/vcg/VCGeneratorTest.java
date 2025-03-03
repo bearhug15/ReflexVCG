@@ -699,7 +699,7 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false,false,true);
+            VCGenerator2 gen = new VCGenerator2(context,true,true,true);
 
             /*DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
