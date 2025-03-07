@@ -50,8 +50,14 @@ public class RuleChecker implements IRuleChecker{
                     return checkTimeout(path);
                 }
             }
+            case ProcessStatus: return checkProcessStatusAttributes(path,(ProcessStatusAttributes)attr);
             default: return true;
         }
+    }
+
+    private boolean checkProcessStatusAttributes(AttributedPath path,ProcessStatusAttributes attr){
+        //TODO
+        return true;
     }
 
     private boolean checkRulesStateAttributes(AttributedPath path,StateAttributes attr){

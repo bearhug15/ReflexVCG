@@ -12,7 +12,7 @@ public abstract class LinearFragment implements IAttributed{
     boolean reset = false;
     boolean stateChanging = false;
     ArrayList<IAttributed> attributes = new ArrayList<>();
-    Map<String,String> procStatuses = new HashMap<>();
+    Map<String,ProcessStatus> procStatuses = new HashMap<>();
 
     @Override
     public boolean isReset() {
@@ -77,7 +77,7 @@ public abstract class LinearFragment implements IAttributed{
         this.stateChanging = stateChanging;
     }
 
-    public Map<String,String> getProcStatuses(){
+    public Map<String,ProcessStatus> getProcStatuses(){
         return procStatuses;
     }
     @Override

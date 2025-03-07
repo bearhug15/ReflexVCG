@@ -1,6 +1,6 @@
 package su.nsk.iae.reflex.ProgramGraph.GraphRepr.ExpressionVisitor;
 
-import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.UniversalAttributes;
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.ProcessStatus;
 import su.nsk.iae.reflex.StatementsCreator.IStatementCreator;
 import su.nsk.iae.reflex.expression.*;
 import su.nsk.iae.reflex.expression.ops.BinaryOp;
@@ -16,7 +16,7 @@ import java.util.stream.Stream;
 public class ExprGenRes2 implements ExprRes {
 
     Optional<String> condition = Optional.empty();
-    HashMap<String,String> processesStatuses = new HashMap<>();
+    Optional<Map<String,ProcessStatus>> processesStatuses = Optional.empty();
     SymbolicExpression expr;
     String state;
     Optional<String> domain = Optional.empty();
@@ -40,7 +40,7 @@ public class ExprGenRes2 implements ExprRes {
         this.booleanValue = Optional.of(booleanValue);
         this.creator = creator;
     }
-    private ExprGenRes2(IStatementCreator creator,SymbolicExpression expression, String state, Optional<Boolean> booleanValue,Optional<String> condition,HashMap<String,String> processesStatuses,Optional<String> domain){
+    private ExprGenRes2(IStatementCreator creator,SymbolicExpression expression, String state, Optional<Boolean> booleanValue,Optional<String> condition,Map<String,ProcessStatus> processesStatuses,Optional<String> domain){
         if (expression.exprType().getClass().equals(StateType.class)){
             throw new RuntimeException("Expression returning state");
         }
@@ -49,7 +49,7 @@ public class ExprGenRes2 implements ExprRes {
         this.booleanValue = booleanValue;
         this.creator = creator;
         this.condition = condition;
-        this.processesStatuses = processesStatuses;
+        this.processesStatuses =Optional.of(processesStatuses);
         this.domain = domain;
     }
     /*ExprGenRes2(IStatementCreator creator,SymbolicExpression expression, String state, String domain){
@@ -89,16 +89,16 @@ public class ExprGenRes2 implements ExprRes {
         return domain;
     }
 
-    public HashMap<String, String> getProcessesStatuses() {
+    public Optional<Map<String, ProcessStatus>> getProcessesStatuses() {
         return processesStatuses;
     }
 
     public Optional<Boolean> getBooleanValue() {
         return booleanValue;
     }
-
+/*
     @Override
-    public Optional<UniversalAttributes> getAttributes() {
+    public Optional<ProcessStatusAttributes> getAttributes() {
         if(processesStatuses.isEmpty()){
             return Optional.empty();
         }else{
@@ -108,61 +108,78 @@ public class ExprGenRes2 implements ExprRes {
         }
 
     }
-
+*/
     public void setBooleanValue(Optional<Boolean> booleanValue) {
         this.booleanValue = booleanValue;
     }
     public Optional<String> getCondition(){return condition;}
 
     @Override
-    public Optional<String> getFullCondition(String process) {
-        if(condition.isEmpty() && processesStatuses.isEmpty()){
-            return Optional.empty();
+    public Optional<String> getFullCondition() {
+        Optional<String> processesCondition = getProcessesStatusesCondition();
+        if(condition.isPresent() && processesCondition.isPresent()){
+            return Optional.of(creator.Conjunction(List.of(condition.get(),processesCondition.get())));
+        }else if (condition.isPresent()){
+            return condition;
+        } else {
+            return processesCondition;
         }
+    }
+
+    @Override
+    public Optional<String> getProcessesStatusesCondition() {
         ArrayList<String> fullCondition = new ArrayList<>();
-        condition.ifPresent(fullCondition::add);
-        processesStatuses.entrySet().stream().forEach(entry->{
+        processesStatuses.ifPresent(map->map.entrySet().forEach(entry->{
             switch(entry.getValue()){
-                case "active":{
+                case Active:{
                     fullCondition.add(
                             creator.BinaryExpression(
-                                    creator.UnaryExpression(creator.BinaryExpression(creator.PstateGetter(state,process),"stop",BinaryOp.Eq),new StateType(""), UnaryOp.Neg),
-                                    creator.UnaryExpression(creator.BinaryExpression(creator.PstateGetter(state,process),"error",BinaryOp.Eq),new StateType("") , UnaryOp.Neg),
+                                    creator.UnaryExpression(creator.BinaryExpression(creator.PstateGetter(state,entry.getKey()),"stop",BinaryOp.Eq),new StateType(""), UnaryOp.Neg),
+                                    creator.UnaryExpression(creator.BinaryExpression(creator.PstateGetter(state,entry.getKey()),"error",BinaryOp.Eq),new StateType("") , UnaryOp.Neg),
                                     BinaryOp.And
                             ));
+                    break;
                 }
-                case "inactive":{
+                case Inactive:{
                     fullCondition.add(
                             creator.BinaryExpression(
-                                    creator.BinaryExpression(creator.PstateGetter(state,process),"stop",BinaryOp.Eq),
-                                    creator.BinaryExpression(creator.PstateGetter(state,process),"error",BinaryOp.Eq),
+                                    creator.BinaryExpression(creator.PstateGetter(state,entry.getKey()),"stop",BinaryOp.Eq),
+                                    creator.BinaryExpression(creator.PstateGetter(state,entry.getKey()),"error",BinaryOp.Eq),
                                     BinaryOp.Or
                             ));
+                    break;
                 }
-                case "stop":{
+                case Stop:{
                     fullCondition.add(
-                            creator.BinaryExpression(creator.PstateGetter(state,process),"stop",BinaryOp.Eq)
+                            creator.BinaryExpression(creator.PstateGetter(state,entry.getKey()),"stop",BinaryOp.Eq)
                     );
+                    break;
                 }
-                case "nonstop":{
+                case NonStop:{
                     fullCondition.add(
-                            creator.UnaryExpression(creator.BinaryExpression(creator.PstateGetter(state,process),"stop",BinaryOp.Eq),new StateType(""), UnaryOp.Neg)
+                            creator.UnaryExpression(creator.BinaryExpression(creator.PstateGetter(state,entry.getKey()),"stop",BinaryOp.Eq),new StateType(""), UnaryOp.Neg)
                     );
+                    break;
                 }
-                case "error":{
+                case Error:{
                     fullCondition.add(
-                            creator.BinaryExpression(creator.PstateGetter(state,process),"error",BinaryOp.Eq)
+                            creator.BinaryExpression(creator.PstateGetter(state,entry.getKey()),"error",BinaryOp.Eq)
                     );
+                    break;
                 }
-                case "nonerror":{
+                case NonError:{
                     fullCondition.add(
-                            creator.UnaryExpression(creator.BinaryExpression(creator.PstateGetter(state,process),"error",BinaryOp.Eq),new StateType(""), UnaryOp.Neg)
+                            creator.UnaryExpression(creator.BinaryExpression(creator.PstateGetter(state,entry.getKey()),"error",BinaryOp.Eq),new StateType(""), UnaryOp.Neg)
                     );
+                    break;
                 }
             }
-        });
-
-        return Optional.of(creator.Conjunction(fullCondition));
+        }));
+        if(fullCondition.isEmpty()){
+            return Optional.empty();
+        }else{
+            return Optional.of(creator.Conjunction(fullCondition));
+        }
     }
 
     public void setExpr(SymbolicExpression expr) {
@@ -178,173 +195,176 @@ public class ExprGenRes2 implements ExprRes {
     }
 
     public boolean addActiveProcess(String processName, boolean isTrue){
+        if(processesStatuses.isEmpty()) processesStatuses =Optional.of(new HashMap<>());
         if(isTrue){
-            String status = processesStatuses.get(processName);
+            ProcessStatus status = processesStatuses.get().get(processName);
             if (status!=null){
                 return switch (status) {
-                    case "inactive", "stop", "error" -> false;
-                    case "nonstop", "nonerror" -> {
-                        processesStatuses.put(processName, "active");
+                    case Inactive , Stop, Error -> false;
+                    case NonStop, NonError -> {
+                        processesStatuses.get().put(processName, ProcessStatus.Active);
                         yield true;
                     }
                     default -> throw new RuntimeException("Unknown process status");
                 };
             }else{
-                processesStatuses.put(processName,"active");
+                processesStatuses.get().put(processName,ProcessStatus.Active);
                 return true;
             }
         }else{
-            String status = processesStatuses.get(processName);
+            ProcessStatus status = processesStatuses.get().get(processName);
             if (status!=null){
                 return switch (status) {
-                    case "active" -> false;
-                    case "stop", "error" -> true;
-                    case "nonstop" -> {
-                        processesStatuses.put(processName, "error");
+                    case Active -> false;
+                    case Stop , Error -> true;
+                    case NonStop -> {
+                        processesStatuses.get().put(processName, ProcessStatus.Error);
                         yield true;
                     }
-                    case "nonerror" -> {
-                        processesStatuses.put(processName, "stop");
+                    case NonError -> {
+                        processesStatuses.get().put(processName, ProcessStatus.Stop);
                         yield true;
                     }
                     default -> throw new RuntimeException("Unknown process status");
                 };
             }else{
-                processesStatuses.put(processName,"inactive");
+                processesStatuses.get().put(processName,ProcessStatus.Inactive);
                 return true;
             }
         }
     }
     public boolean addStoppedProcess(String processName, boolean isTrue){
+        if(processesStatuses.isEmpty()) processesStatuses =Optional.of(new HashMap<>());
         if(isTrue){
-            String status = processesStatuses.get(processName);
+            ProcessStatus status = processesStatuses.get().get(processName);
             if (status!=null){
                 return switch (status) {
-                    case "active", "nonstop", "error" -> false;
-                    case "inactive","nonerror" -> {
-                        processesStatuses.put(processName, "stop");
+                    case Active, NonStop, Error -> false;
+                    case Inactive ,NonError -> {
+                        processesStatuses.get().put(processName, ProcessStatus.Stop);
                         yield true;
                     }
                     default -> throw new RuntimeException("Unknown process status");
                 };
             }else{
-                processesStatuses.put(processName,"stop");
+                processesStatuses.get().put(processName,ProcessStatus.Stop);
                 return true;
             }
         }else{
-            String status = processesStatuses.get(processName);
+            ProcessStatus status = processesStatuses.get().get(processName);
             if (status!=null){
                 return switch (status) {
-                    case "stop" -> false;
-                    case "active", "error" -> true;
-                    case "inactive" -> {
-                        processesStatuses.put(processName, "error");
+                    case Stop -> false;
+                    case Active, Error -> true;
+                    case Inactive -> {
+                        processesStatuses.get().put(processName, ProcessStatus.Error);
                         yield true;
                     }
-                    case "nonerror" -> {
-                        processesStatuses.put(processName, "active");
+                    case NonError -> {
+                        processesStatuses.get().put(processName, ProcessStatus.Active);
                         yield true;
                     }
                     default -> throw new RuntimeException("Unknown process status");
                 };
             }else{
-                processesStatuses.put(processName,"nonstop");
+                processesStatuses.get().put(processName,ProcessStatus.NonStop);
                 return true;
             }
         }
     }
     public boolean addErroredProcess(String processName, boolean isTrue){
+        if(processesStatuses.isEmpty()) processesStatuses =Optional.of(new HashMap<>());
         if(isTrue){
-            String status = processesStatuses.get(processName);
+            ProcessStatus status = processesStatuses.get().get(processName);
             if (status!=null){
                 return switch (status) {
-                    case "active", "nonerror", "stop" -> false;
-                    case "inactive","nonstop" -> {
-                        processesStatuses.put(processName, "error");
+                    case Active, NonError, Stop -> false;
+                    case Inactive,NonStop -> {
+                        processesStatuses.get().put(processName, ProcessStatus.Error);
                         yield true;
                     }
                     default -> throw new RuntimeException("Unknown process status");
                 };
             }else{
-                processesStatuses.put(processName,"error");
+                processesStatuses.get().put(processName,ProcessStatus.Error);
                 return true;
             }
         }else{
-            String status = processesStatuses.get(processName);
+            ProcessStatus status = processesStatuses.get().get(processName);
             if (status!=null){
                 return switch (status) {
-                    case "error" -> false;
-                    case "active", "stop" -> true;
-                    case "inactive" -> {
-                        processesStatuses.put(processName, "stop");
+                    case Error -> false;
+                    case Active, Stop -> true;
+                    case Inactive -> {
+                        processesStatuses.get().put(processName, ProcessStatus.Stop);
                         yield true;
                     }
-                    case "nonstop" -> {
-                        processesStatuses.put(processName, "active");
+                    case NonStop -> {
+                        processesStatuses.get().put(processName, ProcessStatus.Active);
                         yield true;
                     }
                     default -> throw new RuntimeException("Unknown process status");
                 };
             }else{
-                processesStatuses.put(processName,"nonerror");
+                processesStatuses.get().put(processName,ProcessStatus.NonError);
                 return true;
             }
         }
 
     }
 
-    protected Optional<HashMap<String,String>> mergeProcessStatuses(HashMap<String,String> anotherStatuses){
-        HashSet<String> processIntersection = new HashSet<>(this.processesStatuses.keySet());
+    protected Optional<Map<String,ProcessStatus>> mergeProcessStatuses(Map<String,ProcessStatus> anotherStatuses){
+        if(processesStatuses.isEmpty()) processesStatuses =Optional.of(new HashMap<>());
+        HashSet<String> processIntersection = new HashSet<>(this.processesStatuses.get().keySet());
         processIntersection.retainAll(anotherStatuses.keySet());
-        HashMap<String,String> newProcessStatuses = new HashMap<>(this.processesStatuses);
+        HashMap<String,ProcessStatus> newProcessStatuses = new HashMap<>(this.processesStatuses.get());
         newProcessStatuses.putAll(anotherStatuses);
         for(String inter: processIntersection){
-            //Перекодировать через произведение простых чисел
-            int thisStatus = switch(this.processesStatuses.get(inter)){
-                case "active" -> 1;
-                case "inactive" -> 3;
-                case "stop" -> 5;
-                case "nonstop" -> 7;
-                case "error" -> 11;
-                case "nonerror" -> 13;
-                default -> throw new IllegalStateException("Unexpected value: " + this.processesStatuses.get(inter));
+            int thisStatus = switch(this.processesStatuses.get().get(inter)){
+                case Active -> 1;
+                case Inactive -> 3;
+                case Stop -> 5;
+                case NonStop -> 7;
+                case Error -> 11;
+                case NonError -> 13;
+                default -> throw new IllegalStateException("Unexpected value: " + this.processesStatuses.get().get(inter));
             };
             int anotherStatus = switch(anotherStatuses.get(inter)){
-                case "active" -> 1;
-                case "inactive" -> 3;
-                case "stop" -> 5;
-                case "nonstop" -> 7;
-                case "error" -> 11;
-                case "nonerror" -> 13;
+                case Active -> 1;
+                case Inactive -> 3;
+                case Stop -> 5;
+                case NonStop -> 7;
+                case Error -> 11;
+                case NonError -> 13;
                 default -> throw new IllegalStateException("Unexpected value: " + anotherStatuses.get(inter));
             };
             switch (thisStatus*anotherStatus){
-                case 1:newProcessStatuses.put(inter,"active");break;
+                case 1:newProcessStatuses.put(inter,ProcessStatus.Active);break;
                 case 3:return Optional.empty();
                 case 5:return Optional.empty();
-                case 7:newProcessStatuses.put(inter,"active");break;
+                case 7:newProcessStatuses.put(inter,ProcessStatus.Active);break;
                 case 11:return Optional.empty();
-                case 13:newProcessStatuses.put(inter,"active");break;
+                case 13:newProcessStatuses.put(inter,ProcessStatus.Active);break;
 
-                case 9:newProcessStatuses.put(inter,"inactive");break;
-                case 15:newProcessStatuses.put(inter,"stop");break;
-                case 21:newProcessStatuses.put(inter,"error");break;
-                case 33:newProcessStatuses.put(inter,"error");break;
-                case 39:newProcessStatuses.put(inter,"stop");break;
+                case 9:newProcessStatuses.put(inter,ProcessStatus.Inactive);break;
+                case 15:newProcessStatuses.put(inter,ProcessStatus.Stop);break;
+                case 21:newProcessStatuses.put(inter,ProcessStatus.Error);break;
+                case 33:newProcessStatuses.put(inter,ProcessStatus.Error);break;
+                case 39:newProcessStatuses.put(inter,ProcessStatus.Stop);break;
 
-                case 25:newProcessStatuses.put(inter,"stop");break;
+                case 25:newProcessStatuses.put(inter,ProcessStatus.Stop);break;
                 case 35:return Optional.empty();
                 case 55:return Optional.empty();
-                case 65:newProcessStatuses.put(inter,"stop");break;
+                case 65:newProcessStatuses.put(inter,ProcessStatus.Stop);break;
 
-                case 49:newProcessStatuses.put(inter,"nonstop");break;
-                case 77:newProcessStatuses.put(inter,"error");break;
-                case 91:newProcessStatuses.put(inter,"active");break;
+                case 49:newProcessStatuses.put(inter,ProcessStatus.NonStop);break;
+                case 77:newProcessStatuses.put(inter,ProcessStatus.NonError);break;
+                case 91:newProcessStatuses.put(inter,ProcessStatus.Active);break;
 
-                case 121:newProcessStatuses.put(inter,"error");break;
+                case 121:newProcessStatuses.put(inter,ProcessStatus.Error);break;
                 case 143:return Optional.empty();
 
-                case 169:newProcessStatuses.put(inter,"nonerror");break;
+                case 169:newProcessStatuses.put(inter,ProcessStatus.NonError);break;
             }
         }
         return Optional.of(newProcessStatuses);
@@ -391,14 +411,22 @@ public class ExprGenRes2 implements ExprRes {
             newBooleanValue = Optional.empty();
         }
 
-        Optional<HashMap<String,String>> newProcessStatuses = mergeProcessStatuses(another.processesStatuses);
-        if(newProcessStatuses.isEmpty()){
-            return Optional.empty();
+        Optional<Map<String,ProcessStatus>> newProcessStatuses;
+        if(processesStatuses.isPresent() && another.processesStatuses.isPresent()){
+            newProcessStatuses = mergeProcessStatuses(another.processesStatuses.get());
+            if(newProcessStatuses.isEmpty()){
+                return Optional.empty();
+            }
+        }else if (processesStatuses.isPresent()){
+            newProcessStatuses = this.processesStatuses;
+        }else{
+            newProcessStatuses = another.processesStatuses;
         }
+
         ExprGenRes2 newRes = new ExprGenRes2(creator,newExpression,newState);
         newRes.domain=newDomain;
         newRes.condition = newCondition;
-        newRes.processesStatuses = newProcessStatuses.get();
+        newRes.processesStatuses = newProcessStatuses;
         newRes.booleanValue = newBooleanValue;
         return Optional.of(new ExprGenRes2(creator,newExpression,newState,newBooleanValue,newCondition,newProcessStatuses.get(),newDomain));
     }
@@ -420,7 +448,7 @@ public class ExprGenRes2 implements ExprRes {
         newCondition1 = Optional.of(creator.Conjunction(List.of(newCondition.orElse(""),
                 (new BinaryExpression(BinaryOp.Eq,exprClone,new ConstantExpression(creator.False(), new BoolType()),new BoolType())).toString(creator))));
         newExpression1 = new ConstantExpression(creator.False(), new BoolType());
-        return Optional.of(new ExprGenRes2(creator,newExpression1,this.state,Optional.of(Boolean.FALSE),newCondition1,this.processesStatuses,this.domain));
+        return Optional.of(new ExprGenRes2(creator,newExpression1,this.state,Optional.of(Boolean.FALSE),newCondition1,this.processesStatuses.get(),this.domain));
     }
     private Optional<ExprGenRes2> mergeLogicalAndLeftTrue(ExprGenRes2 another){
         Optional<String> newCondition;
@@ -446,9 +474,17 @@ public class ExprGenRes2 implements ExprRes {
         newCondition2 = Optional.of(creator.Conjunction(List.of(newCondition.orElse(""),
                 (new BinaryExpression(BinaryOp.Eq,exprClone,new ConstantExpression(creator.True(), new BoolType()),new BoolType())).toString(creator))));
         SymbolicExpression newExpression2 = another.expr;
-        Optional<HashMap<String,String>> newProcessStatuses = mergeProcessStatuses(another.processesStatuses);
-        if(newProcessStatuses.isEmpty()){
-            return Optional.empty();
+
+        Optional<Map<String,ProcessStatus>> newProcessStatuses;
+        if(processesStatuses.isPresent() && another.processesStatuses.isPresent()){
+            newProcessStatuses = mergeProcessStatuses(another.processesStatuses.get());
+            if(newProcessStatuses.isEmpty()){
+                return Optional.empty();
+            }
+        }else if (processesStatuses.isPresent()){
+            newProcessStatuses = this.processesStatuses;
+        }else{
+            newProcessStatuses = another.processesStatuses;
         }
         return Optional.of(new ExprGenRes2(
                 creator,
@@ -476,7 +512,7 @@ public class ExprGenRes2 implements ExprRes {
         newCondition1 = Optional.of(creator.Conjunction(List.of(newCondition.orElse(""),
                 (new BinaryExpression(BinaryOp.Eq,exprClone,new ConstantExpression(creator.True(), new BoolType()),new BoolType())).toString(creator))));
         newExpression1 = new ConstantExpression(creator.True(), new BoolType());
-        return Optional.of(new ExprGenRes2(creator,newExpression1,this.state,Optional.of(Boolean.TRUE),newCondition1,this.processesStatuses,this.domain));
+        return Optional.of(new ExprGenRes2(creator,newExpression1,this.state,Optional.of(Boolean.TRUE),newCondition1,this.processesStatuses.get(),this.domain));
     }
     private Optional<ExprGenRes2> mergeLogicalOrLeftFalse(ExprGenRes2 another){
         Optional<String> newCondition;
@@ -502,9 +538,17 @@ public class ExprGenRes2 implements ExprRes {
         newCondition2 = Optional.of(creator.Conjunction(List.of(newCondition.orElse(""),
                 (new BinaryExpression(BinaryOp.Eq,exprClone,new ConstantExpression(creator.False(), new BoolType()),new BoolType())).toString(creator))));
         SymbolicExpression newExpression2 = another.expr;
-        Optional<HashMap<String,String>> newProcessStatuses = mergeProcessStatuses(another.processesStatuses);
-        if(newProcessStatuses.isEmpty()){
-            return Optional.empty();
+
+        Optional<Map<String,ProcessStatus>> newProcessStatuses;
+        if(processesStatuses.isPresent() && another.processesStatuses.isPresent()){
+            newProcessStatuses = mergeProcessStatuses(another.processesStatuses.get());
+            if(newProcessStatuses.isEmpty()){
+                return Optional.empty();
+            }
+        }else if (processesStatuses.isPresent()){
+            newProcessStatuses = this.processesStatuses;
+        }else{
+            newProcessStatuses = another.processesStatuses;
         }
         return Optional.of(new ExprGenRes2(
                 creator,
@@ -573,7 +617,7 @@ public class ExprGenRes2 implements ExprRes {
     }
     /*
     Optional<String> condition = Optional.empty();
-    HashMap<String,String> processesStatuses = new HashMap<>();
+    HashMap<String,String> processesStatuses.get() = new HashMap<>();
     SymbolicExpression expr;
     String state;
     Optional<String> domain = Optional.empty();
@@ -608,8 +652,8 @@ public class ExprGenRes2 implements ExprRes {
         this.condition = condition;
     }
 
-    public void setProcessesStatuses(HashMap<String, String> processesStatuses) {
-        this.processesStatuses = processesStatuses;
+    public void setProcessesStatuses(Map<String, ProcessStatus> processesStatuses) {
+        this.processesStatuses = Optional.of(processesStatuses);
     }
 
     public void setState(String state) {

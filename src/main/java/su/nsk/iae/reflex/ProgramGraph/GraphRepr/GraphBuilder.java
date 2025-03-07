@@ -255,7 +255,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
     }
 
     private ProgramGraph visitIfElseResult(ReflexParser.IfElseStatContext ctx, ExprRes res,String resState, boolean trueRes){
-        Optional<String> condition = res.getFullCondition(currentProcess.getProcessName());
+        Optional<String> condition = res.getCondition();
         res.getExpr().actuate(res.getState(), creator);
         String expr;
         ConditionNode node;
@@ -283,6 +283,14 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             }
         }
         ProgramGraph g = new ProgramGraph(node, node);
+
+        if(res.getProcessesStatuses().isPresent()){
+            ConditionNode cnode = new ConditionNode(ctx,res.getProcessesStatusesCondition().get());
+            g.extendGraph(cnode);
+            ProcessStatusAttributes statusAttributes = new ProcessStatusAttributes(cnode);
+            collector.addAttributes(cnode,statusAttributes);
+        }
+
         if (!resState.equals(creator.PlaceHolder())) {
             ExpressionNode enode = new ExpressionNode(ctx.expression(), resState);
             g.extendGraph(enode);
@@ -329,22 +337,11 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
                 trueSubGraph = new ProgramGraph(new BlankNode(),new BlankNode());
                 resList.forEach(res -> {
                     ProgramGraph sub = visitIfElseResult(ctx,res,resState,true);
-                    if(!res.getProcessesStatuses().isEmpty()){
-                        UniversalAttributes subAttr = new UniversalAttributes(sub.startNode);
-                        subAttr.setProcStatuses(res.getProcessesStatuses());
-                        collector.addAttributes(sub.startNode,subAttr);
-                    }
                     trueSubGraph.insertGraph(sub);
                 });
             }else{
                 ExprRes res = resList.get(0);
-
                 trueSubGraph = visitIfElseResult(ctx,res,resState,true);
-                if(!res.getProcessesStatuses().isEmpty()){
-                    UniversalAttributes subAttr = new UniversalAttributes(trueSubGraph.startNode);
-                    subAttr.setProcStatuses(res.getProcessesStatuses());
-                    collector.addAttributes(trueSubGraph.startNode,subAttr);
-                }
             }
             trueGraph.insertGraph(trueSubGraph);
         });
@@ -494,11 +491,6 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
                 for (ExprRes res : results) {
                     ProgramGraph condPath = switchResultProcessing(ctx, path, res, pathGraphs, conditions, e);
                     resPath.insertGraph(condPath);
-                    if(!res.getProcessesStatuses().isEmpty()){
-                        UniversalAttributes subAttr = new UniversalAttributes(condPath.startNode);
-                        subAttr.setProcStatuses(res.getProcessesStatuses());
-                        collector.addAttributes(condPath.startNode,subAttr);
-                    }
                 }
                 resPath.extendGraph(path.getValue());
             }else{
@@ -519,7 +511,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
 
     private ProgramGraph switchResultProcessing(ReflexParser.SwitchStatContext ctx, Map.Entry<String, ProgramGraph> path, ExprRes res, ArrayList<Map.Entry<String, ProgramGraph>> pathGraphs, ArrayList<String> conditions, ReflexParser.ExpressionContext e) {
         ProgramGraph condPath;
-        Optional<String> fullCond = res.getFullCondition(currentProcess.getProcessName());
+        Optional<String> fullCond = res.getCondition();
         if(fullCond.isPresent()){
             ConditionNode cnode = new ConditionNode(ctx, fullCond.get());
             condPath = new ProgramGraph(cnode,cnode);
@@ -552,6 +544,13 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         String condition = creator.Conjunction(conditions);
         ConditionNode cnode= new ConditionNode(ctx,condition);
         ProgramGraph  conPath = new ProgramGraph(cnode,cnode);
+        if(res.getProcessesStatuses().isPresent()){
+            ConditionNode ccnode = new ConditionNode(ctx,res.getProcessesStatusesCondition().get());
+            conPath.extendGraph(ccnode);
+            ProcessStatusAttributes statusAttributes = new ProcessStatusAttributes(ccnode);
+            collector.addAttributes(ccnode,statusAttributes);
+        }
+
         if(condPath==null){
             condPath = conPath;
         }else{
@@ -707,7 +706,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             graph = new ProgramGraph(new BlankNode(),new BlankNode());
             results.forEach(res->{
                 ProgramGraph sub;
-                Optional<String> condition = res.getFullCondition(currentProcess.getProcessName());
+                Optional<String> condition = res.getCondition();
                 if(condition.isPresent()){
                     ConditionNode node = new ConditionNode(e,condition.get());
                     sub = new ProgramGraph(node,node);
@@ -724,16 +723,17 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
                 if(!res.getState().equals(creator.PlaceHolder())){
                     sub.extendGraph(new ExpressionNode(e,res.getState()));
                 }
-                if(!res.getProcessesStatuses().isEmpty()){
-                    UniversalAttributes subAttr = new UniversalAttributes(sub.startNode);
-                    subAttr.setProcStatuses(res.getProcessesStatuses());
-                    collector.addAttributes(sub.startNode,subAttr);
+                if(res.getProcessesStatuses().isPresent()){
+                    ConditionNode cnode = new ConditionNode(e,res.getProcessesStatusesCondition().get());
+                    sub.extendGraph(cnode);
+                    ProcessStatusAttributes statusAttributes = new ProcessStatusAttributes(cnode);
+                    collector.addAttributes(cnode,statusAttributes);
                 }
                 graph.insertGraph(sub);
             });
         }else{
             ExprRes res= results.get(0);
-            Optional<String> condition = res.getFullCondition(currentProcess.getProcessName());
+            Optional<String> condition = res.getCondition();
             if(condition.isPresent()){
                 ConditionNode node = new ConditionNode(e,condition.get());
                 graph = new ProgramGraph(node,node);
@@ -750,10 +750,11 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             if(!res.getState().equals(creator.PlaceHolder())){
                 graph.extendGraph(new ExpressionNode(e,res.getState()));
             }
-            if(!res.getProcessesStatuses().isEmpty()){
-                UniversalAttributes subAttr = new UniversalAttributes(graph.startNode);
-                subAttr.setProcStatuses(res.getProcessesStatuses());
-                collector.addAttributes(graph.startNode,subAttr);
+            if(res.getProcessesStatuses().isPresent()){
+                ConditionNode cnode = new ConditionNode(e,res.getProcessesStatusesCondition().get());
+                graph.extendGraph(cnode);
+                ProcessStatusAttributes statusAttributes = new ProcessStatusAttributes(cnode);
+                collector.addAttributes(cnode,statusAttributes);
             }
         }
         return graph;

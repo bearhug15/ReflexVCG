@@ -1,10 +1,12 @@
 package su.nsk.iae.reflex.ProgramGraph.GraphRepr.ExpressionVisitor;
 
+import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.ProcessStatus;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.UniversalAttributes;
 import su.nsk.iae.reflex.expression.SymbolicExpression;
 import su.nsk.iae.reflex.expression.types.StateType;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 public class ExprGenRes1 implements ExprRes{
@@ -43,7 +45,12 @@ public class ExprGenRes1 implements ExprRes{
     }
 
     @Override
-    public Optional<String> getFullCondition(String process) {
+    public Optional<String> getFullCondition() {
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<String> getProcessesStatusesCondition() {
         return Optional.empty();
     }
 
@@ -64,14 +71,14 @@ public class ExprGenRes1 implements ExprRes{
     public Optional<Boolean> getBooleanValue() {
         return Optional.empty();
     }
-
+/*
     @Override
     public Optional<UniversalAttributes> getAttributes() {
         return Optional.empty();
     }
-
+*/
     @Override
-    public HashMap<String, String> getProcessesStatuses() {
-        return new HashMap<>();
+    public Optional<Map<String, ProcessStatus>> getProcessesStatuses() {
+        return Optional.empty();
     }
 }

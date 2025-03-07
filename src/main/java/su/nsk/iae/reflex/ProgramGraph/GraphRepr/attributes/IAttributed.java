@@ -26,7 +26,7 @@ public interface IAttributed {
     //void setPotProcChange(HashMap<ProcessNode,PotChange> potProcChange);
     //void addPotProcChange(ProcessNode ctx, PotChange change);
 
-    Map<String,String> getProcStatuses();
+    Map<String,ProcessStatus> getProcStatuses();
 
     ArrayList<IAttributed> getAttributes();
     //void setAttributes(ArrayList<IAttributed> attributes);

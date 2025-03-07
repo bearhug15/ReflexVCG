@@ -14,7 +14,7 @@ public abstract class BranchingFragment implements IAttributed{
     boolean stateChanging = false;
 
     ArrayList<IAttributed> attributes = new ArrayList<>();
-    Map<String, String> procStatuses = new HashMap<>();
+    Map<String, ProcessStatus> procStatuses = new HashMap<>();
 
     @Override
     public boolean isReset() {
@@ -57,7 +57,7 @@ public abstract class BranchingFragment implements IAttributed{
         potProcChange.put(new AbstractMap.SimpleImmutableEntry<>(node,change),Boolean.TRUE);
     }
 
-    public Map<String,String> getProcStatuses(){
+    public Map<String,ProcessStatus> getProcStatuses(){
         return procStatuses;
     }
     @Override
