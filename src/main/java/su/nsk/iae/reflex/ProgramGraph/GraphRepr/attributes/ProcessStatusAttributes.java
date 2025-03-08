@@ -5,6 +5,7 @@ import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.IReflexNode;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ProcessNode;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 
 public class ProcessStatusAttributes extends LinearFragment{
@@ -34,12 +35,12 @@ public class ProcessStatusAttributes extends LinearFragment{
 
     @Override
     public Map<ProcessNode, ChangeType> getProcChange() {
-        return null;
+        return new HashMap<>();
     }
 
     @Override
     public Map<Map.Entry<ProcessNode, ChangeType>, Boolean> getPotProcChange() {
-        return null;
+        return new HashMap<>();
     }
 
     public void setProcStatuses(Map<String,ProcessStatus> procStatuses){
@@ -48,7 +49,7 @@ public class ProcessStatusAttributes extends LinearFragment{
 
     @Override
     public ArrayList<IAttributed> getAttributes() {
-        return null;
+        return new ArrayList<>();
     }
 
     @Override
