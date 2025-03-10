@@ -68,8 +68,8 @@ restartStat: 'restart' ';';
 resetStat: 'reset' 'timer' ';';
 setStateStat: 'set' ('next' 'state' | 'state' stateId=ID);
 functionCall: functionID=ID '(' (args+=expression (',' args+=expression)*) ')';
-checkStateExpression: 'process' processId=ID 'in' 'state' stateId=ID;
-STATE_QUAL:'active'|'inactive'|'stop'|'error';
+checkStateExpression: 'process' processId=ID 'in' 'state' qual=stateQual;
+stateQual:'active'|'inactive'|'stop'|'error';
 infixOp: op=INFIX_POSTFIX_OP varId=ID;
 postfixOp: varId=ID op=INFIX_POSTFIX_OP;
 primaryExpression:
@@ -95,7 +95,6 @@ expression:
     | expression op=MUL_OP expression        #Mul
     | expression op=addOp expression        #Add
     | expression op=SHIFT_OP expression    #Shift
-    | checkStateExpression                    #CheckState
     | expression op=COMP_OP expression      #Compare
     | expression op=EQ_OP expression          #Equal
     | expression BIT_AND_OP expression          #BitAnd
@@ -104,6 +103,7 @@ expression:
     | expression AND_OP expression              #And
     | expression OR_OP  expression              #Or
     | ID assignOp expression                   #Assign
+    | checkStateExpression                    #CheckState
     ;
 
 INFIX_POSTFIX_OP: '++' | '--';

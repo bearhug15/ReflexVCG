@@ -1,8 +1,7 @@
 // Generated from C:/Users/iarte/IdeaProjects/ReflexVCG/src/main/java/su/nsk/iae/reflex/antlr/Reflex.g4 by ANTLR 4.13.1
 package su.nsk.iae.reflex.antlr;
 import org.antlr.v4.runtime.tree.AbstractParseTreeVisitor;
-import su.nsk.iae.reflex.antlr.ReflexParser;
-import su.nsk.iae.reflex.antlr.ReflexVisitor;
+
 /**
  * This class provides an empty implementation of {@link ReflexVisitor},
  * which can be extended to create a visitor which only needs to handle a subset
@@ -328,6 +327,13 @@ public class ReflexBaseVisitor<T> extends AbstractParseTreeVisitor<T> implements
 	 * {@link #visitChildren} on {@code ctx}.</p>
 	 */
 	@Override public T visitCheckStateExpression(ReflexParser.CheckStateExpressionContext ctx) { return visitChildren(ctx); }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation returns the result of calling
+	 * {@link #visitChildren} on {@code ctx}.</p>
+	 */
+	@Override public T visitStateQual(ReflexParser.StateQualContext ctx) { return visitChildren(ctx); }
 	/**
 	 * {@inheritDoc}
 	 *

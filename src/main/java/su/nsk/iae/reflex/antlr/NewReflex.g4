@@ -81,7 +81,7 @@ restartStat: 'restart' ';';
 resetStat: 'reset' 'timer' ';';
 setStateStat: 'set' ('next' 'state' | 'state' stateId=ID);
 functionCall: functionID=ID '(' (args+=expression (',' args+=expression)*) ')';
-checkStateExpression: 'process' processId=ID 'in' 'state' stateId=ID;
+checkStateExpression: 'process' processId=ID 'in' 'state' stateId=STATE_QUAL;
 STATE_QUAL:'active'|'inactive'|'stop'|'error';
 infixOp: op=INFIX_POSTFIX_OP variable;
 postfixOp: variable op=INFIX_POSTFIX_OP;

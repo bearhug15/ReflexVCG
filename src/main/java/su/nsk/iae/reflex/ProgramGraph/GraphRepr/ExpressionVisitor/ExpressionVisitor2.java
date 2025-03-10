@@ -13,7 +13,6 @@ import su.nsk.iae.reflex.expression.types.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toCollection;
@@ -34,7 +33,7 @@ public class ExpressionVisitor2 extends ReflexBaseVisitor<ArrayList<ExprGenRes2>
     @Override
     public ArrayList<ExprGenRes2> visitCheckStateExpression(ReflexParser.CheckStateExpressionContext ctx) {
         String process = ctx.processId.getText();
-        String processState = ctx.stateId.getText();
+        String processState = ctx.qual.getText();
         ExprGenRes2 trueRes = new ExprGenRes2(creator,new ConstantExpression(creator.True(),new BoolType()),state,Boolean.TRUE);
         ExprGenRes2 falseRes = new ExprGenRes2(creator,new ConstantExpression(creator.False(),new BoolType()),state,Boolean.FALSE);
         switch (processState){

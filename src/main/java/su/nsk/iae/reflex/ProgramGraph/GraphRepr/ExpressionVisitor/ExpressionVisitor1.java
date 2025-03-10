@@ -8,10 +8,6 @@ import su.nsk.iae.reflex.antlr.ReflexParser;
 import su.nsk.iae.reflex.expression.*;
 import su.nsk.iae.reflex.expression.ops.*;
 import su.nsk.iae.reflex.expression.types.*;
-import su.nsk.iae.reflex.formulas.ConjuctionFormula;
-import su.nsk.iae.reflex.formulas.EqualityFormula;
-import su.nsk.iae.reflex.formulas.Formula;
-import su.nsk.iae.reflex.formulas.TrueFormula;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +29,7 @@ public class ExpressionVisitor1 extends ReflexBaseVisitor<ExprGenRes1> implement
     @Override
     public ExprGenRes1 visitCheckStateExpression(ReflexParser.CheckStateExpressionContext ctx) {
         String proc = ctx.processId.getText();
-        String procState = ctx.stateId.getText();
+        String procState = ctx.qual.getText();
         CheckStateExpression exp = new CheckStateExpression(proc,procState,state);
         return new ExprGenRes1(exp,state);
     }

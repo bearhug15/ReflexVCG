@@ -19,7 +19,7 @@ public class ProgramNode implements IReflexNode{
 
     int numOfNextNodes=0;
 
-    ProgramNode(ReflexParser.ProgramContext context, boolean opener,String programName, ArrayList<String> inputVars){
+    ProgramNode(ReflexParser.ProgramContext context, boolean opener, String programName, ArrayList<String> inputVars){
         this.context = context;
         this.opener = opener;
         this.programName=programName;
