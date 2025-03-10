@@ -44,7 +44,7 @@ class VCGeneratorTest {
 
             VCGenerator2 gen = new VCGenerator2(context,false,false,true);
 
-            DOTExporter<IReflexNode, DefaultEdge> exporter =
+            /*DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
             exporter.setVertexAttributeProvider((v) -> {
                 Map<String, Attribute> map = new LinkedHashMap<>();
@@ -87,7 +87,7 @@ class VCGeneratorTest {
 
             VCGenerator2 gen = new VCGenerator2(context,false,false,true);
 
-            DOTExporter<IReflexNode, DefaultEdge> exporter =
+            /*DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
             exporter.setVertexAttributeProvider((v) -> {
                 Map<String, Attribute> map = new LinkedHashMap<>();
@@ -131,7 +131,7 @@ class VCGeneratorTest {
 
             VCGenerator2 gen = new VCGenerator2(context,false,false,true);
 
-            DOTExporter<IReflexNode, DefaultEdge> exporter =
+            /*DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
             exporter.setVertexAttributeProvider((v) -> {
                 Map<String, Attribute> map = new LinkedHashMap<>();
@@ -174,7 +174,7 @@ class VCGeneratorTest {
 
             VCGenerator2 gen = new VCGenerator2(context,false,false,true);
 
-            DOTExporter<IReflexNode, DefaultEdge> exporter =
+            /*DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
             exporter.setVertexAttributeProvider((v) -> {
                 Map<String, Attribute> map = new LinkedHashMap<>();
@@ -219,7 +219,7 @@ class VCGeneratorTest {
 
             VCGenerator2 gen = new VCGenerator2(context,false,false,true);
 
-            DOTExporter<IReflexNode, DefaultEdge> exporter =
+            /*DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
             exporter.setVertexAttributeProvider((v) -> {
                 Map<String, Attribute> map = new LinkedHashMap<>();
@@ -258,7 +258,7 @@ class VCGeneratorTest {
 
             VCGenerator2 gen = new VCGenerator2(context,false,false,true);
 
-            DOTExporter<IReflexNode, DefaultEdge> exporter =
+            /*DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
             exporter.setVertexAttributeProvider((v) -> {
                 Map<String, Attribute> map = new LinkedHashMap<>();
@@ -953,7 +953,7 @@ class VCGeneratorTest {
 
             VCGenerator2 gen = new VCGenerator2(context,false,false,true);
 
-            DOTExporter<IReflexNode, DefaultEdge> exporter =
+            /*DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();
             exporter.setVertexAttributeProvider((v) -> {
                 Map<String, Attribute> map = new LinkedHashMap<>();
@@ -1072,7 +1072,140 @@ class VCGeneratorTest {
             ReflexParser parser = new ReflexParser(tokenStream);
             ReflexParser.ProgramContext context = parser.program();
 
-            VCGenerator2 gen = new VCGenerator2(context,false,false,true);
+            VCGenerator2 gen = new VCGenerator2(context,false,true,true);
+
+            /*DOTExporter<IReflexNode, DefaultEdge> exporter =
+                    new DOTExporter<>();
+            exporter.setVertexAttributeProvider((v) -> {
+                Map<String, Attribute> map = new LinkedHashMap<>();
+                map.put("label", DefaultAttribute.createAttribute(v.toString()));
+                return map;
+            });
+            Writer writer = new StringWriter();
+            exporter.exportGraph(gen.graph, writer);
+            System.out.println(writer.toString());//*/
+
+            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            System.out.println("VC conditions generated: " + gen.VCGenerated());
+
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void newSmartLighting(){
+        CharStream inputStream = CharStreams.fromString("program SmartLighting{\n" +
+                "clock 100;\n" +
+                "\tinput inp 0x00 0x00 16;\n" +
+                "\toutput out 0x00 0x04 24;\n" +
+                "\tbool motion = inp[0];\n" +
+                "\tbool light = inp[1];\n" +
+                "\tbool dayLight = out[0];\n" +
+                "\tbool dimLight = out[1];\n" +
+                "\tint8 timeOfDay = out[2];\n" +
+                "\t\n" +
+                "\tconst bool TURNED_ON = true;\n" +
+                "\tconst bool TURNED_OFF = false;\n" +
+                "\tconst bool LOW = false;\n" +
+                "\tconst int8 NIGHT = 0;\n" +
+                "\tconst int8 EARLY_MORNING = 1;\n" +
+                "\tconst int8 MORNING_LIGHTING = 2;\n" +
+                "\tconst int8 DAY = 3;\n" +
+                "\tconst int8 EVENING = 4;\n" +
+                "\tconst time LIGHTING_TIME = 0t5m;\n" +
+                "\tconst time MORNING_LIGHTING_TIME = 0t30m;\n" +
+                "\n" +
+                "\tbool turnedOn;\n" +
+                "\t\n" +
+                "\tprocess Init{\n" +
+                "\t\tstate init{\n" +
+                "\t\t\tstart Lighting;\n" +
+                "\t\t\tstop;\n" +
+                "\t\t}\n" +
+                "\t}\n" +
+                "\t\n" +
+                "\tprocess Motion{\n" +
+                "\t\tstate noMovement{\n" +
+                "\t\t\tif (motion && light = LOW){\n" +
+                "\t\t\t\tturnedOn = true;\n" +
+                "\t\t\t\tset next state;\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t\tstate movement{\n" +
+                "\t\t\tif (motion){\n" +
+                "\t\t\t\treset timer;\n" +
+                "\t\t\t}\n" +
+                "\t\t\ttimeout LIGHTING_TIME {\n" +
+                "\t\t\t\tturnedOn = false;\n" +
+                "\t\t\t\tset state noMovement;\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t}\n" +
+                "\t\n" +
+                "\tprocess Lighting{\n" +
+                "\t\tstate night{\n" +
+                "\t\t\ttimeout 0t6h{\n" +
+                "\t\t\t\ttimeOfDay = EARLY_MORNING;\n" +
+                "\t\t\t\tstart Motion;\n" +
+                "\t\t\t\tset next state;\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t\tstate earlyMorning{\n" +
+                "\t\t\tif (turnedOn){\n" +
+                "\t\t\t\tdimLight = TURNED_ON;\n" +
+                "\t\t\t} else{\n" +
+                "\t\t\t\tdimLight = TURNED_OFF;\n" +
+                "\t\t\t}\n" +
+                "\t\t\ttimeout 0t30m{\n" +
+                "\t\t\t\ttimeOfDay = MORNING_LIGHTING;\n" +
+                "\t\t\t\tdimLight = TURNED_ON;\n" +
+                "\t\t\t\tset next state;\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t\tstate morningLighting{\n" +
+                "\t\t\ttimeout MORNING_LIGHTING_TIME{\n" +
+                "\t\t\t\ttimeOfDay = DAY;\n" +
+                "\t\t\t\tset next state;\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t\tstate morningOrDay{\n" +
+                "\t\t\tdimLight = TURNED_OFF;\n" +
+                "\t\t\tif (turnedOn){\n" +
+                "\t\t\t\tdayLight = TURNED_ON;\n" +
+                "\t\t\t}else{\n" +
+                "\t\t\t\tdayLight = TURNED_OFF;\n" +
+                "\t\t\t}\n" +
+                "\t\t\ttimeout 0t11h30m{\n" +
+                "\t\t\t\ttimeOfDay = EVENING;\n" +
+                "\t\t\t\tset next state;\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t\tstate evening{\n" +
+                "\t\t\tdayLight = TURNED_OFF;\n" +
+                "\t\t\tif (turnedOn){\n" +
+                "\t\t\t\tdimLight = TURNED_ON;\n" +
+                "\t\t\t}else{\n" +
+                "\t\t\t\tdimLight = TURNED_OFF;\n" +
+                "\t\t\t}\n" +
+                "\t\t\ttimeout 0t6h{\n" +
+                "\t\t\t\tdimLight = TURNED_OFF;\n" +
+                "\t\t\t\ttimeOfDay = NIGHT;\n" +
+                "\t\t\t\tturnedOn = false;\n" +
+                "\t\t\t\tstop Motion;\n" +
+                "\t\t\t\tset state night;\n" +
+                "\t\t\t}\n" +
+                "\t\t}\n" +
+                "\t\n" +
+                "\t}\n" +
+                "}");
+        try {
+            ReflexLexer lexer = new ReflexLexer(inputStream);
+            CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+            ReflexParser parser = new ReflexParser(tokenStream);
+            ReflexParser.ProgramContext context = parser.program();
+
+            VCGenerator2 gen = new VCGenerator2(context,true,true,true);
 
             /*DOTExporter<IReflexNode, DefaultEdge> exporter =
                     new DOTExporter<>();

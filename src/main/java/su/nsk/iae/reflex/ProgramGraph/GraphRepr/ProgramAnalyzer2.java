@@ -70,7 +70,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
                 ProcessAttributes attr1 = (ProcessAttributes)collector.getAttributes(node1);
                 ProcessAttributes attr2 = (ProcessAttributes)collector.getAttributes(node2);
                 if(!attr2.isStartS()){
-                    ChangeType changes = ((StateAttributes)collector.getAttributes(getFistState((ProgramNode) node2))).getProcChange().get(node1);
+                    ChangeType changes = ((StateAttributes)collector.getAttributes(getFistState((ProcessNode) node2))).getProcChange().get(node1);
                     if(changes!=null && changes.equals(ChangeType.Start)){
                         attr1.setStartS(false);
                         break;
@@ -96,7 +96,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         }*/
         return;
     }
-    private StateNode getFistState(ProgramNode node){
+    private StateNode getFistState(ProcessNode node){
         return (StateNode) graph.getOutgoingNeighbours(node).stream().min(Comparator.comparingInt(IReflexNode::getBranchNum)).get();
     }
 

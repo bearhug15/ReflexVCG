@@ -136,6 +136,7 @@ class AttributeTraversal extends TraversalListenerAdapter<IReflexNode, DefaultEd
     AttributedPath path;
     AttributeCollector collector;
 
+    boolean isLonger = false;
 
     public AttributeTraversal(AttributeCollector collector){
         path = new AttributedPath();
@@ -151,6 +152,7 @@ class AttributeTraversal extends TraversalListenerAdapter<IReflexNode, DefaultEd
                 //((ProcessAttributes)collector.getAttributes(sattr.getRootProcess())).setState(sattr.getStateName());
             }
             path.add(attr);
+            isLonger = true;
         }
     }
 
@@ -160,15 +162,17 @@ class AttributeTraversal extends TraversalListenerAdapter<IReflexNode, DefaultEd
         if (attr!=null){
             path.trimBy(attr);
         }
+        isLonger = false;
     }
 
     public boolean isCompatible(IRuleChecker checker){
-        if(path.size()<2){
+        if(path.size()<2 || !isLonger){
             return true;
         }
         IAttributed last = path.removeLast();
         boolean res = checker.checkRules(path,last);
         path.add(last);
+        isLonger = false;
         return res;
     }
 }

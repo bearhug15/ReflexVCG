@@ -52,6 +52,18 @@ public class ExprGenRes2 implements ExprRes {
         this.processesStatuses =Optional.of(processesStatuses);
         this.domain = domain;
     }
+    private ExprGenRes2(IStatementCreator creator,SymbolicExpression expression, String state, Optional<Boolean> booleanValue,Optional<String> condition,Optional<Map<String,ProcessStatus>> processesStatuses,Optional<String> domain){
+        if (expression.exprType().getClass().equals(StateType.class)){
+            throw new RuntimeException("Expression returning state");
+        }
+        this.expr = expression;
+        this.state = state;
+        this.booleanValue = booleanValue;
+        this.creator = creator;
+        this.condition = condition;
+        this.processesStatuses =processesStatuses;
+        this.domain = domain;
+    }
     /*ExprGenRes2(IStatementCreator creator,SymbolicExpression expression, String state, String domain){
         if (expression.exprType().getClass().equals(StateType.class)){
             throw new RuntimeException("Expression returning state");
@@ -428,7 +440,7 @@ public class ExprGenRes2 implements ExprRes {
         newRes.condition = newCondition;
         newRes.processesStatuses = newProcessStatuses;
         newRes.booleanValue = newBooleanValue;
-        return Optional.of(new ExprGenRes2(creator,newExpression,newState,newBooleanValue,newCondition,newProcessStatuses.get(),newDomain));
+        return Optional.of(newRes);
     }
 
     private Optional<ExprGenRes2> mergeLogicalAndLeftFalse(ExprGenRes2 another){
@@ -448,7 +460,7 @@ public class ExprGenRes2 implements ExprRes {
         newCondition1 = Optional.of(creator.Conjunction(List.of(newCondition.orElse(""),
                 (new BinaryExpression(BinaryOp.Eq,exprClone,new ConstantExpression(creator.False(), new BoolType()),new BoolType())).toString(creator))));
         newExpression1 = new ConstantExpression(creator.False(), new BoolType());
-        return Optional.of(new ExprGenRes2(creator,newExpression1,this.state,Optional.of(Boolean.FALSE),newCondition1,this.processesStatuses.get(),this.domain));
+        return Optional.of(new ExprGenRes2(creator,newExpression1,this.state,Optional.of(Boolean.FALSE),newCondition1,this.processesStatuses,this.domain));
     }
     private Optional<ExprGenRes2> mergeLogicalAndLeftTrue(ExprGenRes2 another){
         Optional<String> newCondition;
@@ -492,7 +504,7 @@ public class ExprGenRes2 implements ExprRes {
                 another.state,
                 another.booleanValue,
                 newCondition2,
-                newProcessStatuses.get(),
+                newProcessStatuses,
                 newDomain(this.domain,another.domain,Optional.empty())));
     }
     private Optional<ExprGenRes2> mergeLogicalOrLeftTrue(ExprGenRes2 another){
@@ -512,7 +524,7 @@ public class ExprGenRes2 implements ExprRes {
         newCondition1 = Optional.of(creator.Conjunction(List.of(newCondition.orElse(""),
                 (new BinaryExpression(BinaryOp.Eq,exprClone,new ConstantExpression(creator.True(), new BoolType()),new BoolType())).toString(creator))));
         newExpression1 = new ConstantExpression(creator.True(), new BoolType());
-        return Optional.of(new ExprGenRes2(creator,newExpression1,this.state,Optional.of(Boolean.TRUE),newCondition1,this.processesStatuses.get(),this.domain));
+        return Optional.of(new ExprGenRes2(creator,newExpression1,this.state,Optional.of(Boolean.TRUE),newCondition1,this.processesStatuses,this.domain));
     }
     private Optional<ExprGenRes2> mergeLogicalOrLeftFalse(ExprGenRes2 another){
         Optional<String> newCondition;
@@ -556,7 +568,7 @@ public class ExprGenRes2 implements ExprRes {
                 another.state,
                 another.booleanValue,
                 newCondition2,
-                newProcessStatuses.get(),
+                newProcessStatuses,
                 newDomain(this.domain,another.domain,Optional.empty())));
     }
     public List<ExprGenRes2> mergeLogical(ExprGenRes2 another, BinaryOp op){

@@ -583,8 +583,9 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         }else{
             ProcessChangeNode node= new ProcessChangeNode(ctx,id,ChangeType.Start,metaData);
             UniversalAttributes attr = new UniversalAttributes(node);
-            attr.setProcChange(Map.ofEntries(entry(currentProcess,ChangeType.Start)));
-            attr.setPotProcChange(Map.ofEntries(entry(new AbstractMap.SimpleImmutableEntry<>(currentProcess,ChangeType.Start),Boolean.TRUE)));
+            ProcessNode destNode = (ProcessNode) ctxNodeProjection.get(metaData.getProcessByName(id));
+            attr.setProcChange(Map.ofEntries(entry(destNode,ChangeType.Start)));
+            attr.setPotProcChange(Map.ofEntries(entry(new AbstractMap.SimpleImmutableEntry<>(destNode,ChangeType.Start),Boolean.TRUE)));
             attributeContainers.peek().addAttributes(attr);
             //projection.put(ctx, node);
             graph = new ProgramGraph(node,node);
@@ -603,15 +604,18 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             attr.setReset(true);
             attr.setStateChanging(true);
             attributeContainers.peek().addAttributes(attr);
+            ((ProcessAttributes)collector.getAttributes(currentProcess)).setReachS(true);
             //projection.put(ctx, node);
             graph = new ProgramGraph(node,node);
         }else{
             String id = ctx.ID().toString();
             ProcessChangeNode node= new ProcessChangeNode(ctx,id,ChangeType.Stop,metaData);
             UniversalAttributes attr = new UniversalAttributes(node);
-            attr.setProcChange(Map.ofEntries(entry(currentProcess,ChangeType.Stop)));
-            attr.setPotProcChange(Map.ofEntries(entry(new AbstractMap.SimpleImmutableEntry<>(currentProcess,ChangeType.Stop),Boolean.TRUE)));
+            ProcessNode destNode = (ProcessNode) ctxNodeProjection.get(metaData.getProcessByName(id));
+            attr.setProcChange(Map.ofEntries(entry(destNode,ChangeType.Stop)));
+            attr.setPotProcChange(Map.ofEntries(entry(new AbstractMap.SimpleImmutableEntry<>(destNode,ChangeType.Stop),Boolean.TRUE)));
             attributeContainers.peek().addAttributes(attr);
+            ((ProcessAttributes)collector.getAttributes(destNode)).setReachS(true);
             //projection.put(ctx, node);
             graph = new ProgramGraph(node,node);
         }
@@ -629,15 +633,18 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             attr.setReset(true);
             attr.setStateChanging(true);
             attributeContainers.peek().addAttributes(attr);
+            ((ProcessAttributes)collector.getAttributes(currentProcess)).setReachE(true);
             //projection.put(ctx, node);
             graph = new ProgramGraph(node,node);
         }else{
             String id = ctx.ID().toString();
             ProcessChangeNode node= new ProcessChangeNode(ctx,id,ChangeType.Error,metaData);
             UniversalAttributes attr = new UniversalAttributes(node);
-            attr.setProcChange(Map.ofEntries(entry(currentProcess,ChangeType.Stop)));
-            attr.setPotProcChange(Map.ofEntries(entry(new AbstractMap.SimpleImmutableEntry<>(currentProcess,ChangeType.Stop),Boolean.TRUE)));
+            ProcessNode destNode = (ProcessNode) ctxNodeProjection.get(metaData.getProcessByName(id));
+            attr.setProcChange(Map.ofEntries(entry(destNode,ChangeType.Error)));
+            attr.setPotProcChange(Map.ofEntries(entry(new AbstractMap.SimpleImmutableEntry<>(destNode,ChangeType.Error),Boolean.TRUE)));
             attributeContainers.peek().addAttributes(attr);
+            ((ProcessAttributes)collector.getAttributes(destNode)).setReachE(true);
             //projection.put(ctx, node);
             graph = new ProgramGraph(node,node);
         }

@@ -106,7 +106,7 @@ public abstract class LinearFragment implements IAttributed{
             for(IAttributed attr: attributes){
                 if(attr.isReset()) this.reset = true;
                 if(attr.isStateChanging()) this.stateChanging = true;
-                Set<ProcessNode> aimedProcesses = newProcChange.keySet();
+                Set<ProcessNode> aimedProcesses = new HashSet<>(newProcChange.keySet());
                 aimedProcesses.retainAll(getDefinedProcesses(attr.getPotProcChange()));
                 aimedProcesses.removeAll(attr.getProcChange().keySet());
                 for(ProcessNode proc: aimedProcesses){

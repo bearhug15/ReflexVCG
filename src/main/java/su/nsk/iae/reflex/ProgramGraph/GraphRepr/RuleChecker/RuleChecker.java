@@ -57,9 +57,9 @@ public class RuleChecker implements IRuleChecker{
     private boolean checkProcessStatusAttributes(AttributedPath path,ProcessStatusAttributes attr){
 
         HashMap<String,ProcessStatus> newProcessStatuses = new HashMap<>(attr.getProcStatuses());
-        for (IAttributed a : path) {
-            if (a instanceof ProcessStatusAttributes) {
-                for (Map.Entry<String, ProcessStatus> entry : a.getProcStatuses().entrySet()) {
+        for (IAttributed newAttr : path) {
+            if (newAttr instanceof ProcessStatusAttributes) {
+                for (Map.Entry<String, ProcessStatus> entry : newAttr.getProcStatuses().entrySet()) {
                     if (newProcessStatuses.get(entry.getKey()) == null) {
                         newProcessStatuses.put(entry.getKey(), entry.getValue());
                     }
@@ -80,73 +80,38 @@ public class RuleChecker implements IRuleChecker{
                         case NonError -> 13;
                     };
                     switch (thisStatus * anotherStatus) {
-                        case 1:
-                            newProcessStatuses.put(entry.getKey(), ProcessStatus.Active);
-                            break;
-                        case 3:
-                            return false;
-                        case 5:
-                            return false;
-                        case 7:
-                            newProcessStatuses.put(entry.getKey(), ProcessStatus.Active);
-                            break;
-                        case 11:
-                            return false;
-                        case 13:
-                            newProcessStatuses.put(entry.getKey(), ProcessStatus.Active);
-                            break;
+                        case 1:newProcessStatuses.put(entry.getKey(), ProcessStatus.Active);break;
+                        case 3:return false;
+                        case 5:return false;
+                        case 7:newProcessStatuses.put(entry.getKey(), ProcessStatus.Active);break;
+                        case 11:return false;
+                        case 13:newProcessStatuses.put(entry.getKey(), ProcessStatus.Active);break;
 
-                        case 9:
-                            newProcessStatuses.put(entry.getKey(), ProcessStatus.Inactive);
-                            break;
-                        case 15:
-                            newProcessStatuses.put(entry.getKey(), ProcessStatus.Stop);
-                            break;
-                        case 21:
-                            newProcessStatuses.put(entry.getKey(), ProcessStatus.Error);
-                            break;
-                        case 33:
-                            newProcessStatuses.put(entry.getKey(), ProcessStatus.Error);
-                            break;
-                        case 39:
-                            newProcessStatuses.put(entry.getKey(), ProcessStatus.Stop);
-                            break;
+                        case 9:newProcessStatuses.put(entry.getKey(), ProcessStatus.Inactive);break;
+                        case 15:newProcessStatuses.put(entry.getKey(), ProcessStatus.Stop);break;
+                        case 21:newProcessStatuses.put(entry.getKey(), ProcessStatus.Error);break;
+                        case 33:newProcessStatuses.put(entry.getKey(), ProcessStatus.Error);break;
+                        case 39:newProcessStatuses.put(entry.getKey(), ProcessStatus.Stop);break;
 
-                        case 25:
-                            newProcessStatuses.put(entry.getKey(), ProcessStatus.Stop);
-                            break;
-                        case 35:
-                            return false;
-                        case 55:
-                            return false;
-                        case 65:
-                            newProcessStatuses.put(entry.getKey(), ProcessStatus.Stop);
-                            break;
+                        case 25:newProcessStatuses.put(entry.getKey(), ProcessStatus.Stop);break;
+                        case 35:return false;
+                        case 55:return false;
+                        case 65:newProcessStatuses.put(entry.getKey(), ProcessStatus.Stop);break;
 
-                        case 49:
-                            newProcessStatuses.put(entry.getKey(), ProcessStatus.NonStop);
-                            break;
-                        case 77:
-                            newProcessStatuses.put(entry.getKey(), ProcessStatus.NonError);
-                            break;
-                        case 91:
-                            newProcessStatuses.put(entry.getKey(), ProcessStatus.Active);
-                            break;
+                        case 49:newProcessStatuses.put(entry.getKey(), ProcessStatus.NonStop);break;
+                        case 77:newProcessStatuses.put(entry.getKey(), ProcessStatus.NonError);break;
+                        case 91:newProcessStatuses.put(entry.getKey(), ProcessStatus.Active);break;
 
-                        case 121:
-                            newProcessStatuses.put(entry.getKey(), ProcessStatus.Error);
-                            break;
-                        case 143:
-                            return false;
+                        case 121:newProcessStatuses.put(entry.getKey(), ProcessStatus.Error);break;
+                        case 143:return false;
 
-                        case 169:
-                            newProcessStatuses.put(entry.getKey(), ProcessStatus.NonError);
-                            break;
+                        case 169:newProcessStatuses.put(entry.getKey(), ProcessStatus.NonError);break;
                     }
                 }
+            } else if(newAttr instanceof StateAttributes){
+                if(!processStatusStateComp((StateAttributes) newAttr, attr))return false;
             }
         }
-        //TODO
         return true;
     }
 
@@ -159,21 +124,26 @@ public class RuleChecker implements IRuleChecker{
         //boolean res = true;
 
         Iterator<IAttributed> iter = path.descendingIterator();
+        Optional<Boolean> processInRightState = Optional.empty();
         while(iter.hasNext()){
             IAttributed newAttr = iter.next();
+            if(newAttr instanceof ProcessAttributes || newAttr instanceof  ProgramAttributes)continue;
             ChangeType ty = newAttr.getProcChange().get(rootProcess);
-            if(ty!=null){
+            if(ty!=null && processInRightState.isEmpty()){
                 switch(ty){
                     case Start -> {
-                        return metaData.firstState(rootProcess.getProcessName()).equals(attr.getStateName());
+                        processInRightState = Optional.of(metaData.firstState(rootProcess.getProcessName()).equals(attr.getStateName()));
                     }
                     case Stop -> {
-                        return attr.getStateName().equals("stop");
+                        processInRightState = Optional.of(attr.getStateName().equals("stop"));
                     }
                     case Error -> {
-                        return attr.getStateName().equals("error");
+                        processInRightState = Optional.of(attr.getStateName().equals("error"));
                     }
                 }
+            }
+            if(!processInRightState.orElse(true)){
+                return false;
             }
 
             if(newAttr instanceof StateAttributes anotherAttr){
@@ -198,18 +168,22 @@ public class RuleChecker implements IRuleChecker{
                 }
             }
             if(newAttr instanceof ProcessStatusAttributes){
-                ProcessStatus status =  newAttr.getProcStatuses().get(attr.getRootProcess().getProcessName());
-                if(status==null)continue;
-                switch (status){
-                    case Active:if(attr.getStateName().equals("stop") || attr.getStateName().equals("error"))return false;break;
-                    case Inactive:if(!attr.getStateName().equals("stop") && !attr.getStateName().equals("error"))return false;break;
-                    case Stop:if(!attr.getStateName().equals("stop"))return false;break;
-                    case NonStop:if(attr.getStateName().equals("stop"))return false;break;
-                    case Error:if(!attr.getStateName().equals("error"))return false;break;
-                    case NonError:if(attr.getStateName().equals("error"))return false;break;
-                }
-
+                if(!processStatusStateComp(attr, (ProcessStatusAttributes) newAttr))return false;
             }
+        }
+        return true;
+    }
+
+    private boolean processStatusStateComp(StateAttributes attr1, ProcessStatusAttributes attr2){
+        ProcessStatus status =  attr2.getProcStatuses().get(attr1.getRootProcess().getProcessName());
+        if(status==null)return true;
+        switch (status){
+            case Active:if(attr1.getStateName().equals("stop") || attr1.getStateName().equals("error"))return false;break;
+            case Inactive:if(!attr1.getStateName().equals("stop") && !attr1.getStateName().equals("error"))return false;break;
+            case Stop:if(!attr1.getStateName().equals("stop"))return false;break;
+            case NonStop:if(attr1.getStateName().equals("stop"))return false;break;
+            case Error:if(!attr1.getStateName().equals("error"))return false;break;
+            case NonError:if(attr1.getStateName().equals("error"))return false;break;
         }
         return true;
     }

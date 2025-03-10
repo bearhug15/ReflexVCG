@@ -85,7 +85,8 @@ public abstract class BranchingFragment implements IAttributed{
             for(IAttributed attr: attributes){
                 if(!attr.isReset()) this.reset = false;
                 if(!attr.isStateChanging()) this.stateChanging = false;
-                for (ProcessNode proc: newProcChange.keySet()){
+                Set<ProcessNode> procs = new HashSet<>(newProcChange.keySet());
+                for (ProcessNode proc: procs){
                     if(!attr.getProcChange().containsKey(proc) || !attr.getProcChange().get(proc).equals(attr.getProcChange().get(proc)))
                         newProcChange.remove(proc);
                 }

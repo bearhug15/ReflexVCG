@@ -44,7 +44,7 @@ public class UniversalAttributes extends LinearFragment{
         return AttributedNodeType.Statement;
     }
 
-    public void setProcStatuses(HashMap<String, String> procStatuses){
+    public void setProcStatuses(HashMap<String, ProcessStatus> procStatuses){
         this.procStatuses = procStatuses;
     }
 }
