@@ -4,28 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="31cc603e-4c88-437f-b758-480ac615483d" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/uiDesigner.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gen/su/nsk/iae/reflex/antlr/Reflex.interp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gen/su/nsk/iae/reflex/antlr/Reflex.tokens" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gen/su/nsk/iae/reflex/antlr/ReflexBaseVisitor.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gen/su/nsk/iae/reflex/antlr/ReflexLexer.interp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gen/su/nsk/iae/reflex/antlr/ReflexLexer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gen/su/nsk/iae/reflex/antlr/ReflexLexer.tokens" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gen/su/nsk/iae/reflex/antlr/ReflexParser.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gen/su/nsk/iae/reflex/antlr/ReflexVisitor.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/su/nsk/iae/reflex/ProgramGraph/GraphRepr/ExpressionVisitor/ExpressionVisitor.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/su/nsk/iae/reflex/ProgramGraph/GraphRepr/ExpressionVisitor/ExpressionVisitor.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/su/nsk/iae/reflex/ProgramGraph/GraphRepr/ExpressionVisitor/ExpressionVisitor1.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/su/nsk/iae/reflex/ProgramGraph/GraphRepr/ExpressionVisitor/ExpressionVisitor1.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/su/nsk/iae/reflex/ProgramGraph/GraphRepr/ExpressionVisitor/ExpressionVisitor2.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/su/nsk/iae/reflex/ProgramGraph/GraphRepr/ExpressionVisitor/ExpressionVisitor2.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/su/nsk/iae/reflex/ProgramGraph/GraphRepr/GraphNodes/ProcessNode.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/su/nsk/iae/reflex/ProgramGraph/GraphRepr/GraphNodes/ProcessNode.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/su/nsk/iae/reflex/ProgramGraph/GraphRepr/GraphNodes/ProgramNode.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/su/nsk/iae/reflex/ProgramGraph/GraphRepr/GraphNodes/ProgramNode.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/su/nsk/iae/reflex/antlr/NewReflex.g4" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/su/nsk/iae/reflex/antlr/NewReflex.g4" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/su/nsk/iae/reflex/antlr/Reflex.g4" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/su/nsk/iae/reflex/antlr/Reflex.g4" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/java/su/nsk/iae/reflex/vcg/VCGeneratorTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/java/su/nsk/iae/reflex/vcg/VCGeneratorTest.java" afterDir="false" />
-    </list>
+    <list default="true" id="31cc603e-4c88-437f-b758-480ac615483d" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
