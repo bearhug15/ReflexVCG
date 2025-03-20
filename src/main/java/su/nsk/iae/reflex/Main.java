@@ -20,8 +20,10 @@ public class Main {
         options.addOption("s","source",true,"");
         options.addOption("o","output",true,"");
         options.addOption("e","expr",true,"");
+        options.addOption("pe","processExpr",true,"");
         options.addOption("g","graph",true,"");
         options.addOption("a","analysis",true,"");
+
 
         CommandLineParser commandLineParser = new DefaultParser();
         CommandLine commandLine = commandLineParser.parse(options,args);
@@ -64,6 +66,18 @@ public class Main {
             System.out.println("Unknown argument for expression processing type. Possible arguments: regular, simple");
             return;
         }
+        boolean isProcessExpr;
+        String expressionProcess = commandLine.getOptionValue("pe");
+        if(expressionProcess==null){
+            isProcessExpr = false;
+        }else if(expressionProcess.equals("false")){
+            isProcessExpr = false;
+        }else if(expressionProcess.equals("true")){
+            isProcessExpr = true;
+        }else{
+            System.out.println("Unknown argument for process expression processing type. Possible arguments: true, false");
+            return;
+        }
 
         boolean exportGraph;
         String exportG = commandLine.getOptionValue("g");
@@ -91,7 +105,7 @@ public class Main {
             return;
         }
 
-        generator = new VCGenerator2(context,isSimpleExp,exportGraph,staticAnalysis);
+        generator = new VCGenerator2(context,isSimpleExp,isProcessExpr,exportGraph,staticAnalysis);
         generator.generateVC(sourcePath,destPath);
 
         //VCGenerator generator = new VCGenerator();

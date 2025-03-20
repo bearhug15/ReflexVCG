@@ -34,18 +34,20 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
     IStatementCreator creator;
     ASTGraphProjection projection;
     boolean isSimpleExprVisitor;
+    boolean isProcessExpr;
 
 
     HashMap<ParserRuleContext,IReflexNode> ctxNodeProjection = new HashMap<>();
     Stack<IAttributed> attributeContainers = new Stack<>();
     AttributeCollector collector = new AttributeCollector();
 
-    public GraphBuilder(ProgramMetaData metaData, VariableMapper mapper, IStatementCreator creator, boolean isSimpleExprVisitor){
+    public GraphBuilder(ProgramMetaData metaData, VariableMapper mapper, IStatementCreator creator, boolean isSimpleExprVisitor, boolean isProcessExpr){
         this.metaData = metaData;
         this.mapper = mapper;
         this.creator = creator;
         this.projection = new ASTGraphProjection();
         this.isSimpleExprVisitor = isSimpleExprVisitor;
+        this.isProcessExpr = isProcessExpr;
     }
     public ProgramGraph buildProgramGraph(ReflexParser.ProgramContext context){
         return visitProgram(context);
@@ -318,7 +320,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         if(isSimpleExprVisitor){
             vis = new ExpressionVisitor1(mapper,currentProcess.getProcessName(),creator.PlaceHolder(),creator);
         }else{
-            vis = new ExpressionVisitor2(mapper,currentProcess.getProcessName(),creator.PlaceHolder(),creator);
+            vis = new ExpressionVisitor2(mapper,currentProcess.getProcessName(),creator.PlaceHolder(),creator,isProcessExpr);
         }
         List<ExprRes> results = vis.parseExpression(e);
 
@@ -473,7 +475,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         if(isSimpleExprVisitor){
             vis = new ExpressionVisitor1(mapper,currentProcess.getProcessName(),creator.PlaceHolder(),creator);
         }else{
-            vis = new ExpressionVisitor2(mapper,currentProcess.getProcessName(),creator.PlaceHolder(),creator);
+            vis = new ExpressionVisitor2(mapper,currentProcess.getProcessName(),creator.PlaceHolder(),creator,isProcessExpr);
         }
         List<ExprRes> results = vis.parseExpression(e);
         results.forEach(res->res.getExpr().actuate(res.getState(), creator));
@@ -705,7 +707,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         if(isSimpleExprVisitor){
             vis = new ExpressionVisitor1(mapper,currentProcess.getProcessName(),creator.PlaceHolder(),creator);
         }else{
-            vis = new ExpressionVisitor2(mapper,currentProcess.getProcessName(),creator.PlaceHolder(),creator);
+            vis = new ExpressionVisitor2(mapper,currentProcess.getProcessName(),creator.PlaceHolder(),creator,isProcessExpr);
         }
         List<ExprRes> results = vis.parseExpression(e);
         ProgramGraph graph;

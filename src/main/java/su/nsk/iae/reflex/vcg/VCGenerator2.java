@@ -35,7 +35,7 @@ public class VCGenerator2 {
     boolean exportGraph;
     boolean staticAnalysis;
 
-    public VCGenerator2(ReflexParser.ProgramContext context, boolean isSimpleExprVisitor, boolean exportGraph, boolean staticAnalysis){
+    public VCGenerator2(ReflexParser.ProgramContext context, boolean isSimpleExprVisitor, boolean isProcessExpr,boolean exportGraph, boolean staticAnalysis){
         this.context = context;
         this.creator = new IsabelleCreator();
         this.mapper = new VariableMapper(context,creator);
@@ -43,7 +43,7 @@ public class VCGenerator2 {
         this.exportGraph = exportGraph;
         this.staticAnalysis = staticAnalysis;
 
-        GraphBuilder builder = new GraphBuilder(metaData,mapper,creator, isSimpleExprVisitor);
+        GraphBuilder builder = new GraphBuilder(metaData,mapper,creator, isSimpleExprVisitor,isProcessExpr);
         this.graph = builder.buildProgramGraph(context);
         this.projection = builder.getASTtoGraphProjection();
 

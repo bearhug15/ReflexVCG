@@ -10,12 +10,13 @@ Implements simple static analysis to discard impossible verification conditions.
 
 To launch generator use: ``java -jar ReflexVCG.jar [key/value]``.
 
-| key  | value          | meaning                                                                          |
-|------|----------------|----------------------------------------------------------------------------------|
-| -s 	 | path           | path to source .rx file                                                          |
-| -o 	 | path           | output destination                                                               |
-| -e 	 | simple/regular | choose regular c-like expression semantics or simplified one. Regular by default |
-| -g 	 | true/false     | generate .gv program graph. False by default                                     |
-| -a 	 | true/false     | use static analysis to lower to discard unrelated VC                             |
+| key   | value          | meaning                                                                               |
+|-------|----------------|---------------------------------------------------------------------------------------|
+| -s 	  | path           | path to source .rx file                                                               |
+| -o 	  | path           | output destination                                                                    |
+| -e 	  | simple/regular | choose regular c-like expression semantics or simplified one. Regular by default      |
+| -pe 	 | true/false     | split process expression for attributes. Works only with -e=regular. False by default |
+| -g 	  | true/false     | generate .gv program graph. False by default                                          |
+| -a 	  | true/false     | use static analysis to lower to discard unrelated VC                                  |
 
 Specification of source file path  is required. Output path is optional and set to source folder if not defined.

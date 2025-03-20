@@ -22,44 +22,52 @@ public class ExpressionVisitor2 extends ReflexBaseVisitor<ArrayList<ExprGenRes2>
     final String process;
     final String state;
     final IStatementCreator creator;
+    boolean isProcessExpr;
 
-    public ExpressionVisitor2(VariableMapper mapper, String processName, String state, IStatementCreator creator){
+    public ExpressionVisitor2(VariableMapper mapper, String processName, String state, IStatementCreator creator, boolean isProcessExpr){
         this.mapper = mapper;
         this.process = processName;
         this.state = state;
         this.creator = creator;
+        this.isProcessExpr = isProcessExpr;
     }
 
     @Override
     public ArrayList<ExprGenRes2> visitCheckStateExpression(ReflexParser.CheckStateExpressionContext ctx) {
         String process = ctx.processId.getText();
         String processState = ctx.qual.getText();
-        ExprGenRes2 trueRes = new ExprGenRes2(creator,new ConstantExpression(creator.True(),new BoolType()),state,Boolean.TRUE);
-        ExprGenRes2 falseRes = new ExprGenRes2(creator,new ConstantExpression(creator.False(),new BoolType()),state,Boolean.FALSE);
-        switch (processState){
-            case "active":{
-                trueRes.addActiveProcess(process,true);
-                falseRes.addActiveProcess(process,false);
-                break;
+        if(isProcessExpr){
+            ExprGenRes2 trueRes = new ExprGenRes2(creator,new ConstantExpression(creator.True(),new BoolType()),state,Boolean.TRUE);
+            ExprGenRes2 falseRes = new ExprGenRes2(creator,new ConstantExpression(creator.False(),new BoolType()),state,Boolean.FALSE);
+            switch (processState){
+                case "active":{
+                    trueRes.addActiveProcess(process,true);
+                    falseRes.addActiveProcess(process,false);
+                    break;
+                }
+                case "inactive":{
+                    trueRes.addActiveProcess(process,false);
+                    falseRes.addActiveProcess(process,true);
+                    break;
+                }
+                case "stop":{
+                    trueRes.addStoppedProcess(process,true);
+                    falseRes.addStoppedProcess(process,false);
+                    break;
+                }
+                case "error":{
+                    trueRes.addErroredProcess(process,true);
+                    falseRes.addErroredProcess(process,false);
+                    break;
+                }
+                default: throw new RuntimeException("Impermissible state name for check state operator");
             }
-            case "inactive":{
-                trueRes.addActiveProcess(process,false);
-                falseRes.addActiveProcess(process,true);
-                break;
-            }
-            case "stop":{
-                trueRes.addStoppedProcess(process,true);
-                falseRes.addStoppedProcess(process,false);
-                break;
-            }
-            case "error":{
-                trueRes.addErroredProcess(process,true);
-                falseRes.addErroredProcess(process,false);
-                break;
-            }
-            default: throw new RuntimeException("Impermissible state name for check state operator");
+            return new ArrayList<>(List.of(trueRes,falseRes));
+        }else{
+            ExprGenRes2 res = new ExprGenRes2(creator, new CheckStateExpression(process,processState,state),state);
+            return new ArrayList<>(List.of(res));
         }
-        return new ArrayList<>(List.of(trueRes,falseRes));
+
     }
 
     @Override
@@ -284,7 +292,7 @@ public class ExpressionVisitor2 extends ReflexBaseVisitor<ArrayList<ExprGenRes2>
 
         ArrayList<ExprGenRes2> res1Full = visitExpression(ctx1);
         return res1Full.stream().flatMap(res1->{
-            ArrayList<ExprGenRes2> res2Full = (new ExpressionVisitor2(mapper,process,res1.state,creator)).visitExpression(ctx2);
+            ArrayList<ExprGenRes2> res2Full = (new ExpressionVisitor2(mapper,process,res1.state,creator,isProcessExpr)).visitExpression(ctx2);
             return res2Full.stream().flatMap(res2->{
                 if (!TypeUtils.isPossible(res1.getExpr().exprType(),res2.getExpr().exprType(),binOp)){
                     throw new RuntimeException(String.format("Trying to apply %s operation to types: %s %s",binOp,res1.getExpr().exprType(),res2.getExpr().exprType()));
@@ -373,7 +381,7 @@ public class ExpressionVisitor2 extends ReflexBaseVisitor<ArrayList<ExprGenRes2>
 
         ArrayList<ExprGenRes2> res1Full = visitExpression(ctx1);
         return res1Full.stream().flatMap(res1->{
-            ArrayList<ExprGenRes2> res2Full = (new ExpressionVisitor2(mapper,process,res1.state,creator)).visitExpression(ctx2);
+            ArrayList<ExprGenRes2> res2Full = (new ExpressionVisitor2(mapper,process,res1.state,creator,isProcessExpr)).visitExpression(ctx2);
             return res2Full.stream().flatMap(res2->{
                 if (!TypeUtils.isPossible(res1.getExpr().exprType(),res2.getExpr().exprType(),binOp)){
                     throw new RuntimeException(String.format("Trying to apply %s operation to types: %s %s",binOp,res1.getExpr().exprType(),res2.getExpr().exprType()));
@@ -439,7 +447,7 @@ public class ExpressionVisitor2 extends ReflexBaseVisitor<ArrayList<ExprGenRes2>
         ExprGenRes2 left = new ExprGenRes2(creator,new VariableExpression(variable,mapper.variableType(process,id),true),state);
 
         ArrayList<ExprGenRes2> subRes = Stream.of(left).flatMap(res1->{
-            ArrayList<ExprGenRes2> res2Full = (new ExpressionVisitor2(mapper,process,res1.state,creator)).visitExpression(ctx.expression());
+            ArrayList<ExprGenRes2> res2Full = (new ExpressionVisitor2(mapper,process,res1.state,creator,isProcessExpr)).visitExpression(ctx.expression());
             return res2Full.stream().map(res2->{
                 if (!TypeUtils.isPossible(res1.getExpr().exprType(),res2.getExpr().exprType(),binOp)){
                     throw new RuntimeException(String.format("Trying to apply %s operation to types: %s %s",binOp,res1.getExpr().exprType(),res2.getExpr().exprType()));
@@ -483,7 +491,7 @@ public class ExpressionVisitor2 extends ReflexBaseVisitor<ArrayList<ExprGenRes2>
     private ArrayList<ExprGenRes2> processBinaryExpression(ReflexParser.ExpressionContext ctx1, ReflexParser.ExpressionContext ctx2, BinaryOp binOp){
         ArrayList<ExprGenRes2> res1Full = visitExpression(ctx1);
         return res1Full.stream().flatMap(res1->{
-            ArrayList<ExprGenRes2> res2Full = (new ExpressionVisitor2(mapper,process,res1.state,creator)).visitExpression(ctx2);
+            ArrayList<ExprGenRes2> res2Full = (new ExpressionVisitor2(mapper,process,res1.state,creator,isProcessExpr)).visitExpression(ctx2);
             return res2Full.stream().map(res2->{
                 if (!TypeUtils.isPossible(res1.getExpr().exprType(),res2.getExpr().exprType(),binOp)){
                     throw new RuntimeException(String.format("Trying to apply %s operation to types: %s %s",binOp,res1.getExpr().exprType(),res2.getExpr().exprType()));
