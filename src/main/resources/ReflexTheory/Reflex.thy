@@ -27,7 +27,7 @@ primrec getVarBool:: "state \<Rightarrow> variable \<Rightarrow> bool" where
 | "getVarBool (setVarNat s _ _) x = getVarBool s x"
 | "getVarBool (setVarReal s _ _) x = getVarBool s x" 
 | "getVarBool (setPstate s _ _) x = getVarBool s x" 
-| "getVarBool (reset s _) x = getVarBool s x" 
+| "getVarBool (reset s _) x = getVarBool s x"
 
 primrec getVarInt:: "state \<Rightarrow> variable \<Rightarrow> int" where
 "getVarInt emptyState _ = 0"

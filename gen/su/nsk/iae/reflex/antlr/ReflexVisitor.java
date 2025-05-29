@@ -1,7 +1,7 @@
 // Generated from C:/Users/iarte/IdeaProjects/ReflexVCG/src/main/java/su/nsk/iae/reflex/antlr/Reflex.g4 by ANTLR 4.13.1
 package su.nsk.iae.reflex.antlr;
 import org.antlr.v4.runtime.tree.ParseTreeVisitor;
-
+import su.nsk.iae.reflex.antlr.ReflexParser;
 /**
  * This interface defines a complete generic visitor for a parse tree produced
  * by {@link ReflexParser}.
@@ -34,6 +34,12 @@ public interface ReflexVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitState(ReflexParser.StateContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link ReflexParser#lightweightState}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitLightweightState(ReflexParser.LightweightStateContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link ReflexParser#annotation}.
 	 * @param ctx the parse tree
@@ -83,6 +89,12 @@ public interface ReflexVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitProgramVariable(ReflexParser.ProgramVariableContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link ReflexParser#structDeclaration}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitStructDeclaration(ReflexParser.StructDeclarationContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link ReflexParser#timeoutFunction}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -124,6 +136,27 @@ public interface ReflexVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitEnumMember(ReflexParser.EnumMemberContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code Wait}
+	 * labeled alternative in {@link ReflexParser#guardingStatement}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitWait(ReflexParser.WaitContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code Slice}
+	 * labeled alternative in {@link ReflexParser#guardingStatement}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitSlice(ReflexParser.SliceContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code Transition}
+	 * labeled alternative in {@link ReflexParser#guardingStatement}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitTransition(ReflexParser.TransitionContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code EmptySt}
 	 * labeled alternative in {@link ReflexParser#statement}.
@@ -292,12 +325,6 @@ public interface ReflexVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitCheckStateExpression(ReflexParser.CheckStateExpressionContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link ReflexParser#stateQual}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitStateQual(ReflexParser.StateQualContext ctx);
-	/**
 	 * Visit a parse tree produced by {@link ReflexParser#infixOp}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -317,12 +344,12 @@ public interface ReflexVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitId(ReflexParser.IdContext ctx);
 	/**
-	 * Visit a parse tree produced by the {@code Integer}
+	 * Visit a parse tree produced by the {@code IntegerVal}
 	 * labeled alternative in {@link ReflexParser#primaryExpression}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitInteger(ReflexParser.IntegerContext ctx);
+	T visitIntegerVal(ReflexParser.IntegerValContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code Float}
 	 * labeled alternative in {@link ReflexParser#primaryExpression}.
@@ -485,6 +512,12 @@ public interface ReflexVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitCompare(ReflexParser.CompareContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link ReflexParser#variable}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitVariable(ReflexParser.VariableContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link ReflexParser#unaryOp}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -508,4 +541,10 @@ public interface ReflexVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitType(ReflexParser.TypeContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link ReflexParser#integer}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitInteger(ReflexParser.IntegerContext ctx);
 }

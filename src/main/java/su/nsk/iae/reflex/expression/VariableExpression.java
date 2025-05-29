@@ -8,10 +8,14 @@ public class VariableExpression implements SymbolicExpression{
     ExprType type;
     boolean isMarked;
 
+    VariableType ty;
+
+
     public VariableExpression(String variable, ExprType type, boolean isMarked){
         this.variable = variable;
         this.type = type;
         this.isMarked = isMarked;
+        this.ty = VariableType.Simple;
     }
 
     public String toString(IStatementCreator creator){
