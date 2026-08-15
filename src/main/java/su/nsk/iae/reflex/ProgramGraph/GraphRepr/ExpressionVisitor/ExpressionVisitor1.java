@@ -28,8 +28,8 @@ public class ExpressionVisitor1 extends ReflexBaseVisitor<ExprGenRes1> implement
 
     @Override
     public ExprGenRes1 visitCheckStateExpression(ReflexParser.CheckStateExpressionContext ctx) {
-        String proc = ctx.processId.getText();
-        String procState = ctx.qual.getText();
+        String proc = ctx.processId .getText();
+        String procState = ctx.stateQual().getText();
         CheckStateExpression exp = new CheckStateExpression(proc,procState,state);
         return new ExprGenRes1(exp,state);
     }

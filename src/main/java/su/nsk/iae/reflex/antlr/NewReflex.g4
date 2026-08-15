@@ -1,6 +1,6 @@
 grammar NewReflex;
 program:
-    ('[' annotations+=annotation']')*
+    (comments+=comment)*
     'program' name=ID '{'
      clock=clockDefinition
      (consts+=const
@@ -9,33 +9,42 @@ program:
      | globalVars+=globalVariable
      | ports+=port
      | processes+=process
-     | structures+=structDeclaration)*
+     | structures+=structDeclaration
+     | imports+=importBlock
+     | nodes+=nodeDecl)*
+
      '}' EOF;
 clockDefinition: 'clock' (intValue=UNSIGNED_INTEGER | timeValue=TIME) ';';
 process:
-    ('[' annotations+=annotation']')*
-    'process' name=ID '{'
+    (comments+=comment)*
+    'process' name=ID '::' 'node' node=ID '{'
     ((imports+=importedVariableList | variables+=processVariable) ';')*
     states+=state*
     '}';
 state:
-    ('[' annotations+=annotation']')*
+    (comments+=comment)*
     'state' name=ID looped='looped'? '{'
     stateFunction=statementSeq
-    (lightweightStates+=lightweightState)*
     (func=timeoutFunction)?
     '}';
 
-lightweightState:
-   guardingStatement statementSeq;
+importBlock: 'import' name=ID '{' (importElements+=importElement)* '}';
+importElement: iVector | iRegister | iBit;
+iVector: 'vector' name=ID;
+iRegister: 'register' name=ID;
+iBit: 'bit' name=ID;
 
-annotation: key=annotationKey ':' value=STRING | key = annotationKey;
-annotationKey: ID '.' ID | ID;
+nodeDecl: 'node' name=ID '{'
+ clock=clockDefinition
+ (consts+=const
+ | nodeVars+=globalVariable)*
+ '}';
+
 importedVariableList: 'shared' (variables+=ID (',' variables+=ID)*) 'from' 'process' processID=ID;
 processVariable: (physicalVariable | programVariable) shared='shared'?;
 globalVariable: (physicalVariable | programVariable) ';';
-physicalVariable: varType=type name=ID '=' mapping=portMapping;
-portMapping: portId=ID '[' (bit=UNSIGNED_INTEGER)? ']';
+physicalVariable: (isDirect=direction)? varType=type name=ID 'as''(' 'read' '=' readId=ID (',''write''='writeId=ID)? (',''config''='configId=ID)? (',''bit''='bitId=ID)?')';
+direction: 'direct' | 'indirect';
 programVariable: varType=type name=ID ('=' expression)?;
 structDeclaration: 'struct' name=ID '{'(variables+=programVariable)+ '}';
 timeoutFunction:'timeout' (timeAmountOrRef | '(' timeAmountOrRef ')') body=statement;
@@ -50,24 +59,36 @@ enumMember: name=ID ('=' value=expression)?;
 guardingStatement:
     'wait''('expression ')'';'          #Wait
     | 'slice'';'                        #Slice
-    | 'transition''(' expression')'';'  #Transition
+    | 'wait''('cond=expression')''on''timeout' time=timeAmountOrRef body=statement';'  #WaitOnTimeout
     ;
 
 statement:
     ';' # EmptySt
-    | compoundStatement    #CompoundSt
-    | startProcStat       #StartProcessSt
-    | stopProcStat        #StopProcessSt
-    | errorProcStat       #ErrorProcessSt
-    | restartStat          #RestartSt
-    | resetStat            #ResetSt
-    | setStateStat        #SetStateSt
-    | ifElseStat          #IfElseSt
-    | switchStat           #SwitchSt
-    | expression ';'        #ExprSt
+    | (comments+=comment)* compoundStatement    #CompoundSt
+    | (comments+=comment)* startProcStat       #StartProcessSt
+    | (comments+=comment)* stopProcStat        #StopProcessSt
+    | (comments+=comment)* errorProcStat       #ErrorProcessSt
+    | (comments+=comment)* restartStat          #RestartSt
+    | (comments+=comment)* resetStat            #ResetSt
+    | (comments+=comment)* setStateStat        #SetStateSt
+    | (comments+=comment)* ifElseStat          #IfElseSt
+    | (comments+=comment)* switchStat           #SwitchSt
+    | (comments+=comment)* expression ';'        #ExprSt
+    | (comments+=comment)* guardingStatement     #GuardSt
+    | (comments+=comment)* iterationStat        #IterSt
+    | (comments+=comment)* ccodeStat #CCodeSt
+    | (comments+=comment)* programVariable ';' #VariableSt
     ;
 statementSeq: statements+=statement*;
-compoundStatement: '{' statements+=statement* '}';
+compoundStatement:  '{' statements+=statement* '}';
+
+iterationStat: 'for' '('init=initIter';' cond=expression ';' upd=expression ')' stat=statement;
+initIter: initList | expression;
+initList: (inits+=programVariable (',' inits+=programVariable)*)?;
+ccodeStat: '$' code=CSTRING;
+CSTRING
+    : ~[$;\r\n]+
+    ;
 ifElseStat: 'if' '(' cond=expression ')' then=statement ( 'else' else=statement)?;
 switchStat: 'switch' '(' expr=expression ')' '{' options+=caseStat* defaultOption=defaultStat? '}';
 caseStat: 'case' option=expression ':' ('{' switchOptionStatSeq '}' | switchOptionStatSeq);
@@ -119,8 +140,8 @@ unaryExpression                            #Unary
     | variable assignOp expression              #Assign
     ;
 variable:
-    (varId=ID ('['idx=expression']')?)
-    | varId=ID '.' fieldId=ID;
+    varId=ID variableAccess*;
+variableAccess: ('.' ID) | ('[' expression ']');
 INFIX_POSTFIX_OP: '++' | '--';
 unaryOp: '+' | '-' | '~' | '!';
 MUL_OP: '*' | '/' | '%';
@@ -145,6 +166,10 @@ type:
     | 'int16' | 'uint16'
     | 'int32' | 'uint32'
     | 'int64' | 'uint64'
+    ;
+comment
+    : LINE_COMMENT
+    | BLOCK_COMMENT
     ;
 ID: [a-zA-Z]+ [a-zA-Z0-9_]*;
 integer: (sign='+' | sign='-')? UNSIGNED_INTEGER;
@@ -172,5 +197,7 @@ MINUTE: 'M' | 'm';
 SECOND: 'S' | 's';
 MILISECOND: 'MS' | 'ms';
 BOOL_VAL: 'true' | 'false';
+LINE_COMMENT: '//' ~[\r\n]*;
+BLOCK_COMMENT: '/*' .*? '*/';
 STRING: '"'[a-zA-Z0-9 ]*'"';
 WS: [ \t\r\n\u000C]+ -> skip;

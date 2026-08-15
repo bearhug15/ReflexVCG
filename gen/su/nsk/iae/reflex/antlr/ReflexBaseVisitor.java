@@ -1,4 +1,4 @@
-// Generated from C:/Users/iarte/IdeaProjects/ReflexVCG/src/main/java/su/nsk/iae/reflex/antlr/Reflex.g4 by ANTLR 4.13.1
+// Generated from C:/Users/iarte/Projects/ReflexVCG/src/main/java/su/nsk/iae/reflex/antlr/Reflex.g4 by ANTLR 4.13.1
 package su.nsk.iae.reflex.antlr;
 import org.antlr.v4.runtime.tree.AbstractParseTreeVisitor;
 

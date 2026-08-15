@@ -17,16 +17,23 @@ public class Main {
     public static void main(String[] args) throws ParseException {
 
         Options options = new Options();
-        options.addOption("s","source",true,"");
-        options.addOption("o","output",true,"");
-        options.addOption("e","expr",true,"");
-        options.addOption("pe","processExpr",true,"");
-        options.addOption("g","graph",true,"");
-        options.addOption("a","analysis",true,"");
+        options.addOption("s","source",true,"Путь к файлу с программой.");
+        options.addOption("o","output",true,"Путь для вывода результата.");
+        options.addOption("e","expr",true,"Способ обработки выражений: simple/regular.");
+        options.addOption("pe","processExpr",true,"Обработка выражений: true/false.");
+        options.addOption("g","graph",true,"Вывод графа программы: true/false.");
+        options.addOption("a","analysis",true,"Использование статического анализа: true/false.");
+        options.addOption("h","help",false,"Справка.");
 
 
         CommandLineParser commandLineParser = new DefaultParser();
         CommandLine commandLine = commandLineParser.parse(options,args);
+
+        if (commandLine.hasOption("h")){
+            HelpFormatter formatter = new HelpFormatter();
+            formatter.printHelp("Available options", options);
+            return;
+        }
 
         String source = commandLine.getOptionValue("s");
         if (source==null) throw new RuntimeException("Source not defined");
@@ -52,7 +59,6 @@ public class Main {
         ReflexParser.ProgramContext context = parser.program();
         System.out.println("Completed program parsing. Starting program analysis.");
         VCGenerator2 generator;
-
 
         boolean isSimpleExp;
         String expressionKind = commandLine.getOptionValue("e");
