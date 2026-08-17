@@ -10,9 +10,14 @@ import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.ProgramAttributes;
 import su.nsk.iae.reflex.ProgramGraph.GraphRepr.attributes.StateAttributes;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 public class AttributeCollector {
-    HashMap<IReflexNode, IAttributed> attributeMap = new HashMap<>();
+    // LinkedHashMap, not HashMap: the graph nodes used as keys do not override hashCode,
+    // so plain hash order is identity-hash order and varies from one JVM run to the next.
+    // ProgramAnalyzer2.grouping() iterates this map to order processes, and that order
+    // affects which VCs static analysis prunes - see ProgramAnalyzer2.setsDiv.
+    HashMap<IReflexNode, IAttributed> attributeMap = new LinkedHashMap<>();
     ProgramNode programNode;
 
     public void addAttributes(ProgramNode node,IAttributed attributed){

@@ -101,13 +101,16 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
     }
 
     public static Set<Set<ProcessNode>> setsInter(Set<Set<ProcessNode>> setsSet, Set<ProcessNode> set){
-        Set<Set<ProcessNode>> buffSet =new HashSet<>();
+        // LinkedHashSet throughout: ProcessNode does not override hashCode, so plain hash
+        // ordering varies per JVM run and makes the resulting grouping - and therefore the
+        // set of generated VCs - non-reproducible.
+        Set<Set<ProcessNode>> buffSet =new LinkedHashSet<>();
         for(Set<ProcessNode> s: setsSet){
-            Set<ProcessNode> inter = new HashSet<>(s);
+            Set<ProcessNode> inter = new LinkedHashSet<>(s);
             if (!set.isEmpty())
                 inter.retainAll(set);
             buffSet.add(inter);
-            Set<ProcessNode> excl = new HashSet<>(s);
+            Set<ProcessNode> excl = new LinkedHashSet<>(s);
             excl.removeAll(inter);
             buffSet.add(excl);
         }
@@ -118,7 +121,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         if (st instanceof StateAttributes){
             currentState = (StateNode) st.getAttributedNode();
         }
-        HashMap<ProcessNode,ChangeType> nhPC = new HashMap<>(hPC);
+        HashMap<ProcessNode,ChangeType> nhPC = new LinkedHashMap<>(hPC);
         nhPC.putAll(st.getProcChange());
         int currentId = metaData.getProcessId(currentProcess.getProcessName());
 
@@ -127,7 +130,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
                     return entry.getValue().equals(ChangeType.Start) && metaData.getProcessId(entry.getKey().getProcessName()) < currentId;
                 })
                 .map(Map.Entry::getKey)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
         setsSet = setsInter(setsSet,startPpred);
         Set<ProcessNode> startPsucc = nhPC.entrySet().stream()
                 .filter(entry->{
@@ -138,7 +141,7 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
                     return false;
                 })
                 .map(Map.Entry::getKey)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
         setsSet = setsInter(setsSet,startPsucc);
 
         Set<ProcessNode> stopPpred = nhPC.entrySet().stream()
@@ -146,14 +149,14 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
                     return entry.getValue().equals(ChangeType.Stop) && metaData.getProcessId(entry.getKey().getProcessName()) < currentId;
                 })
                 .map(Map.Entry::getKey)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
         setsSet = setsInter(setsSet,stopPpred);
         Set<ProcessNode> stopPsucc = nhPC.entrySet().stream()
                 .filter(entry->{
                     return entry.getValue().equals(ChangeType.Stop) && metaData.getProcessId(entry.getKey().getProcessName()) >= currentId;
                 })
                 .map(Map.Entry::getKey)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
         setsSet = setsInter(setsSet,stopPsucc);
 
         Set<ProcessNode> errorPpred = nhPC.entrySet().stream()
@@ -161,14 +164,14 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
                     return entry.getValue().equals(ChangeType.Error) && metaData.getProcessId(entry.getKey().getProcessName()) < currentId;
                 })
                 .map(Map.Entry::getKey)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
         setsSet = setsInter(setsSet,errorPpred);
         Set<ProcessNode> errorPsucc = nhPC.entrySet().stream()
                 .filter(entry->{
                     return entry.getValue().equals(ChangeType.Error) && metaData.getProcessId(entry.getKey().getProcessName()) >= currentId;
                 })
                 .map(Map.Entry::getKey)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
         setsSet = setsInter(setsSet,errorPsucc);
 
         for(IAttributed nst: st.getAttributes()){
@@ -199,24 +202,28 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
     }
 
     void grouping(){
+        // Sorted by declaration id: setsDiv splits on comparisons against the current
+        // process id, so the order processes are visited in must not depend on hash order.
         List<Map.Entry<IReflexNode,IAttributed>> processes = collector
                 .getAttributeMap()
                 .entrySet()
                 .stream()
                 .filter(entry-> entry.getValue() instanceof ProcessAttributes)
+                .sorted(Comparator.comparingInt(
+                        entry -> metaData.getProcessId(((ProcessNode) entry.getKey()).getProcessName())))
                 .toList();
 
         Set<ProcessNode> s1 = processes
                 .stream()
                 .filter(entry->!((ProcessAttributes) entry.getValue()).isStartS())
                 .map(entry->(ProcessNode)entry.getKey())
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
         Set<ProcessNode> s2 = processes
                 .stream()
                 .filter(entry->((ProcessAttributes) entry.getValue()).isStartS())
                 .map(entry->(ProcessNode)entry.getKey())
-                .collect(Collectors.toSet());
-        Set<Set<ProcessNode>> set = new HashSet<>();
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<Set<ProcessNode>> set = new LinkedHashSet<>();
         set.add(s1);
         set.add(s2);
         for (ProcessAttributes proc:processes.stream().map(entry->(ProcessAttributes)entry.getValue()).toList()){

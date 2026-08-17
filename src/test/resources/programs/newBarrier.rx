@@ -1,0 +1,69 @@
+program Barrier{
+	clock 100;
+	input inp 0x00 0x00 32;
+	output out 0x00 0x04 32;
+	
+	bool carInFront = inp[0];
+	bool peCarUnder = inp[1];
+	bool opened = inp[2];
+	bool closed = inp[3];
+	
+	bool up = out[0];
+	bool down = out[1];
+	bool green = out[2];
+	bool red = out[3];
+	
+	const time open_time = 0t10m;
+	
+	process CarController{
+		state waitingForCar{
+			if (carInFront){
+				start Opening;
+				set next state;
+			}
+		}
+		state waitingForCarPassing{
+			if (!carInFront){
+				set state waitingForCar;
+			}
+		}
+	}
+	
+	process Opening{
+		state opening{
+			up = true;
+			down = false;
+			if (opened) {
+				up = false;
+				red = false;
+				green = true;
+				set next state;
+			}
+		}
+		
+		state open{
+		  if (peCarUnder) {
+			reset timer;
+		  }
+		  timeout open_time {
+			down = true;
+			green= false;
+			red = true;
+			set next state;
+		  }
+		} 
+	
+		state closing{
+		  if (closed){
+			down = false;
+			stop;
+		  } else if (peCarUnder){
+			down = false;
+			if (!opened) {
+			  up = true;
+			}
+			set state opening;
+		  }
+		}
+	}
+}

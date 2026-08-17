@@ -1,0 +1,14 @@
+program ifTest {
+	clock 100;
+	bool var1 = inp[1];
+	bool var2 = inp[2];
+	
+	process Init {
+		state begin {
+			if (var1 == true){
+				var1 = false;
+				var2 = false;
+			}		}
+	}
+	
+}

@@ -1,0 +1,104 @@
+program SmartLighting{
+clock 100;
+	input inp 0x00 0x00 16;
+	output out 0x00 0x04 24;
+	bool motion = inp[0];
+	bool light = inp[1];
+	bool dayLight = out[0];
+	bool dimLight = out[1];
+	int8 timeOfDay = out[2];
+	
+	const bool TURNED_ON = true;
+	const bool TURNED_OFF = false;
+	const bool LOW = false;
+	const int8 NIGHT = 0;
+	const int8 EARLY_MORNING = 1;
+	const int8 MORNING_LIGHTING = 2;
+	const int8 DAY = 3;
+	const int8 EVENING = 4;
+	const time LIGHTING_TIME = 0t5m;
+	const time MORNING_LIGHTING_TIME = 0t30m;
+
+	bool turnedOn;
+	
+	process Init{
+		state init{
+			start Lighting;
+			stop;
+		}
+	}
+	
+	process Motion{
+		state noMovement{
+			if (motion && light = LOW){
+				turnedOn = true;
+				set next state;
+			}
+		}
+		state movement{
+			if (motion){
+				reset timer;
+			}
+			timeout LIGHTING_TIME {
+				turnedOn = false;
+				set state noMovement;
+			}
+		}
+	}
+	
+	process Lighting{
+		state night{
+			timeout 0t6h{
+				timeOfDay = EARLY_MORNING;
+				start Motion;
+				set next state;
+			}
+		}
+		state earlyMorning{
+			if (turnedOn){
+				dimLight = TURNED_ON;
+			} else{
+				dimLight = TURNED_OFF;
+			}
+			timeout 0t30m{
+				timeOfDay = MORNING_LIGHTING;
+				dimLight = TURNED_ON;
+				set next state;
+			}
+		}
+		state morningLighting{
+			timeout MORNING_LIGHTING_TIME{
+				timeOfDay = DAY;
+				set next state;
+			}
+		}
+		state morningOrDay{
+			dimLight = TURNED_OFF;
+			if (turnedOn){
+				dayLight = TURNED_ON;
+			}else{
+				dayLight = TURNED_OFF;
+			}
+			timeout 0t11h30m{
+				timeOfDay = EVENING;
+				set next state;
+			}
+		}
+		state evening{
+			dayLight = TURNED_OFF;
+			if (turnedOn){
+				dimLight = TURNED_ON;
+			}else{
+				dimLight = TURNED_OFF;
+			}
+			timeout 0t6h{
+				dimLight = TURNED_OFF;
+				timeOfDay = NIGHT;
+				turnedOn = false;
+				stop Motion;
+				set state night;
+			}
+		}
+	
+	}
+}

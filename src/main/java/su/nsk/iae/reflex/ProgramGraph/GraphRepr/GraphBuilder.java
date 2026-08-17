@@ -327,10 +327,10 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         //Grouped by resulting state change
         Map<String,List<ExprRes>> trueCondGroups = results.stream()
                 .filter(res -> res.getBooleanValue().orElse(true))
-                .collect(Collectors.groupingBy(ExprRes::getState));
+                .collect(Collectors.groupingBy(ExprRes::getState, LinkedHashMap::new, Collectors.toList()));
         Map<String,List<ExprRes>> falseCondGroups = results.stream()
                 .filter(res -> !res.getBooleanValue().orElse(false))
-                .collect(Collectors.groupingBy(ExprRes::getState));
+                .collect(Collectors.groupingBy(ExprRes::getState, LinkedHashMap::new, Collectors.toList()));
 
         ProgramGraph trueGraph = new ProgramGraph(new BlankNode(),new BlankNode());
         trueCondGroups.forEach((resState,resList)->{

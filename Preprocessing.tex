@@ -1,0 +1,974 @@
+
+\chapter{Предобработка}
+Язык Reflex обладает несколькими особенностями из-за которых порождение условий корректности по абстрактному синтаксическому дереву полученному напрямую от программы является не эффективным. Поэтому предполагается несколько этапов предобработки предназначенные для упрощения и оптимезации процесса порождения условий корректности.
+
+\section{Name mangling}
+В языке Reflex переменные и константы могут быть объявлены на нескольких уровнях: программы, узла, процесса или кода. При этом работает name shadowing аналогично языку C -- в рамках одного блока возможно единственное обьявление переменной, однако на более глубоком уровне возможно повторное объявление локально перекрывающее более раннее. Также переменные с одинаковыми именами могут быть объявлены в разных процессах и т.д. Все это требует разрешения возможных конфликтов имен.
+
+Сначала определим поля глобального и локального контекста.
+
+Поля глобального контекста:
+\begin{itemize}
+    \item \textbf{nodeVariables} -- словарь, отображающий имя узла в словарь, отображающий старое имя переменной в новое имя переменной.
+    \item \textbf{isDirect} -- словарь, отображающий имя переменной, в булево значение, означающее имеет ли переменная модификатор direct. 
+\end{itemize}
+Поля локального контекста:
+\begin{itemize}
+    \item \textbf{path} -- список имен определяющий текущую глубину обработки переменных.
+    \item \textbf{variableMap} -- словарь, отображающий старое имя пеерменной в новое.
+    \item \textbf{directCount} -- отображающий имя переменной с модификатором direct, в число, означающее количество обращений к нему. 
+\end{itemize}
+
+Далее определим функции пребразования имен:
+\begin{itemize}
+    \item new-name(path, name) $\rightarrow$ \textit{string} -- основная функция конструирования имени, принимает путь path, на котором определена переменная и имя name.
+    \item new-indirect-name(name, pos) $\rightarrow$ \textit{string} -- функция конструирующая имя переменной с модификатором indirect, привязанной к битам физического регистра.
+    \item new-direct-name(name, num) $\rightarrow$ \textit{string} -- функция конструирующая имя переменной с модификатором direct, привязанной к битам физического регистра.
+\end{itemize}
+
+Она принимает один аргумент name - локальное имя переменной:
+\begin{lstlisting}[style=PseudoStyle,mathescape=true]
+fun newName(path,name){
+    new-name = ""
+    for p in path{
+        new-name += "." + p
+    }
+    return new-name + "::" + name
+}
+fun newIndirectName(name,num){
+    return name + "_" + num
+}
+fun newDirectName(name,pos){
+    return name + "." + pos
+}
+\end{lstlisting}
+
+Далее определим функцию mapName(st), где st обозначает обрабатываемую конструкцию программы.
+\begin{lstlisting}[style=PseudoStyle,mathescape=true]
+//elementAccess - любой вызов переменной
+fun mapName(elementAccess) {
+    name = elementAccess.name
+    accesses = elementAccess.accesses
+    newName = ctx.variableMap[name]
+    num = ctx.directCount[newName]
+    if (env.isDirect[newName]) {
+        elementAccess.name = newDirectName(newName, num)
+        ctx.directCount[newName] = num + 1
+    } else {
+        elementAccess.name = newName
+    }
+    for access in accesses {
+        mapName(access)
+    }
+}
+
+//binaryExpression $\in$ {+,-,*,/,%,>>,<<,==,!=,>=,<=,<,>,&&,||,&,|,^}
+fun mapName(binaryExpression) {
+    mapName(binaryExpression.left);
+    mapName(binaryExpression.right); 
+}
+
+//unaryExpression $\in$ {cast,!,-,~}
+fun mapName(unaryExpression) {
+    expr = unaryExpression.expression
+    mapName(expr)
+}
+
+//unaryExpression $\in$ {++.,--.,.++,.--}
+fun mapName(prefixOrPostfix) {
+    access = prefixOrPostfix.access
+    mapName(access)
+}
+
+//assignment $\in$ {=,+=,-=,*=,/=,%=,<<=,>>=,&=,|=,^=}
+fun mapName(assignmentExpression) {
+    access = assignmentExpression.left
+    accesses = access.accesses
+    newName = ctx.variableMap[access.name]
+    access.name = newName
+    mapName(assignmentExpression.right)
+    for access in accesses {
+        mapName(access)
+    }
+}
+
+fun mapName(expressionList) {
+    sts = expressionList
+    for stmt in sts {
+        mapName(stmt)
+    }
+}
+
+fun mapName(timeoutStatement) {
+    savedVariableMap = ctx.variableMap.clone()
+    mapName(timeoutStatement.controllingExpression)
+    mapName(timeoutStatement.statement)
+    ctx.variableMap = savedVariableMap
+}
+
+fun mapName(statementList) {
+    for stmt in statementList {
+        mapName(stmt)
+    }
+}
+
+fun mapName(statementBlock) {
+    ctx.path.clone()
+    savedVariableMap = ctx.variableMap.clone()
+    ctx.path.pushfront(blockName(uid(statementBlock)))
+    mapName(statementBlock.statements)
+    ctx.path.pop()
+    ctx.variableMap = savedVariableMap
+}
+
+fun mapName(waitStatement) {
+    mapName(waitStatement.condition)
+}
+
+fun mapName(waitOnTimeout) {
+    savedVariableMap = ctx.variableMap.clone()
+    mapName(waitOnTimeout.condition)
+    mapName(waitOnTimeout.controllingExpression)
+    mapName(waitOnTimeout.statements)
+    ctx.variableMap = savedVariableMap
+}
+
+fun mapName(ifThen) {
+    mapName(ifThen.condition)
+    savedVariableMap = ctx.variableMap.clone()
+    mapName(ifThen.then)
+    ctx.variableMap = savedVariableMap
+}
+
+fun mapName(ifThenElse) {
+    mapName(ifThenElse.condition)
+    savedVariableMap = ctx.variableMap.clone()
+    mapName(ifThenElse.then)
+    ctx.variableMap = savedVariableMap
+    savedVariableMap = ctx.variableMap.clone()
+    mapName(ifThenElse.else)
+    ctx.variableMap = savedVariableMap
+}
+
+fun mapName(switchS) {
+    savedVariableMap = ctx.variableMap.clone()
+    ctx.path.pushfront(sblockName(uid(switchS)))
+    mapName(switchS.controllingExpression)
+    cases = switchS.cases
+    for case in cases {
+        mapName(case)
+    }
+    default = switchS.default
+    if (default) {
+        mapName(default)
+    }    
+    ctx.path.pop()
+    ctx.variableMap = savedVariableMap
+}
+
+fun mapName(defaultStatement) {
+    mapName(defaultStatement.statements)
+}
+
+fun mapName(caseStatement) {
+    mapName(caseStatement.statements)
+}
+
+fun mapName(expressionS) {
+    mapName(expressionS.expression)
+}
+
+fun mapName(forS) {
+    savedVariableMap = ctx.variableMap.clone()
+    mapName(forS.init)
+    mapName(forS.condition)
+    mapName(forS.update)
+    mapName(forS.statement)
+    ctx.variableMap = savedVariableMap
+}
+
+fun mapName(stateDeclaration) {
+    name = stateDeclaration.name
+    ctx.path.pushfront(name)
+    ctx.path = cons(name.path)
+    savedVariableMap = ctx.variableMap.clone()
+    sts = stateDeclaration.statements
+    for stmt in sts {
+        mapName(stmt)
+    }
+    ctx.path.pop()
+    ctx.variableMap = savedVariableMap
+    ctx.currentState = nil
+}
+
+
+fun mapName(processDeclaration) {
+    savedVariableMap = ctx.variableMap
+    node = processDeclaration.node
+    nodeVariables = ctx.nodeVariables[node]
+    ctx.variableMap = ctx.variableMap $\cup$ nodeVariables
+    name = processDeclaration.name
+    ctx.path.pushfront(name)
+    ctx.currentProcess = name
+    states = processDeclaration.states
+    for state in states {
+        mapName(state)
+    }
+    ctx.currentProcess = nil
+    ctx.path.pop()
+    ctx.variableMap = savedVariableMap
+}
+
+fun mapName(constantDeclaration) {
+    name = constantDeclaration.name
+    newName = newName(ctx.path, name)
+    constantDeclaration.name = newName
+    ctx.variableMap[name] = newName
+}
+
+fun mapName(simpleVariableDeclaration) {
+    mapName(simpleVariableDeclaration.init)
+    name = simpleVariableDeclaration.name
+    newName = newName(ctx.path, name)
+    simpleVariableDeclaration.name = newName
+    ctx.variableMap[name] = newName
+}
+
+fun mapName(arrayVariableDeclaration) {
+    mapName(arrayVariableDeclaration.init)
+    name = arrayVariableDeclaration.name
+    newName = newName(ctx.path, name)
+    arrayVariableDeclaration.name = newName
+    ctx.variableMap[name] = newName
+}
+
+fun mapName(physicalVariableDeclaration) {
+    name = physicalVariableDeclaration.name
+    direct = physicalVariableDeclaration.direct
+    newName = newIndirectName(physicalVariableDeclaration.port, physicalVariableDeclaration.index)
+    physicalVariableDeclaration.name = newName
+    ctx.variableMap[name] = newName
+    env.isDirect[newName] = direct
+    if (direct) {
+        ctx.directCount[newName] = 0
+    }
+}
+
+fun mapName(enumVariableDeclaration) {
+    name = enumVariableDeclaration.name
+    newName = newName(ctx.path, name)
+    enumVariableDeclaration.name = newName
+    ctx.variableMap[name] = newName
+}
+
+fun mapName(structureVariableDeclaration) {
+    mapName(arrayVariableDeclaration.init)
+    name = structureVariableDeclaration.name
+    newName = newName(ctx.path, name)
+    structureVariableDeclaration.name = newName
+    ctx.variableMap[name] = newName
+}
+
+fun mapName(nodeDeclaration) {
+    variables = nodeDeclaration.variables
+    savedVariableMap = ctx.variableMap.clone()
+    for varDecl in variables {
+        mapName(varDecl)
+    }
+    ctx.nodeVariables[nodeDeclaration.name] = ctx.variableMap
+    ctx.variableMap = savedVariableMap
+}
+
+fun mapName(programDeclaration) {
+    globalVars = programDeclaration.variables
+    nodes = programDeclaration.nodes
+    processes = programDeclaration.processes
+    for varDecl in globalVars {
+        mapName(varDecl)
+    }
+    for node in nodes {
+        mapName(node)
+    }
+    for process in processes {
+        mapName(process)
+    }
+}
+\end{lstlisting}
+\section{Проставление cast}
+Выражения языка Си во многих случаях производят неявные преобразования типов. В данном блоке описывается алгоритм делающий их явными. Также происводится проставление типов результата каждого выражения.
+
+Сначала определим поля глобального и локального контекста.
+
+Поля глобального контекста:
+\begin{itemize}
+    \item \textbf{variableType} -- словарь, отображающий имя перемемнной в ее тип.
+    \item \textbf{structVariables} -- словарь, отображающий имя структуры в словарь, отображающий имя поля в его тип.
+\end{itemize}
+Локальный контекст в данном случае полей не имеет.
+
+Определим вспомогательные функции:
+\begin{lstlisting}
+fun getVariableTypeSup(env, type, fields) {
+    if (isInstance(type, "simpleType")) {
+        return fields.length == 0 ? type : null;
+    }
+    if (isInstance(type, "arrayType")) {
+        if (typeof fields[0] == "string") {
+            return null;
+        }
+        return getVariableTypeSup(env, type.elementType, fields.slice(1));
+    }
+    if (isInstance(type, "structureType")) {
+        structName = type.name;
+        structFields = env.structFields[structName];
+        fieldType = structFields[fields[0]];
+        if (!fieldType) return null;
+        return getVariableTypeSup(env, fieldType, fields.slice(1));
+    }
+    if (isInstance(type, "enumType")) {
+        return fields.length === 0 ? "int32" : null;
+    }
+    return null; 
+}
+
+fun getVariableType(env, name, fields) {
+    const baseType = env.variableTypes[name];
+    if (!baseType) return null;
+    return getVariableTypeSup(env, baseType, fields);
+}
+
+function orderIntTypes(left, right) {
+    if (left === right) return "=";
+    typeList = [
+        "bool",
+        "int8",  "uint8",
+        "int16", "uint16",
+        "int32", "uint32",
+        "int64", "uint64"
+    ];
+    idxLeft = typeList.indexOf(left);
+    idxRight = typeList.indexOf(right);
+    if (idxLeft == idxRight) {
+        return "=";
+    }
+    return idxLeft < idxRight ? "<" : ">";
+}
+
+function defType(op, left, right) {
+    if (isInstance(left, "undefinedType")) {
+        if (isInstance(right, "undefinedType")) {
+            if (isInstance(right, "undefinedFloatType") ||
+                isInstance(left,  "undefinedFloatType")) {
+                return "undefinedFloatType";
+            }
+            return "undefinedIntType";
+        }
+        return right;
+    }
+    if (isInstance(right, "undefinedType")) {
+        return left;
+    }
+    if (isInstance(left, "floatType") || isInstance(right, "floatType")) {
+        if (left == "double" || right == "double") {
+            return "double";
+        }
+        return "float";
+    }
+    switch (op) {
+        case "+": case "-": case "*": case "/": case "%":
+        case ">>": case "<<":
+        case "==": case "!=": case ">=": case "<=": case ">": case "<":
+            intl = orderIntTypes(left, "int32");
+            intr = orderIntTypes(right, "int32");
+            comp = orderIntTypes(left, right);
+            if (intl == "<" && intr == "<") return "int32";
+            return comp == "<" ? right : left;
+        case "&&": case "||":
+            return "bool";
+        case "&": case "|": case "^":
+            return orderIntTypes(left, right) == "<" ? right : left;
+        case "!.":
+            return "bool";
+        case "-." : case "~." :
+            const intr = orderIntTypes(right, "int32");
+            return intr == ">" ? right : "int32";
+        case "=": case "+=": case "-=": case "*=": case "/=":
+        case "<<=": case ">>=":
+            intl2 = orderIntTypes(left, "int32");
+            intr2 = orderIntTypes(right, "int32");
+            comp2 = orderIntTypes(left, right);
+            if (intl2 == "<" && intr2 == "<") return "int32";
+            return comp2 == "<" ? right : left;
+        case "&=": case "|=": case "^=":
+            return orderIntTypes(left, right) == "<" ? right : left;
+        case "++." : case ".++" : case "--." : case ".--" :
+            return right;
+        default:
+            return left;
+    }
+}
+\end{lstlisting}
+
+Далее определим функцию specifyType(st), где st обозначает обрабатываемую конструкцию программы.
+
+\begin{lstlisting}
+fun specifyType(boolConstant){
+    return "bool"
+}
+fun specifyType(integerConstant){
+    return "undefinedIntType"
+}
+fun specifyType(naturalConstant){
+    return "undefinedIntType"
+}
+fun specifyType(floatConstant){
+    return "undefinedFloatType"
+}
+fun specifyType(timeConstant){
+    return "undefinedIntType"
+}
+
+fun specifyType(elementAccess) {
+    name = elementAccess.variable
+    accesses = elementAccess.accesses
+    if (!accesses) {
+        ty = getVariableType(env, name, [])
+        elementAccess.restype = ty
+        return ty
+    }
+    ty = getVariableType(env, name, [])
+    path = []
+    for access in accesses {
+        ty = getVariableType(env, name, reverse(path))
+        
+        if (access.type == "field name") {
+            path.pushfront(access)
+        } 
+        else if (access.type == "expression") {
+            specifyType(access)
+            path.pushfront(0)
+        }
+    }
+    ty = getVariableType(env, name, reverse(path))
+    elementAccess.restype = ty
+    return ty
+}
+//binaryBoolExpression $\in$ {==,!=,>=,<=,>,<,&&,||}
+fun specifyType(binaryBoolExpression) {
+    left = specifyType(binaryBoolExpression.left)
+    right = specifyType(binaryBoolExpression.right)
+    newType = defType(otype(binaryBoolExpression), left, right)
+    if (newType != left) {
+        if (!isInstance(left, "undefinedType") || isInstance(newType, "undefinedType")) {
+            binaryBoolExpression.left = createCast(
+                type: newType,
+                expression: binaryBoolExpression.left,
+                pretype: left
+            )
+        }
+    }
+    if (newType != right) {
+        if (!isInstance(right, "undefinedType") || isInstance(newType, "undefinedType")) {
+            binaryBoolExpression.right = createCast(
+                type: newType,
+                expression: binaryBoolExpression.right,
+                pretype: right
+            )
+        }
+    }
+    binaryBoolExpression.restype = "bool"
+    return "bool"
+}
+
+//binaryBoolExpression $\in$ {+,-,*,/,>>,<<,&,|,^}
+fun specifyType(binaryExpression) {
+    left  = specifyType(binaryExpression.left)
+    right = specifyType(binaryExpression.right)
+    leftArg  = binaryExpression.left
+    rightArg = binaryExpression.right
+    newType = defType(otype(binaryExpression), left, right)
+    if (newType != left) {
+        if (!isInstance(left, "undefinedType") || isInstance(newType, "undefinedType")) {
+            binaryExpression.left = createCast(
+                type: newType,
+                expression: leftArg,
+                pretype: left
+            )
+        }
+    }
+    if (newType != right) {
+        if (!isInstance(right, "undefinedType") || isInstance(newType, "undefinedType")) {
+            binaryExpression.right = createCast(
+                type: newType,
+                expression: rightArg,
+                pretype: right
+            )
+        }
+    }
+    binaryExpression.restype = newType
+    return newType
+}
+
+fun specifyType(castExpression) {
+    specifyType(castExpression.expression)
+    castExpression.restype = castExpression.type
+    return castExpression.type
+}
+//unaryExpression $\in$ {!,-,~}
+fun specifyType(unaryExpression) {
+    operandType = specifyType(unaryExpression.right)
+    newType = defType(otype(unaryExpression), null, operandType)
+    if (newType != operandType) {
+        if (!isInstance(operandType, "undefinedType") || 
+            isInstance(newType, "undefinedType")) {
+            unaryExpression.right = createCast(
+                type: newType,
+                expression: unaryExpression.right,
+                pretype: operandType
+            )
+        }
+    }
+    unaryExpression.restype = newType
+    return newType
+}
+
+fun specifyType(assignmentExpression) {
+    rightType = specifyType(assignmentExpression.right)
+    leftType = specifyType(assignmentExpression.left)
+    if (leftType != rightType && !isInstance(rightType, "undefinedType")) {
+        assignmentExpression.right = createCast(
+            type: leftType,
+            expression: assignmentExpression.right,
+            pretype: rightType
+        )
+    }
+    assignmentExpression.restype = leftType
+    return leftType
+}
+
+fun specifyType(prefixOrPostfix) {
+    val = specifyType(prefixOrPostfix.access)
+    prefixOrPostfix.restype = val
+    return val
+}
+
+fun specifyType(processStateChecking) {
+    processStateChecking.restype = "bool"
+    return "bool"
+}
+
+fun specifyType(statementList) {
+    for stmt in statementList {
+        specifyType(stmt)
+    }
+}
+
+fun specifyType(timeoutStatement) {
+    specifyType(timeoutStatement.statements)
+}
+
+fun specifyType(waitStatement) {
+    specifyType(waitStatement.condition)
+}
+
+fun specifyType(waitOnTimeout) {
+    specifyType(waitOnTimeout.condition)
+    specifyType(waitOnTimeout.statements)
+    specifyType(waitOnTimeout.controllingExpression)
+}
+
+fun specifyType(ifThen) {
+    condType = specifyType(ifThen.condition)
+    
+    if (!isInstance(condType, "booleanType")) {
+        ifThen.condition = createCast(
+            type: "bool",
+            expression: ifThen.condition,
+            pretype: condType
+        )
+    } 
+    specifyType(ifThen.then)
+}
+
+fun specifyType(ifThenElse) {
+    condType = specifyType(ifThenElse.condition)
+    if (!isInstance(condType, "booleanType")) {
+        ifThenElse.condition = createCast(
+            type: "bool",
+            expression: ifThenElse.condition,
+            pretype: condType
+        )
+    }
+    specifyType(ifThenElse.then)
+    specifyType(ifThenElse.else)
+}
+
+fun specifyType(switchS) {
+    specifyType(switchS.controllingExpression)
+    for caseStmt in switchS.cases {
+        specifyType(caseStmt)
+    }
+    if (switchS.default) {
+        specifyType(switchS.default)
+    }
+}
+
+fun specifyType(caseStatement) {
+    specifyType(caseStatement.statements)
+}
+
+fun specifyType(defaultStatement) {
+    specifyType(defaultStatement.statements)
+}
+
+fun specifyType(statementBlock) {
+    specifyType(statementBlock.statements)
+}
+
+fun specifyType(expressionS) {
+    specifyType(expressionS.expression)
+}
+
+fun specifyType(forS) {
+    specifyType(forS.init)
+    specifyType(forS.condition)
+    specifyType(forS.update)
+    specifyType(forS.statement)
+}
+
+fun specifyType(constantDeclaration) {
+    env.variableTypes[constantDeclaration.name] = constantDeclaration.type
+}
+
+fun specifyType(simpleVariableDeclaration) {
+    env.variableTypes[simpleVariableDeclaration.name] = simpleVariableDeclaration.type
+}
+
+fun specifyType(arrayVariableDeclaration) {
+    env.variableTypes[arrayVariableDeclaration.name] = arrayVariableDeclaration.type
+}
+
+fun specifyType(physicalVariableDeclaration) {
+    env.variableTypes[physicalVariableDeclaration.name] = physicalVariableDeclaration.type
+}
+
+fun specifyType(enumVariableDeclaration) {
+    env.variableTypes[enumVariableDeclaration.name] = enumVariableDeclaration.type
+}
+
+fun specifyType(structureVariableDeclaration) {
+    env.variableTypes[structureVariableDeclaration.name] = structureVariableDeclaration.type
+}
+
+fun specifyType(structureDeclaration) {
+    fieldTypes = {}
+    for field in structureDeclaration.fields {
+        fieldTypes[fieldName] = fieldType
+    }
+    env.structFields[structureDeclaration.name] = fieldTypes
+}
+
+fun specifyType(nodeDeclaration) {
+    for varDecl in nodeDeclaration.variables{
+        specifyType(varDecl)
+    }
+}
+
+fun specifyType(stateDeclaration) {
+    specifyType(stateDeclaration.statements)
+}
+
+fun specifyType(processDeclaration) {
+    for state in processDeclaration.states {
+        specifyType(state)
+    }
+}
+
+fun specifyType(programDeclaration) {
+    for node in programDeclaration.nodes {
+        specifyType(node)
+    }
+    for process in programDeclaration.processes {
+        specifyType(process)
+    }
+}
+\end{lstlisting}
+
+\section{Нормализация}
+Нормализация заключается в преобразовании некоторых конструкций в программе для упрощения анализа и обработки программы.
+
+Сначала определим поля глобального и локального контекста.
+
+Поля глобального контекста:
+\begin{itemize}
+    \item \textbf{processStatesNames} -- словарь, отображающий имя процесса  в список имен состояний
+\end{itemize}
+
+Локальный контекст имеет следующие поля:
+    \begin{itemize}
+        \item \textbf{currentProcess} -- имя текущего процесса.
+        \item \textbf{currentState} -- имя текущего состояния.
+        \item \textbf{nextState} -- имя следующего состояния.
+        \item \textbf{lightСounter} -- счетчик оператора числа лекговесных состояний в процессе.
+    \end{itemize}
+    
+Определим вспомогательные функции:
+\begin{lstlisting}
+fun nextProcessState() {
+    statesList = env.processStateNames[ctx.currentProccess]
+    if (statesList == null) {
+        return nil
+    }
+    idx = statesList.indexOf(ctx.currentState)
+    if (idx == -1 || idx == statesList.length - 1) {
+        return nil
+    }
+    return statesList[idx + 1]
+}
+
+fun firstState(process) {
+    states = env.processStatesNames[process]
+    if (states == null || states.length == 0) {
+        return nil
+    }
+    return states[0]
+}
+
+fun createLightState(stateName, stateType, num) {
+    return stateName + "_" + stateType + "_" + num
+}
+
+fun breakIntoStates(statements) {
+    result = []
+    currentState = []
+    for stmt in statements {
+        if (isInstance(stmt, "slice") ||
+            isInstance(stmt, "wait") ||
+            isInstance(stmt, "waitOnTimeout")) {
+            if (currentState.length > 0) {
+                result.pushfront(reverse(currentState))
+                currentState = []
+            }
+            currentState = [stmt]
+        } else {
+            currentState.pushfront(stmt)
+        }
+    }
+    if (currentState.length > 0) {
+        result.pushfront(reverse(currentState))
+    }
+    return reverse(result)
+}
+\end{lstlisting}
+
+Далее определим функцию normalizeProgram(st), где st обозначает обрабатываемую конструкцию программы. В большенстве случаев, она ничего не возвращает, исключение - обработка stateDeclaration, после которой возвращается список новых состояний.
+\begin{lstlisting}
+fun normalizeProgram(setState) {
+    setState.state = ctx.nextState
+}
+
+fun normalizeProgram(statementList) {
+    for stmt in statementList {
+        normalizeProgram(stmt)
+    }
+}
+
+fun normalizeProgram(switchS) {
+    cases = switchS.cases
+    default = switchS.sefault
+    for case in cases {
+        normalizeProgram(case)
+    }
+    normalizeProgram(default)
+    excases = []
+    for case in cases {
+        for excase in excases {
+            excase.statements = excase.statements + case.statements.clone() 
+        }
+        if (!case.break){
+            excases.pushfront(case)
+        } else{
+            for excase in excases {
+                excase.break = true
+            }
+            excases = []
+        }
+        
+    }
+    if (default){
+        for excase in exCases {
+            excase.statements = excase.statements + default.statements 
+        }
+        for excase in excases {
+                excase.break = true
+            }
+    }
+}
+
+fun normalizeProgram(caseStatement) {
+    normalizeProgram(caseStatement.statements)
+}
+
+fun normalizeProgram(defaultStatement) {
+    normalizeProgram(defaultStatement.statements)
+}
+
+fun normalizeProgram(blockStatement) {
+    normalizeProgram(blockStatement.statements)
+}
+
+fun normalizeProgram(ifThen) {
+    normalizeProgram(ifThen.then)
+}
+
+fun normalizeProgram(ifThenElse) {
+    normalizeProgram(ifThenElse.then)
+    normalizeProgram(ifThenElse.else)
+}
+
+fun normalizeProgram(forS) {
+    if (forS.init)      normalizeProgram(forS.init)
+    if (forS.condition) normalizeProgram(forS.condition)
+    if (forS.update)    normalizeProgram(forS.update)
+    if (forS.statement) normalizeProgram(forS.statement)
+}
+
+fun normalizeState(name,sts){
+    if (sts.empty()){
+        return {body:[],newStates:[],mustTransfer:false}
+    }
+    head = sts.pop()
+    normalizeProgram(head)
+    tail = sts 
+    tailResult = normalizeState(name,tail)
+
+    tailBody = tailResult.body
+    tailStates = tailResult.newStates
+    tailTransfer = tailResult.mustTransfer
+
+    if (isInstance(head,"slice")){
+        counter = ctx.lightСounter
+        ctx.lightСounter++
+        newName = name + "_light" + counter
+
+        newState = createState({name:newName, statements:tailBody})
+
+        return {body: createSetState(newName), 
+            newStates: tailStates $\cup$ [newState],
+            mustTransfer = true}
+    } else
+    if (isInstance(head,"wait")){
+        counter = ctx.lightСounter
+        ctx.lightСounter+=2
+        newName1 = name + "_light" + counter
+        newName1 = name + "_light" + (counter + 1)
+        if (tailTransfer){
+            thenBody = tailBody
+            ifStatement = createIfThenElse({
+                condition: head.condition, 
+                then: thenBody, 
+                else: [createSetState(newName1)]})
+            state1 = createState({
+                name:newName1, 
+                statements: [createifThen({condition: head.condition, then: thenBody})]})
+            return {body: [ifStatement],
+                newStates: tailStates $\cup$ [state1],
+                mustTransfer:True}
+        }else{
+            thenBody = tailBody.pushback(createSetState)
+            ifStatement = createIfThenElse({
+                condition: head.condition, 
+                then: thenBody, 
+                else: [createSetState(newName1)]})
+            state1 = createState({
+                name:newName1, 
+                statements: [createifThen({condition: head.condition, then: thenBody})]})
+            state2 = createState({
+                name:newName2,
+                statements: tailBody
+            })
+            return {body: [ifStatement],
+                newStates: tailStates $\cup$ [state1,state2],
+                mustTransfer:True} 
+        }
+    } else 
+    if (isInstance(head,"waitOnTimeout")){
+        counter = ctx.lightСounter
+        ctx.lightСounter+=2
+        newName1 = name + "_light" + counter
+        newName1 = name + "_light" + (counter + 1)
+        if (tailTransfer){
+            thenBody = tailBody
+            ifStatement = createIfThenElse({
+                condition: head.condition, 
+                then: thenBody, 
+                else: [createSetState(newName1)]})
+            state1 = createState({
+                name:newName1, 
+                statements: [createifThen({condition: head.condition, then: thenBody}),
+                    createTimeoutStatement({
+                        controllingExpression: head.controllingExpression,
+                        statements: head.statements
+                    })]})
+            return {body: [ifStatement],
+                newStates: tailStates $\cup$ [state1],
+                mustTransfer:True}
+        }else{
+            thenBody = tailBody.pushback(createSetState)
+            ifStatement = createIfThenElse({
+                condition: head.condition, 
+                then: thenBody, 
+                else: [createSetState(newName1)]})
+            state1 = createState({
+                name:newName1, 
+                statements: [createifThen({condition: head.condition, then: thenBody}),
+                    createTimeoutStatement({
+                        controllingExpression: head.controllingExpression,
+                        statements: head.statements
+                    })]})
+            state2 = createState({
+                name:newName2,
+                statements: tailBody
+            })
+            return {body: [ifStatement],
+                newStates: tailStates $\cup$ [state1,state2],
+                mustTransfer:True} 
+        }
+    } else{
+        return {body: tailBody.pushfront(head),
+            newStates: tailStates,
+            mustTransfer: tailTransfer}
+    }
+}
+
+fun normalizeProgram(stateDeclaration){
+    name = stateDeclaration.name
+    sts = stateDeclaration.statements
+    res = normalizeState(name, sts)
+    stateDeclaration.sts = res.body
+    res.newStates.pushfront(stateDeclaration)
+    return res.newStates
+}
+
+fun normalizeProgram(processDeclaration) {
+    name = processDeclaration.name
+    states = processDeclaration.states
+
+    ctx.currentProcess = name
+    newStates = []
+    for state in states {
+        res = normalizeProgram(state)
+        newstates.pushback(res)
+    }
+    processDeclaration.states = newStates
+}
+
+
+fun normalizeProgram(programDeclaration) {
+    processes = programDeclaration.processes
+    for proc in processes {
+        normalizeProgram(proc)
+    }
+}
+\end{lstlisting}
+

@@ -1,0 +1,94 @@
+program Thermopot {
+	clock 100;
+    input temperature 0x00 0x00 8;
+	input buttons 0x00 0x00 8;
+	input boilingButton 0x00 0x00 8;
+	
+    output selectedTemp 0x00 0x01 8;
+	output heater 0x00 0x01 8;
+	output lid 0x00 0x01 8;
+	output mods 0x00 0x01 8;
+	
+	const bool LOCKED = true;
+	const bool UNLOCKED = false;
+	const bool PRESSED = true;
+	
+	const int8 BOILING_POINT = 100;
+	const int8 TEMP1 = 98;
+	const int8 TEMP2 = 85;
+	const int8 TEMP3 = 60;
+	
+	int8 temperature = temperature[0];
+	bool button1 = buttons[1];
+	bool button2 = buttons[2];
+	bool button3 = buttons[3];
+	bool boilingButton = boilingButton[0];
+	
+	int8 selectedTemp = selectedTemp[0];
+	bool heater = heater[0];
+	bool lid = lid[0];
+	bool boilingMode = mods[0];
+	bool maintainingMode = mods[1];
+	
+	process Init {
+		state begin {
+			start TempSelection;
+			start HeaterController;
+			stop;
+		}
+	}
+	
+	process TempSelection{
+		state tempSelection {
+			if (button1 == PRESSED){
+				selectedTemp = TEMP1;
+			} else {
+				if (button2 == PRESSED){
+					selectedTemp = TEMP2;
+				} else {
+					if (button3 == PRESSED){
+						selectedTemp = TEMP3;
+					}
+				}
+			}
+		}
+	}
+	
+	process HeaterController {
+		state begin {
+			if (boilingButton == PRESSED){
+				boilingMode = true;
+				set next state;
+			}
+		}
+		
+		state heating {
+			heater = true;
+			lid = LOCKED;
+			if (temperature >= BOILING_POINT){
+				heater = false;
+				lid = UNLOCKED;
+				boilingMode = false;
+				maintainingMode = true;
+				set next state;
+			}
+		}
+		
+		state maintaining {
+			if (boilingButton==PRESSED){
+				maintainingMode = false;
+				boilingMode = true;
+				set state heating;
+			} else {
+				if (temperature >= selectedTemp){
+					heater = false;
+				} else {
+					if (temperature < selectedTemp - 5) {
+						heater = true;
+					}
+				}
+			}
+		}
+	}
+	
+}
