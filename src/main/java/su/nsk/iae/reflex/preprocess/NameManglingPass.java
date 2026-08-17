@@ -54,6 +54,9 @@ public final class NameManglingPass {
     /** Local context: mangled name -> number of accesses made to a direct binding. */
     private final Map<String, Integer> directCount = new HashMap<>();
 
+    /** Per-access name of a direct binding -> the binding it came from. */
+    private final Map<String, String> directAccessNames = new LinkedHashMap<>();
+
     private int blockCounter;
 
     public void run(IrProgram program) {
@@ -63,6 +66,15 @@ public final class NameManglingPass {
     /** Mangled name -> whether that binding is direct; for later stages. */
     public Map<String, Boolean> getDirectBindings() {
         return isDirect;
+    }
+
+    /**
+     * Per-access names generated for direct bindings, mapped to the binding they came
+     * from. Those names have no declaration of their own, so later stages need this to
+     * give them a type.
+     */
+    public Map<String, String> getDirectAccessNames() {
+        return directAccessNames;
     }
 
     // ------------------------------------------------------------------ naming
@@ -387,7 +399,9 @@ public final class NameManglingPass {
         }
         if (counted && Boolean.TRUE.equals(isDirect.get(mangled))) {
             int accessNumber = directCount.getOrDefault(mangled, 0);
-            ref.setName(newDirectName(mangled, accessNumber));
+            String accessName = newDirectName(mangled, accessNumber);
+            ref.setName(accessName);
+            directAccessNames.put(accessName, mangled);
             directCount.put(mangled, accessNumber + 1);
         } else {
             ref.setName(mangled);

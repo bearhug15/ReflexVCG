@@ -50,8 +50,12 @@ public abstract class IrNode {
         return annotations != null && !annotations.isEmpty();
     }
 
-    /** Copies source position and annotations from {@code other}. */
-    protected void copyOriginFrom(IrNode other) {
+    /**
+     * Copies source position and annotations from {@code other}. Used when a pass
+     * synthesises a node that stands in for existing code, so diagnostics still point at
+     * the source it came from.
+     */
+    public void copyOriginFrom(IrNode other) {
         this.source = other.source;
         if (other.annotations != null) {
             this.annotations = new ArrayList<>(other.annotations);
