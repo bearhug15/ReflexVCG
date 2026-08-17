@@ -26,6 +26,8 @@ public final class Main {
         options.addOption("s", "source", true, "Path to the Reflex program (required).");
         options.addOption("o", "output", true, "Directory to write conditions into (default: the source's).");
         options.addOption("g", "graph", false, "Also export the program graph in Graphviz format.");
+        options.addOption("a", "analysis", true,
+                "Discard conditions for impossible paths: true/false (default true).");
         options.addOption("h", "help", false, "Show this help.");
 
         CommandLineParser commandLineParser = new DefaultParser();
@@ -66,6 +68,11 @@ public final class Main {
                 generator.getAnnotations().getDiagnostics().forEach(d -> System.out.println("  " + d));
             }
 
+            if ("false".equalsIgnoreCase(commandLine.getOptionValue("a"))) {
+                generator.setStaticAnalysis(false);
+                System.out.println("Static analysis disabled; every path will be emitted.");
+            }
+
             if (commandLine.hasOption("g")) {
                 generator.exportGraph(destination);
                 System.out.println("Wrote the program graph to " + destination);
@@ -81,7 +88,7 @@ public final class Main {
 
     private static void usage(Options options) {
         new HelpFormatter().printHelp(
-                "ReflexVCG -s <program.rx> [-o <dir>] [-g]",
+                "ReflexVCG -s <program.rx> [-o <dir>] [-g] [-a true|false]",
                 "Generates Isabelle/HOL verification conditions for a Reflex program.",
                 options, "");
     }

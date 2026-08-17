@@ -22,9 +22,10 @@ class ReflexVcgTest {
         ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rx"));
         int written = generator.generate(output);
 
-        assertEquals(4, written);
+        // Two of the four paths survive static analysis, which is on by default.
+        assertEquals(2, written);
         for (String expected : List.of("ReflexBase.thy", "Requirements.thy", "ifTestTheory.thy",
-                "ifTest_VC0.thy", "ifTest_VC3.thy")) {
+                "ifTest_VC0.thy", "ifTest_VC1.thy")) {
             assertTrue(Files.exists(output.resolve(expected)), "missing " + expected);
         }
 
@@ -36,6 +37,14 @@ class ReflexVcgTest {
         assertTrue(condition.contains("getVarVal"), condition);
         assertTrue(condition.contains("setVarVal"), condition);
         assertTrue(condition.contains("ValBool"), condition);
+    }
+
+    @Test
+    void staticAnalysisCanBeSwitchedOff(@TempDir Path output) throws IOException {
+        ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rx"));
+        generator.setStaticAnalysis(false);
+
+        assertEquals(4, generator.generate(output), "every path should be emitted");
     }
 
     @Test

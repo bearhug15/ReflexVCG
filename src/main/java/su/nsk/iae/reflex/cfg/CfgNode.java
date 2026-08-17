@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.cfg;
 
+import su.nsk.iae.reflex.analysis.Attributes;
 import su.nsk.iae.reflex.ir.IrExpr;
 import su.nsk.iae.reflex.ir.TimeRef;
 
@@ -21,6 +22,7 @@ import java.util.List;
 public abstract class CfgNode {
 
     private final List<CfgNode> successors = new ArrayList<>();
+    private Attributes attributes = Attributes.EMPTY;
 
     public List<CfgNode> getSuccessors() {
         return successors;
@@ -28,6 +30,20 @@ public abstract class CfgNode {
 
     public void addSuccessor(CfgNode node) {
         successors.add(node);
+    }
+
+    /**
+     * What passing through this node does to the processes, for static analysis.
+     * Only the nodes that actually change something carry a non-empty value; the
+     * summary attributes of a composite statement are not applied here, since a path
+     * goes through one branch of it rather than all.
+     */
+    public Attributes getAttributes() {
+        return attributes;
+    }
+
+    public void setAttributes(Attributes attributes) {
+        this.attributes = attributes;
     }
 
     public boolean isTerminal() {

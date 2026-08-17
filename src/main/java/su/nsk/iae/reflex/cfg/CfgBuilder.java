@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.cfg;
 
+import su.nsk.iae.reflex.analysis.AttributePreparation;
 import su.nsk.iae.reflex.ir.IrDecl;
 import su.nsk.iae.reflex.ir.IrExpr;
 import su.nsk.iae.reflex.ir.IrProcess;
@@ -30,9 +31,20 @@ public final class CfgBuilder {
     }
 
     private final IrProgram program;
+    private final AttributePreparation attributes;
 
     public CfgBuilder(IrProgram program) {
+        this(program, null);
+    }
+
+    /**
+     * @param attributes prepared attributes to attach to the nodes that change
+     *                   something, so traversal can accumulate them; null to build a
+     *                   graph without them
+     */
+    public CfgBuilder(IrProgram program, AttributePreparation attributes) {
         this.program = program;
+        this.attributes = attributes;
     }
 
     public Cfg build() {
@@ -150,14 +162,15 @@ public final class CfgBuilder {
             return buildSwitch(process, switchStmt);
         }
         if (statement instanceof IrStmt.SetState setState) {
-            return effect(new CfgNode.SetState(process.getName(), setState.getState()),
-                    new CfgNode.ResetTimer(process.getName()));
+            return carrying(statement, effect(
+                    new CfgNode.SetState(process.getName(), setState.getState()),
+                    new CfgNode.ResetTimer(process.getName())));
         }
         if (statement instanceof IrStmt.ResetTimer) {
-            return effect(new CfgNode.ResetTimer(process.getName()));
+            return carrying(statement, effect(new CfgNode.ResetTimer(process.getName())));
         }
         if (statement instanceof IrStmt.ProcessControl control) {
-            return buildProcessControl(process, control);
+            return carrying(statement, buildProcessControl(process, control));
         }
         if (statement instanceof IrStmt.For forStmt) {
             return effect(new CfgNode.Unsupported("for",
@@ -357,6 +370,17 @@ public final class CfgBuilder {
                 su.nsk.iae.reflex.ir.IrCopier.copy(condition));
         negated.setResultType(IrType.BOOL);
         return negated;
+    }
+
+    /**
+     * Attaches a statement's attributes to the first node of its fragment. Only the
+     * leading node carries them, so accumulating along a path counts each effect once.
+     */
+    private Fragment carrying(IrStmt statement, Fragment fragment) {
+        if (attributes != null) {
+            fragment.entry().setAttributes(attributes.of(statement));
+        }
+        return fragment;
     }
 
     /** A straight-line fragment performing the given effects in order. */

@@ -1,5 +1,8 @@
 package su.nsk.iae.reflex.cfg;
 
+import su.nsk.iae.reflex.analysis.PathState;
+import su.nsk.iae.reflex.analysis.StaticAnalysis;
+import su.nsk.iae.reflex.analysis.Term;
 import su.nsk.iae.reflex.vc.VcStatement;
 import su.nsk.iae.reflex.vc.VerificationCondition;
 
@@ -24,10 +27,26 @@ public final class PathEnumerator {
     private static final int MAX_PATHS = 500_000;
 
     private final Cfg cfg;
+    private final StaticAnalysis analysis;
     private int emitted;
+    private int pruned;
 
     public PathEnumerator(Cfg cfg) {
+        this(cfg, null);
+    }
+
+    /**
+     * @param analysis discards paths the analysis shows to be impossible; null keeps
+     *                 every path
+     */
+    public PathEnumerator(Cfg cfg, StaticAnalysis analysis) {
         this.cfg = cfg;
+        this.analysis = analysis;
+    }
+
+    /** How many times a subtree was abandoned because the path became impossible. */
+    public int getPruned() {
+        return pruned;
     }
 
     /** Collects every condition. Convenient for tests and small programs. */
@@ -40,18 +59,29 @@ public final class PathEnumerator {
     /** Streams conditions to {@code sink}, so large programs need not be held in memory. */
     public void forEach(Consumer<VerificationCondition> sink) {
         emitted = 0;
-        walk(cfg.getEntry(), new ArrayList<>(), sink);
+        pruned = 0;
+        walk(cfg.getEntry(), PathState.INITIAL, new ArrayList<>(), sink);
     }
 
     public int getEmitted() {
         return emitted;
     }
 
-    private void walk(CfgNode node, List<CfgNode> path, Consumer<VerificationCondition> sink) {
+    private void walk(CfgNode node, PathState state, List<CfgNode> path,
+                      Consumer<VerificationCondition> sink) {
         if (emitted >= MAX_PATHS) {
             throw new IllegalStateException(
                     "path enumeration exceeded " + MAX_PATHS + " conditions; the graph may contain a cycle");
         }
+
+        // Checked before descending, so an impossible path costs nothing beyond the node
+        // that made it impossible - the whole subtree below is skipped.
+        PathState next = admit(node, state);
+        if (next == null) {
+            pruned++;
+            return;
+        }
+        next = next.andThen(node.getAttributes());
 
         path.add(node);
         if (node.isTerminal()) {
@@ -59,10 +89,38 @@ public final class PathEnumerator {
             emitted++;
         } else {
             for (CfgNode successor : node.getSuccessors()) {
-                walk(successor, path, sink);
+                walk(successor, next, path, sink);
             }
         }
         path.remove(path.size() - 1);
+    }
+
+    /**
+     * The path state after passing {@code node}, or null when the analysis shows the path
+     * cannot happen.
+     */
+    private PathState admit(CfgNode node, PathState state) {
+        if (node instanceof CfgNode.InState inState) {
+            if (analysis != null
+                    && !analysis.allowsState(state, inState.getProcess(), inState.getState())) {
+                return null;
+            }
+            return state.asserting(new Term.PstateCompare(inState.getProcess(), inState.getState()));
+        }
+        if (node instanceof CfgNode.Guard guard) {
+            List<Term> asserted = Term.assertedBy(guard.getCondition());
+            if (analysis != null && !analysis.allowsActivities(state, asserted)) {
+                return null;
+            }
+            return state.asserting(asserted);
+        }
+        if (node instanceof CfgNode.TimeoutGuard timeout) {
+            if (analysis != null && !analysis.allowsTimeout(
+                    state, timeout.isExceeded(), timeout.getDuration().isName())) {
+                return null;
+            }
+        }
+        return state;
     }
 
     /** Converts one path into the chain of assumptions describing it. */

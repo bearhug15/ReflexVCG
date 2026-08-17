@@ -8,6 +8,8 @@ import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
 import su.nsk.iae.reflex.antlr.NewReflexLexer;
 import su.nsk.iae.reflex.antlr.NewReflexParser;
+import su.nsk.iae.reflex.analysis.AttributePreparation;
+import su.nsk.iae.reflex.analysis.StaticAnalysis;
 import su.nsk.iae.reflex.cfg.Cfg;
 import su.nsk.iae.reflex.cfg.CfgBuilder;
 import su.nsk.iae.reflex.cfg.CfgNode;
@@ -41,6 +43,8 @@ public final class ReflexVcg {
     private final AnnotationBinder annotations;
     private Cfg cfg;
     private ExtraInvariantGenerator extraInvariants;
+    private AttributePreparation attributePreparation;
+    private boolean staticAnalysis = true;
 
     private ReflexVcg(IrProgram program, AnnotationBinder annotations) {
         this.program = program;
@@ -80,9 +84,16 @@ public final class ReflexVcg {
 
     public Cfg getCfg() {
         if (cfg == null) {
-            cfg = new CfgBuilder(program).build();
+            attributePreparation = new AttributePreparation(program);
+            attributePreparation.run();
+            cfg = new CfgBuilder(program, attributePreparation).build();
         }
         return cfg;
+    }
+
+    /** Whether impossible paths are discarded. On by default. */
+    public void setStaticAnalysis(boolean enabled) {
+        this.staticAnalysis = enabled;
     }
 
     /**
@@ -109,7 +120,8 @@ public final class ReflexVcg {
 
         VcWriter writer = new VcWriter(destination, program.getName());
         writer.writeSupportingTheories(program, extras.extraDefinitions());
-        new PathEnumerator(graph).forEach(condition -> {
+        StaticAnalysis analysis = staticAnalysis ? new StaticAnalysis(program) : null;
+        new PathEnumerator(graph, analysis).forEach(condition -> {
             VerificationCondition processed = extras.process(condition);
             if (processed != null) {
                 writer.write(processed);

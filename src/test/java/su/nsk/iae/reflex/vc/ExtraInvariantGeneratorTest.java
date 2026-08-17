@@ -31,7 +31,7 @@ class ExtraInvariantGeneratorTest {
     void defaultGeneratorChangesNothing(@TempDir Path output) throws IOException {
         int written = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rx")).generate(output);
 
-        assertEquals(4, written);
+        assertEquals(2, written);
         String requirements = Files.readString(output.resolve("Requirements.thy"));
         assertTrue(requirements.contains("definition inv where"), requirements);
     }
@@ -63,10 +63,10 @@ class ExtraInvariantGeneratorTest {
 
         int written = generator.generate(output);
 
-        assertEquals(4, written);
+        assertEquals(2, written);
         assertTrue(calls.contains("analyse"), calls.toString());
         assertTrue(calls.contains("extraDefinitions"), calls.toString());
-        assertEquals(4, calls.stream().filter("process"::equals).count(),
+        assertEquals(2, calls.stream().filter("process"::equals).count(),
                 "process should be called once per condition");
 
         assertTrue(Files.readString(output.resolve("Requirements.thy")).contains("definition extra where"),
@@ -87,7 +87,7 @@ class ExtraInvariantGeneratorTest {
             }
         });
 
-        assertEquals(2, generator.generate(output), "half the conditions should be dropped");
+        assertEquals(1, generator.generate(output), "half the conditions should be dropped");
     }
 
     @Test
