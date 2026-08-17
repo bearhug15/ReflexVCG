@@ -62,7 +62,22 @@ physicalVariable:
     // legacy grammar and the name-mangling spec (newDirectName(name, pos)) use.
     (',' 'bit' '=' (bitId=ID | bitNum=UNSIGNED_INTEGER))? ')';
 direction: 'direct' | 'indirect';
-programVariable: varType=type name=ID ('=' expression)?;
+programVariable: varType=type name=ID dims=arrayDims? ('=' init=initializer)?;
+
+// A dimension may be left empty when an initializer supplies the extent:
+//   int32 a[] = {1, 2, 3};   declares an array of 3
+arrayDims: (dim+=arrayDim)+;
+arrayDim: '[' size=expression? ']';
+
+initializer: expression | aggregateInitializer;
+
+// Aggregate initialisers are partial: any field or element left out keeps its
+// default value, and designators may target specific ones.
+//   Point p  = {.y = 5};
+//   int32 v[4] = {1, 2};
+aggregateInitializer: '{' (elements+=initializerElement (',' elements+=initializerElement)* ','?)? '}';
+initializerElement: (designator '=')? initializer;
+designator: '.' field=ID | '[' index=expression ']';
 structDeclaration: 'struct' name=ID '{' (variables+=programVariable ';')+ '}';
 timeoutFunction: 'timeout' (timeAmountOrRef | '(' timeAmountOrRef ')') body=statement;
 timeAmountOrRef: time=TIME | intTime=UNSIGNED_INTEGER | ref=ID;
@@ -147,7 +162,10 @@ unaryExpression:
 expression:
     unaryExpression                             #Unary
     | checkStateExpression                      #CheckState
-    | '(' varType=type ')' expression           #Cast
+    // Builtin types only: with `type` able to be a bare ID, `(x) + 1` would be
+    // ambiguous between a cast and a parenthesised expression, and casting to a
+    // struct or enum type is not meaningful anyway.
+    | '(' varType=builtinType ')' expression    #Cast
     | expression op=MUL_OP expression           #Mul
     | expression op=addOp expression            #Add
     | expression op=SHIFT_OP expression         #Shift
@@ -173,7 +191,9 @@ addOp: '+' | '-';
 assignOp:
     '=' | '*=' | '/=' | '%=' | '+=' | '-='
     | '<<=' | '>>=' | '&=' | '^=' | '|=';
-type:
+// A type is either builtin or the name of a declared struct or enum.
+type: builtinType | typeName=ID;
+builtinType:
     'void' | 'bool' | 'time'
     | 'float' | 'double'
     | 'int8' | 'uint8'

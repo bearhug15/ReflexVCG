@@ -250,6 +250,75 @@ class NewReflexGrammarTest {
                 + "}");
     }
 
+    /** A struct or enum name is usable as a type, so struct declarations mean something. */
+    @Test
+    void parsesUserDefinedTypedVariables() {
+        assertParses("program P {\n"
+                + "  clock 100;\n"
+                + "  struct Point { int32 x; int32 y; }\n"
+                + "  enum Color { Red, Green, Blue }\n"
+                + "  Point origin;\n"
+                + "  Color c;\n"
+                + "  node N { clock 100; }\n"
+                + "  process Proc :: node N { state s { Point local; local.x = 1; } }\n"
+                + "}");
+    }
+
+    @Test
+    void parsesArrayDeclarations() {
+        assertParses(inState("      int32 buf[8];"));
+        assertParses(inState("      int32 grid[4][4];"));
+        assertParses(inState("      int32 buf[8]; buf[0] = 1;"));
+    }
+
+    /** `int32 a[] = {1,2,3}` takes its extent from the initialiser. */
+    @Test
+    void parsesArrayWithSizeDerivedFromInitializer() {
+        assertParses(inState("      int32 a[] = {1, 2, 3};"));
+        assertParses(inState("      int32 g[][2] = {{1, 2}, {3, 4}};"));
+        assertParses(inState("      int32 a[] = {1, 2, 3,};"));
+    }
+
+    /** Aggregate initialisers are partial: omitted members keep their defaults. */
+    @Test
+    void parsesPartialInitialization() {
+        assertParses("program P {\n"
+                + "  clock 100;\n"
+                + "  struct Point { int32 x; int32 y; }\n"
+                + "  Point positional = {1};\n"
+                + "  Point designated = {.y = 5};\n"
+                + "  Point both = {.x = 1, .y = 2};\n"
+                + "  Point empty = {};\n"
+                + "  node N { clock 100; }\n"
+                + "  process Proc :: node N { state s { ; } }\n"
+                + "}");
+        assertParses(inState("      int32 v[4] = {1, 2};"));
+        assertParses(inState("      int32 v[4] = {[2] = 7};"));
+    }
+
+    @Test
+    void parsesArraysOfStructs() {
+        assertParses("program P {\n"
+                + "  clock 100;\n"
+                + "  struct Point { int32 x; int32 y; }\n"
+                + "  Point path[2] = {{1, 2}, {.y = 3}};\n"
+                + "  node N { clock 100; }\n"
+                + "  process Proc :: node N { state s { path[0].x = 9; } }\n"
+                + "}");
+    }
+
+    /** Casts to builtin types must keep working now that `type` can be a bare ID. */
+    @Test
+    void parsesCastsToBuiltinTypes() {
+        assertParses(inState("      int32 a = 0; a = (int32) b; a = (uint8) (b + 1);"));
+    }
+
+    /** With casts restricted to builtins, `(x) + 1` is unambiguously an expression. */
+    @Test
+    void parsesParenthesisedExpressionFollowedByOperator() {
+        assertParses(inState("      a = (x) + 1; a = (x + y) * 2;"));
+    }
+
     /** A genuinely malformed program must still be reported, not silently accepted. */
     @Test
     void reportsSyntaxErrorsForMalformedInput() {
