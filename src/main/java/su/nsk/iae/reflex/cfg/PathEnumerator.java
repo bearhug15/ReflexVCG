@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.cfg;
 
+import su.nsk.iae.reflex.analysis.Event;
 import su.nsk.iae.reflex.analysis.PathState;
 import su.nsk.iae.reflex.analysis.StaticAnalysis;
 import su.nsk.iae.reflex.analysis.Term;
@@ -105,18 +106,24 @@ public final class PathEnumerator {
                     && !analysis.allowsState(state, inState.getProcess(), inState.getState())) {
                 return null;
             }
-            return state.asserting(new Term.PstateCompare(inState.getProcess(), inState.getState()));
+            return state.asserting(new Event.StateAsserted(inState.getProcess(), inState.getState()));
         }
         if (node instanceof CfgNode.Guard guard) {
             List<Term> asserted = Term.assertedBy(guard.getCondition());
             if (analysis != null && !analysis.allowsActivities(state, asserted)) {
                 return null;
             }
-            return state.asserting(asserted);
+            List<Event> events = new ArrayList<>();
+            for (Term term : asserted) {
+                if (term instanceof Term.ProcessActivity activity) {
+                    events.add(new Event.StatusAsserted(activity.process(), activity.activity()));
+                }
+            }
+            return state.asserting(events);
         }
         if (node instanceof CfgNode.TimeoutGuard timeout) {
             if (analysis != null && !analysis.allowsTimeout(
-                    state, timeout.isExceeded(), timeout.getDuration().isName())) {
+                    state, timeout.isExceeded(), timeout.getDuration())) {
                 return null;
             }
         }

@@ -98,18 +98,24 @@ class StaticAnalysisMeasurementTest {
     }
 
     /**
-     * On the small programs the analysis reproduces the old pipeline's pruned output
-     * exactly. ifTest2 matches once its two division domain conditions - which the old
-     * generator emitted and this one deliberately does not - are subtracted.
+     * Every single-process program reproduces the old pipeline's pruned output exactly,
+     * newEscalator included - 42 paths down to 26. ifTest2 matches once its two division
+     * domain conditions, which the old generator emitted and this one deliberately does
+     * not, are subtracted.
+     *
+     * <p>The programs that still differ are exactly the multi-process ones, where the old
+     * result depended on the process grouping - the part of the old implementation that
+     * was not reproducible in the first place.
      */
     @Test
-    void reproducesTheOldPrunedCountsOnTheSmallPrograms() throws IOException {
+    void reproducesTheOldPrunedCountsOnSingleProcessPrograms() throws IOException {
         Map<String, Integer> expected = new LinkedHashMap<>(Map.of(
                 "ifTest1", 2,
                 "ifTest2", 2,
                 "ifTest3", 3,
                 "switchTest1", 3,
-                "switchTest2", 4));
+                "switchTest2", 4,
+                "newEscalator", 26));
 
         for (Map.Entry<String, Integer> entry : expected.entrySet()) {
             IrProgram program = load(entry.getKey());

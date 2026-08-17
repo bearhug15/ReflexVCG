@@ -6,6 +6,7 @@ import su.nsk.iae.reflex.ir.IrProcess;
 import su.nsk.iae.reflex.ir.IrProgram;
 import su.nsk.iae.reflex.ir.IrState;
 import su.nsk.iae.reflex.ir.IrStmt;
+import su.nsk.iae.reflex.ir.TimeRef;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -51,6 +52,7 @@ public final class StaticAnalysis {
     private final Map<IrNode, Attributes> attributes;
     private final ProcessFacts facts;
     private final Map<String, Set<String>> reachFrom;
+    private final Set<String> constantNames;
     private final Combination combination;
 
     public StaticAnalysis(IrProgram program) {
@@ -63,6 +65,7 @@ public final class StaticAnalysis {
         this.attributes = new AttributePreparation(program).run();
         this.facts = new ProcessFacts(program, attributes);
         this.reachFrom = computeReachFrom();
+        this.constantNames = collectConstantNames();
     }
 
     public Attributes attributesOf(IrNode node) {
@@ -82,22 +85,42 @@ public final class StaticAnalysis {
         return combination == Combination.EITHER ? simple && group : simple || group;
     }
 
-    /** Whether a timeout branch is still possible. */
-    public boolean allowsTimeout(PathState path, boolean exceeded, boolean variableDuration) {
-        // Only the branch that fires is constrained, and only when the duration is fixed:
-        // a variable one could be zero.
-        if (!exceeded || variableDuration) {
+    /**
+     * Section 4.2: whether a timeout branch is still possible.
+     *
+     * <p>Only the branch that fires is constrained, and only when the duration is fixed.
+     * A duration held in a variable could be zero, in which case the timeout can elapse
+     * even on a cycle that reset the timer - but a duration naming a constant is fixed and
+     * the rule applies to it just as it does to a literal.
+     */
+    public boolean allowsTimeout(PathState path, boolean exceeded, TimeRef duration) {
+        if (!exceeded || isVariableDuration(duration)) {
             return true;
         }
+        // The timer was reset on this path, so ltime is zero and the timeout cannot have
+        // elapsed.
         boolean simple = !path.curAttr().reset();
         return combination == Combination.EITHER ? simple : true;
+    }
+
+    /** A named duration is variable only when the name is not a declared constant. */
+    private boolean isVariableDuration(TimeRef duration) {
+        return duration.isName() && !constantNames.contains(duration.getText());
+    }
+
+    private Set<String> collectConstantNames() {
+        Set<String> names = new LinkedHashSet<>();
+        program.getConstants().forEach(constant -> names.add(constant.getName()));
+        program.getNodes().forEach(node ->
+                node.getConstants().forEach(constant -> names.add(constant.getName())));
+        return names;
     }
 
     /** Whether the activity facts a guard asserts are still possible. */
     public boolean allowsActivities(PathState path, List<Term> asserted) {
         for (Term term : asserted) {
             if (term instanceof Term.ProcessActivity activity) {
-                boolean simple = !rule8(path, activity) && !rule9(path, activity);
+                boolean simple = !contradictsKnownStatus(path, activity);
                 boolean allowed = combination == Combination.EITHER ? simple : true;
                 if (!allowed) {
                     return false;
@@ -137,76 +160,59 @@ public final class StaticAnalysis {
         return !rule6(path, process, state);
     }
 
+    /**
+     * Rule 6 / section 4.6: a state assertion that contradicts what the path already
+     * knows about the process's status.
+     *
+     * <p>The status used is the implied one - the most recent assertion, overridden by
+     * any change made since. Section 4.6 as printed omits the intermediate-change check
+     * that its neighbours carry, which would make it fire on paths where a change between
+     * the two assertions reconciles them.
+     */
     private boolean rule6(PathState path, String process, String state) {
-        boolean inactive = state.equals("stop") || state.equals("error");
-        for (Term.Activity activity : path.activitiesAsserted(process)) {
-            boolean contradiction = switch (activity) {
-                case ACTIVE -> inactive;
-                case INACTIVE -> !inactive;
-                case STOP -> !state.equals("stop");
-                case ERROR -> !state.equals("error");
-                case NONSTOP -> state.equals("stop");
-                // SPEC: written as `p != error`; asserting "not in error" only
-                // contradicts actually being in error.
-                case NONERROR -> state.equals("error");
-            };
-            if (contradiction) {
-                return true;
-            }
-        }
-        return false;
+        Term.Activity implied = path.impliedStatus(process);
+        return implied != null && contradicts(implied, PathState.statusOfState(state));
     }
 
     /**
-     * Rule 8: the path asserted a status for the process, and the change recorded since
-     * cannot have brought it to the status now being asserted.
+     * Whether two statements about a process's status cannot both hold. The table is
+     * section 4.6: active excludes stop and error, stop excludes everything but stop,
+     * nonstop excludes stop, and so on.
      */
-    private boolean rule8(PathState path, Term.ProcessActivity term) {
-        String process = term.process();
-        Change change = path.curAttr().changeFor(process);
-        List<Term.Activity> asserted = path.activitiesAsserted(process);
+    private static boolean contradicts(Term.Activity known, Term.Activity asserted) {
+        return excludes(known, asserted) || excludes(asserted, known);
+    }
 
-        return switch (term.activity()) {
-            case ACTIVE -> containsAny(asserted, Term.Activity.INACTIVE, Term.Activity.STOP,
-                    Term.Activity.ERROR) && change != Change.START;
-            case INACTIVE -> asserted.contains(Term.Activity.ACTIVE)
-                    && change != Change.STOP && change != Change.ERROR;
-            case STOP -> containsAny(asserted, Term.Activity.ACTIVE, Term.Activity.NONSTOP,
-                    Term.Activity.ERROR) && change != Change.STOP;
-            case ERROR -> containsAny(asserted, Term.Activity.ACTIVE, Term.Activity.NONERROR,
-                    Term.Activity.STOP) && change != Change.ERROR;
-            case NONSTOP -> asserted.contains(Term.Activity.STOP)
-                    && change != Change.START && change != Change.ERROR;
-            case NONERROR -> asserted.contains(Term.Activity.ERROR)
-                    && change != Change.START && change != Change.STOP;
+    private static boolean excludes(Term.Activity known, Term.Activity asserted) {
+        return switch (known) {
+            case ACTIVE -> asserted == Term.Activity.INACTIVE
+                    || asserted == Term.Activity.STOP
+                    || asserted == Term.Activity.ERROR;
+            case INACTIVE -> asserted == Term.Activity.ACTIVE;
+            case STOP -> asserted == Term.Activity.ACTIVE
+                    || asserted == Term.Activity.NONSTOP
+                    || asserted == Term.Activity.ERROR;
+            case ERROR -> asserted == Term.Activity.ACTIVE
+                    || asserted == Term.Activity.NONERROR
+                    || asserted == Term.Activity.STOP;
+            case NONSTOP -> asserted == Term.Activity.STOP;
+            case NONERROR -> asserted == Term.Activity.ERROR;
         };
     }
 
     /**
-     * Rule 9, restated: if the path asserted some status for the process, and the process
-     * was changed since, then a status now asserted that disagrees with that change is
-     * impossible.
+     * Sections 4.3 and 4.4: a status assertion that contradicts what the path already
+     * knows about the process.
+     *
+     * <p>Both sections have the same shape - an earlier statement about the process, a
+     * status now being asserted that disagrees with it, and no change in between that
+     * reconciles the two. 4.3 starts from an earlier status assertion and 4.4 from a
+     * change; the implied status covers both, because it is the most recent assertion
+     * overridden by the last change made since.
      */
-    private boolean rule9(PathState path, Term.ProcessActivity term) {
-        Change change = path.curAttr().changeFor(term.process());
-        if (change == null || path.activitiesAsserted(term.process()).isEmpty()) {
-            return false;
-        }
-        return !agreesWith(term.activity(), change);
-    }
-
-    private static boolean agreesWith(Term.Activity activity, Change change) {
-        return switch (change) {
-            case START -> activity == Term.Activity.ACTIVE
-                    || activity == Term.Activity.NONSTOP
-                    || activity == Term.Activity.NONERROR;
-            case STOP -> activity == Term.Activity.INACTIVE
-                    || activity == Term.Activity.STOP
-                    || activity == Term.Activity.NONERROR;
-            case ERROR -> activity == Term.Activity.INACTIVE
-                    || activity == Term.Activity.ERROR
-                    || activity == Term.Activity.NONSTOP;
-        };
+    private boolean contradictsKnownStatus(PathState path, Term.ProcessActivity term) {
+        Term.Activity implied = path.impliedStatus(term.process());
+        return implied != null && contradicts(implied, term.activity());
     }
 
     // ------------------------------------------------------------------ group rules
@@ -217,23 +223,23 @@ public final class StaticAnalysis {
      */
     private boolean groupAllowsState(PathState path, String process, String state) {
         int group = facts.of(process).group();
-        for (Term.PstateCompare other : path.otherProcessStates(process)) {
+        for (Event.StateAsserted other : path.otherProcessStates(process)) {
             if (facts.of(other.process()).group() != group) {
                 continue;
             }
             // Rules 1 and 2: one stopped or failed means both did.
-            if (state.equals("stop") != other.pstate().equals("stop")) {
+            if (state.equals("stop") != other.state().equals("stop")) {
                 return false;
             }
-            if (state.equals("error") != other.pstate().equals("error")) {
+            if (state.equals("error") != other.state().equals("error")) {
                 return false;
             }
             // Rules 3 and 4: one just started - it is in a first state nothing else
             // jumps to, and it got there by a state change - so the other must have too.
-            if (justStarted(process, state) && !isFirstState(other.process(), other.pstate())) {
+            if (justStarted(process, state) && !isFirstState(other.process(), other.state())) {
                 return false;
             }
-            if (justStarted(other.process(), other.pstate()) && !isFirstState(process, state)) {
+            if (justStarted(other.process(), other.state()) && !isFirstState(process, state)) {
                 return false;
             }
         }
@@ -255,15 +261,6 @@ public final class StaticAnalysis {
     }
 
     // ------------------------------------------------------------------ helpers
-
-    private static boolean containsAny(List<Term.Activity> asserted, Term.Activity... any) {
-        for (Term.Activity activity : any) {
-            if (asserted.contains(activity)) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     private IrState firstState(String process) {
         IrProcess found = program.findProcess(process);
