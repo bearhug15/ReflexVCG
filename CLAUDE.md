@@ -24,12 +24,13 @@ mvn package                                   # builds the jar-with-dependencies
 ```
 
 ```
-java -jar target/ReflexVCG-1.0-jar-with-dependencies.jar -s program.rx [-o outDir] [-g]
+java -jar target/ReflexVCG-1.0-jar-with-dependencies.jar -s program.rx [-o outDir] [-g] [-a true|false]
 ```
 
 - `-s` source `.rx` path (required)
 - `-o` output directory (defaults to the source's directory)
 - `-g` also export the control-flow graph as Graphviz
+- `-a` discard conditions for impossible paths (default true)
 
 ## Pipeline architecture
 
@@ -60,7 +61,9 @@ exactly one place, at the very end.
    several successors, each starting with a guard. `cfg/ExprLowering` handles short-circuit `&&`/`||`,
    which are branches, not operators. Nodes carry IR, never rendered text.
 5. **Enumerate** — `cfg/PathEnumerator` walks paths depth-first; each becomes a `VerificationCondition`
-   of symbolic `VcStatement`s. `for` and inline C become `Unsupported` nodes and stop generation.
+   of symbolic `VcStatement`s. `analysis/StaticAnalysis` (spec: `StaticalAnalysis.tex`) discards a path
+   at the node that makes it impossible, so the subtree below is never explored. `for` and inline C
+   become `Unsupported` nodes and stop generation.
 6. **Render** — `vc/IsabelleRenderer` is the *only* class that knows Isabelle; `vc/VcWriter` writes the
    files. Values live in ReflexBase's `val` datatype: read with `getVarVal` then a projection
    (`theInt`/`theNat`/`theBool`/`theReal`), written through the matching constructor.
@@ -69,6 +72,10 @@ exactly one place, at the very end.
 
 ## Key points
 
+- **The static analysis readings are provisional.** `StaticalAnalysis.tex` was never verified and is
+  internally inconsistent in about ten places; every reading taken is marked `SPEC` in
+  `analysis/`. `StaticAnalysisMeasurementTest` prints the comparison against the old pipeline.
+  Over-pruning silently drops proof obligations, so treat the counts as unconfirmed.
 - **`ReflexBase.thy` is the semantics** (`src/main/resources/ReflexTheory/`). One `val` datatype with an
   access path, rather than four typed getters. Reflex types map onto HOL as: signed ints → `int`,
   unsigned and `time` → `nat`, `bool` → `bool`, float/double → `real`. Changing codegen means keeping
@@ -92,10 +99,11 @@ them.
 
 ## Not done yet
 
-- **Static analysis / VC pruning.** Deliberately last: the old implementation was not reproducible, so it
-  cannot serve as a specification. The intended algorithm is to come from the user. The new pipeline
-  currently emits every path.
-- **`Reflex.thy`'s supporting lemmas are not ported to `ReflexBase.thy`.** Mechanical (the four `setVar*`
-  constructor cases collapse to one) but needs Isabelle to verify. Until then generated theories import
-  `ReflexBase` only, without the proof patterns.
+- **The pruned counts for the five realistic programs are unconfirmed**, differing from the old
+  pipeline in both directions. See the memory note and `StaticAnalysisMeasurementTest`.
+- **Nothing is generated from annotations.** They are parsed, bound and reachable from
+  `ExtraInvariantGenerator`, whose hooks all do nothing. The temporal operators of Reflex-AL need an
+  execution-history model the theory does not have.
+- **The legacy pipeline has not been removed** (see above).
 - Division domain conditions, which the old generator emitted as *assumptions*, are not reproduced.
+- `exprTest`'s `var++ + var` - the ordering of effects within a single expression is not modelled.
