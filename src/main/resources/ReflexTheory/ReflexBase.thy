@@ -21,9 +21,43 @@ datatype val =
   | ValArray "index \<Rightarrow> val"
   | Nil
 
-datatype access = 
+(* Projections out of val.
+   A generated condition reads a variable with getVarVal and then works in the HOL type
+   that the Reflex type maps onto: signed integers to int, unsigned integers and time to
+   nat, bool to bool, float and double to real. These are the inverses of the value
+   constructors used for that.
+
+   They are total, and coerce between the numeric constructors rather than failing, so a
+   condition stays well-formed even where an earlier stage has not pinned a value's
+   constructor down. *)
+
+fun theBool :: "val \<Rightarrow> bool" where
+  "theBool (ValBool b) = b"
+| "theBool (ValInt i) = (i \<noteq> 0)"
+| "theBool (ValNat n) = (n \<noteq> 0)"
+| "theBool _ = False"
+
+fun theInt :: "val \<Rightarrow> int" where
+  "theInt (ValInt i) = i"
+| "theInt (ValNat n) = int n"
+| "theInt (ValBool b) = (if b then 1 else 0)"
+| "theInt _ = 0"
+
+fun theNat :: "val \<Rightarrow> nat" where
+  "theNat (ValNat n) = n"
+| "theNat (ValInt i) = nat i"
+| "theNat (ValBool b) = (if b then 1 else 0)"
+| "theNat _ = 0"
+
+fun theReal :: "val \<Rightarrow> real" where
+  "theReal (ValReal r) = r"
+| "theReal (ValInt i) = real_of_int i"
+| "theReal (ValNat n) = real n"
+| "theReal _ = 0"
+
+datatype access =
   AccessField field
-  | AccessIndex index 
+  | AccessIndex index
 
 datatype state =
     emptyState
@@ -78,6 +112,25 @@ definition setVarVal :: "state \<Rightarrow> variable \<Rightarrow> access list 
 lemma simple_get_set:
   "getVarVal (setVarVal s var [] val) var [] = val"
   by (simp add: setVarVal_def )
+
+(* Reading a scalar back in the HOL type it was written at. These are the shapes
+   generated verification conditions produce most often, so they are simp rules. *)
+
+lemma theBool_get_after_set [simp]:
+  "theBool (getVarVal (setVarVal s var [] (ValBool x)) var []) = x"
+  by (simp add: setVarVal_def)
+
+lemma theInt_get_after_set [simp]:
+  "theInt (getVarVal (setVarVal s var [] (ValInt x)) var []) = x"
+  by (simp add: setVarVal_def)
+
+lemma theNat_get_after_set [simp]:
+  "theNat (getVarVal (setVarVal s var [] (ValNat x)) var []) = x"
+  by (simp add: setVarVal_def)
+
+lemma theReal_get_after_set [simp]:
+  "theReal (getVarVal (setVarVal s var [] (ValReal x)) var []) = x"
+  by (simp add: setVarVal_def)
 
 fun valid_access_path :: "val \<Rightarrow> access list \<Rightarrow> bool" where
   "valid_access_path _ [] = True" |
