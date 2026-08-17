@@ -40,11 +40,20 @@ public final class VcWriter {
 
     /** Copies ReflexBase and writes the program and requirements theories. */
     public void writeSupportingTheories(IrProgram program) {
+        writeSupportingTheories(program, List.of());
+    }
+
+    /**
+     * @param extraDefinitions definitions contributed by the extra-invariant stage,
+     *                         written into the requirements theory after the invariant
+     */
+    public void writeSupportingTheories(IrProgram program, List<String> extraDefinitions) {
         copyResource("ReflexTheory/ReflexBase.thy", "ReflexBase.thy");
         write(baseTheoryName() + ".thy", renderer.renderTheory(
                 baseTheoryName(), List.of("ReflexBase"), programTheoryBody(program)));
         write("Requirements.thy", renderer.renderTheory(
-                "Requirements", List.of("ReflexBase"), requirementsBody()));
+                "Requirements", List.of("ReflexBase"),
+                requirementsBody() + String.join("\n", extraDefinitions)));
     }
 
     /** Writes one condition, numbered in the order they were generated. */

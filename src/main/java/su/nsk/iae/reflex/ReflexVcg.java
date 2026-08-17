@@ -16,7 +16,9 @@ import su.nsk.iae.reflex.frontend.AnnotationBinder;
 import su.nsk.iae.reflex.frontend.AstBuilder;
 import su.nsk.iae.reflex.ir.IrProgram;
 import su.nsk.iae.reflex.preprocess.Preprocessor;
+import su.nsk.iae.reflex.vc.ExtraInvariantGenerator;
 import su.nsk.iae.reflex.vc.VcWriter;
+import su.nsk.iae.reflex.vc.VerificationCondition;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -38,6 +40,7 @@ public final class ReflexVcg {
     private final IrProgram program;
     private final AnnotationBinder annotations;
     private Cfg cfg;
+    private ExtraInvariantGenerator extraInvariants;
 
     private ReflexVcg(IrProgram program, AnnotationBinder annotations) {
         this.program = program;
@@ -99,10 +102,29 @@ public final class ReflexVcg {
                     + unsupported.stream().map(CfgNode.Unsupported::getConstruct).distinct().toList());
         }
 
+        ExtraInvariantGenerator extras = extraInvariants != null
+                ? extraInvariants
+                : new ExtraInvariantGenerator(program, graph, annotations);
+        extras.analyse();
+
         VcWriter writer = new VcWriter(destination, program.getName());
-        writer.writeSupportingTheories(program);
-        new PathEnumerator(graph).forEach(writer::write);
+        writer.writeSupportingTheories(program, extras.extraDefinitions());
+        new PathEnumerator(graph).forEach(condition -> {
+            VerificationCondition processed = extras.process(condition);
+            if (processed != null) {
+                writer.write(processed);
+            }
+        });
         return writer.getWritten();
+    }
+
+    /**
+     * Replaces the extra-invariant stage. The default does nothing; supplying a subclass
+     * is how annotation-driven generation, condition post-processing and extra graph
+     * analysis get added without changing the pipeline.
+     */
+    public void setExtraInvariantGenerator(ExtraInvariantGenerator extraInvariants) {
+        this.extraInvariants = extraInvariants;
     }
 
     /** Writes the control-flow graph in Graphviz format. */
