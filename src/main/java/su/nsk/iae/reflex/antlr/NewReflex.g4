@@ -95,15 +95,19 @@ guardingStatement:
     ;
 waitHeader: 'wait' '(' cond=expression ')';
 
+// Every simple statement consumes its own ';' here rather than some of them baking it
+// into their rule. Previously `start P;` parsed as a start statement followed by a
+// separate empty statement, while `restart;` did not, which littered the IR with
+// no-op statements and made the two forms behave differently.
 statement:
     ';'                    #EmptySt
     | compoundStatement    #CompoundSt
-    | startProcStat        #StartProcessSt
-    | stopProcStat         #StopProcessSt
-    | errorProcStat        #ErrorProcessSt
-    | restartStat          #RestartSt
-    | resetStat            #ResetSt
-    | setStateStat         #SetStateSt
+    | startProcStat ';'    #StartProcessSt
+    | stopProcStat ';'     #StopProcessSt
+    | errorProcStat ';'    #ErrorProcessSt
+    | restartStat ';'      #RestartSt
+    | resetStat ';'        #ResetSt
+    | setStateStat ';'     #SetStateSt
     | ifElseStat           #IfElseSt
     | switchStat           #SwitchSt
     | expression ';'       #ExprSt
@@ -129,8 +133,8 @@ switchOptionStatSeq: body=statementSeq (break=BREAK ';')?;
 startProcStat: 'start' processId=ID;
 stopProcStat: 'stop' (processId=ID)?;
 errorProcStat: 'error' (processId=ID)?;
-restartStat: 'restart' ';';
-resetStat: 'reset' 'timer' ';';
+restartStat: 'restart';
+resetStat: 'reset' 'timer';
 setStateStat: 'set' ('next' 'state' | 'state' stateId=ID);
 functionCall: functionID=ID '(' (args+=expression (',' args+=expression)*)? ')';
 
