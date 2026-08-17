@@ -1,0 +1,15 @@
+program ifTest {
+	clock 100;
+	node MainNode { clock 100; }
+	int8 var1 as (read = inp, bit = 1);
+	bool var2 as (read = inp, bit = 2);
+	
+	process Init :: node MainNode {
+		state begin {
+			if (var1>0 && var2){
+				var1 = 0;
+				var2 = false;
+			}		}
+	}
+	
+}

@@ -1,0 +1,70 @@
+program Barrier{
+	clock 100;
+	node MainNode { clock 100; }
+	input inp 0x00 0x00 32;
+	output out 0x00 0x04 32;
+	
+	bool carInFront as (read = inp, bit = 0);
+	bool peCarUnder as (read = inp, bit = 1);
+	bool opened as (read = inp, bit = 2);
+	bool closed as (read = inp, bit = 3);
+	
+	bool up as (read = out, bit = 0);
+	bool down as (read = out, bit = 1);
+	bool green as (read = out, bit = 2);
+	bool red as (read = out, bit = 3);
+	
+	const time open_time = 0t10m;
+	
+	process CarController :: node MainNode {
+		state waitingForCar{
+			if (carInFront){
+				start Opening;
+				set next state;
+			}
+		}
+		state waitingForCarPassing{
+			if (!carInFront){
+				set state waitingForCar;
+			}
+		}
+	}
+	
+	process Opening :: node MainNode {
+		state opening{
+			up = true;
+			down = false;
+			if (opened) {
+				up = false;
+				red = false;
+				green = true;
+				set next state;
+			}
+		}
+		
+		state open{
+		  if (peCarUnder) {
+			reset timer;
+		  }
+		  timeout open_time {
+			down = true;
+			green= false;
+			red = true;
+			set next state;
+		  }
+		} 
+	
+		state closing{
+		  if (closed){
+			down = false;
+			stop;
+		  } else if (peCarUnder){
+			down = false;
+			if (!opened) {
+			  up = true;
+			}
+			set state opening;
+		  }
+		}
+	}
+}

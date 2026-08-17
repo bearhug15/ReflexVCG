@@ -1,0 +1,78 @@
+program Turnsile{
+	clock 100; 
+	node MainNode { clock 100; }
+	bool passed;
+	input inp 0x00 0x00 24;
+	output out 0x00 0x03 24;
+	bool PdOut as (read = inp, bit = 0);
+	bool paid as (read = inp, bit = 1);
+	bool opened as (read = inp, bit = 2);
+	bool open as (read = out, bit = 0);
+	bool rst as (read = out, bit = 1);
+	bool enter as (read = out, bit = 2);
+	
+	process Init :: node MainNode {
+		state init {
+			start Controller;
+			start EntranceController;
+			stop;
+		}
+	}
+	process Controller :: node MainNode {
+		state isClosed{
+			if (paid){
+				open = true;
+				passed = false;
+				set next state;
+			}			
+		}
+		state minimalOpened{
+			if (PdOut){
+				passed = true;
+			}
+			
+			timeout 0t1s{
+				if (passed) {
+					open = false;
+					set state isClosed;
+				} else {
+					set next state;
+				}
+			}
+		}
+		state isOpened{
+			if (PdOut){
+				open = false;
+				set state isClosed;
+			}
+			timeout 0t9s{
+				open = false;
+				set state isClosed;
+			}
+		}
+	}
+	process EntranceController :: node MainNode {
+		state isClosed{
+			if (opened){
+				enter = true;
+				set next state;
+			}
+		}
+		state isOpened{
+			if (!opened){
+				enter = false;
+				rst = true;
+				start Unlocker;
+				set state isClosed;
+			}
+		}
+	}
+	process Unlocker :: node MainNode {
+		state unlock{
+			timeout 0t1s{
+				rst = false;
+				stop;
+			}
+		}
+	}
+}

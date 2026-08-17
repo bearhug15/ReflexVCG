@@ -1,0 +1,95 @@
+program Thermopot {
+	clock 100;
+	node MainNode { clock 100; }
+    input temperature 0x00 0x00 8;
+	input buttons 0x00 0x00 8;
+	input boilingButton 0x00 0x00 8;
+	
+    output selectedTemp 0x00 0x01 8;
+	output heater 0x00 0x01 8;
+	output lid 0x00 0x01 8;
+	output mods 0x00 0x01 8;
+	
+	const bool LOCKED = true;
+	const bool UNLOCKED = false;
+	const bool PRESSED = true;
+	
+	const int8 BOILING_POINT = 100;
+	const int8 TEMP1 = 98;
+	const int8 TEMP2 = 85;
+	const int8 TEMP3 = 60;
+	
+	int8 temperature as (read = temperature, bit = 0);
+	bool button1 as (read = buttons, bit = 1);
+	bool button2 as (read = buttons, bit = 2);
+	bool button3 as (read = buttons, bit = 3);
+	bool boilingButton as (read = boilingButton, bit = 0);
+	
+	int8 selectedTemp as (read = selectedTemp, bit = 0);
+	bool heater as (read = heater, bit = 0);
+	bool lid as (read = lid, bit = 0);
+	bool boilingMode as (read = mods, bit = 0);
+	bool maintainingMode as (read = mods, bit = 1);
+	
+	process Init :: node MainNode {
+		state begin {
+			start TempSelection;
+			start HeaterController;
+			stop;
+		}
+	}
+	
+	process TempSelection :: node MainNode {
+		state tempSelection {
+			if (button1 == PRESSED){
+				selectedTemp = TEMP1;
+			} else {
+				if (button2 == PRESSED){
+					selectedTemp = TEMP2;
+				} else {
+					if (button3 == PRESSED){
+						selectedTemp = TEMP3;
+					}
+				}
+			}
+		}
+	}
+	
+	process HeaterController :: node MainNode {
+		state begin {
+			if (boilingButton == PRESSED){
+				boilingMode = true;
+				set next state;
+			}
+		}
+		
+		state heating {
+			heater = true;
+			lid = LOCKED;
+			if (temperature >= BOILING_POINT){
+				heater = false;
+				lid = UNLOCKED;
+				boilingMode = false;
+				maintainingMode = true;
+				set next state;
+			}
+		}
+		
+		state maintaining {
+			if (boilingButton==PRESSED){
+				maintainingMode = false;
+				boilingMode = true;
+				set state heating;
+			} else {
+				if (temperature >= selectedTemp){
+					heater = false;
+				} else {
+					if (temperature < selectedTemp - 5) {
+						heater = true;
+					}
+				}
+			}
+		}
+	}
+	
+}

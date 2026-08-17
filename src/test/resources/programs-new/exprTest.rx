@@ -1,0 +1,11 @@
+program p1{
+clock 100;
+node MainNode { clock 100; }
+int8 var=0;
+
+    process p1 :: node MainNode {
+        state s1{
+        var = var+++var;
+        }
+    }
+}
