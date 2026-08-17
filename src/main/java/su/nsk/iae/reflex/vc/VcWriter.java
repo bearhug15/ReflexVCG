@@ -48,11 +48,15 @@ public final class VcWriter {
      *                         written into the requirements theory after the invariant
      */
     public void writeSupportingTheories(IrProgram program, List<String> extraDefinitions) {
+        // ReflexBase defines the state and its values, ReflexLemmas the facts about them,
+        // ReflexPatterns the reusable proof patterns built on those.
         copyResource("ReflexTheory/ReflexBase.thy", "ReflexBase.thy");
+        copyResource("ReflexTheory/ReflexLemmas.thy", "ReflexLemmas.thy");
+        copyResource("ReflexTheory/ReflexPatterns.thy", "ReflexPatterns.thy");
         write(baseTheoryName() + ".thy", renderer.renderTheory(
-                baseTheoryName(), List.of("ReflexBase"), programTheoryBody(program)));
+                baseTheoryName(), List.of("ReflexPatterns"), programTheoryBody(program)));
         write("Requirements.thy", renderer.renderTheory(
-                "Requirements", List.of("ReflexBase"),
+                "Requirements", List.of("ReflexPatterns"),
                 requirementsBody() + String.join("\n", extraDefinitions)));
     }
 

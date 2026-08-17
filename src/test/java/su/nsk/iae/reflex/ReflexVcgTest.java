@@ -43,7 +43,7 @@ class ReflexVcgTest {
         ReflexVcg.load(PROGRAMS.resolve("ifTest1.rx")).generate(output);
 
         String theory = Files.readString(output.resolve("ifTestTheory.thy"));
-        assertTrue(theory.contains("imports ReflexBase"), theory);
+        assertTrue(theory.contains("imports ReflexPatterns"), theory);
         assertTrue(theory.contains("(ltime s p) + 100"), theory);
         // ReflexBase has a single setVar constructor where the old model had four.
         assertTrue(theory.contains("ltime (setVar s _ _) p"), theory);

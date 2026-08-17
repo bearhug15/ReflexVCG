@@ -1,0 +1,1034 @@
+\chapter{Статический анализ}
+В процессе генерации условий корректности "в лоб" может порождаться большое число условий корректности соответствующих недостижимым путям в программе. Для того что бы этого избежать используется система статического анализа.
+
+Сначала определим поля глобального и локального контекста.
+
+Глобальный контекст в данном случае не нужен.
+
+Поля локального контекста:
+
+\begin{itemize}
+    \item \textbf{currentProcess} -- имя текущего процесса.
+    \item \textbf{processesToStart} -- список процессов для запуска.
+    \item \textbf{collector} -- последовательность словарей с атрибутами
+\end{itemize}
+
+Словарь с атрибутами имеет следующие поля:
+\begin{itemize}
+    \item \textbf{processChange} -- словарь, отображающий имя процесса в c$\in$\{"start","stop","error"\} и обозначающий какое дествия было произведено с процессом после исполнения указанного оператора.
+    \item \textbf{potProcessChange} -- список словарей с полями "process" $\rightarrow$ имя процесса и "change" $\rightarrow$ c$\in$\{"start","stop","error"\}, обозначающий какое действие мгло быть произведено с процессом после исполнения указанного оператора.
+    \item \textbf{reset} -- булево значение, обозначающее был ли обновлен таймер процесса.
+    \item \textbf{stateChanged} -- булево значение, обозначающее было ли изменено текущее состояние процесса.
+    \item \textbf{changesTo} -- список имен процессных состояний, обозначающих в какое состояние может перейти теущий процесс, по результату исполнения оператора.
+\end{itemize}
+
+\section{Вспомогательные функции}
+\begin{lstlisting}[style=PseudoStyle,mathescape=true]
+fun addConsAttributes(oldAttr,newAttr){
+    procChange = oldAttr.processChange
+    potProcChange = oldAttr.potProcessChange
+    newProcChange = newAttr.processChange
+    newPotProcChange = newAttr.potProcessChange
+    procs = ((definedProcChange(procChange) $\cap$ definedPotProcChange(newAttr.potProcessChange)) $\setminus$ definedProcChange(newAttr.potProcessChange))
+    newChangesTo = newAttr.changesTo
+    if(newAttr.reset){
+        oldAttr.reset = true
+    }
+    if(newAttr.stateChanged){
+        oldAttr.stateChanged = true
+    }
+    if(newChangesTo){
+        if(member(null,newChangesTo)){
+            newChangesTo = newChangesTo $\cup$ oldAttr.changesTo
+        }
+    }else{
+        newChangesTo = oldAttr.changesTo
+    }
+    for proc in procs{
+        potStart = memberIf(function(el){
+            return el.process == proc && el.change == "start"
+        }, potProcChange)
+        potStop = memberIf(function(el){
+            return el.process == proc && el.change == "stop"
+        },potProcChange)
+        potError = memberIf(function(el){
+            return el.process == proc && el.change == "error"
+        },potProcChange)
+        if(procChange[proc] == "start" && (potStop || potError)){
+            procChange[proc] = null
+        }
+        if(procChange[proc] == "stop" && (potStart || potError)){
+            procChange[proc] = null
+        }
+        if(procChange[proc] == "error" && (potStart || potStop)){
+            procChange[proc] = null
+        }
+    }
+    for proc in newProcChange.keys {
+        procChange[proc] = newProcChange[proc]
+    }
+    ppc1 = removeIf(function(change){
+        return member(change.process,definedProcChange(newProcChange))
+    }, potProcChange)
+    ppc2 = union(ppc1,newPotProcChange)
+    oldAttr.processChange = procChange
+    oldAttr.potProcessChange = ppc2
+    return oldAttr
+}
+fun consAttributes(attrList){
+    if(attrList == null || attrList.length == 0){
+        return createAttributes({})
+    }
+    result = clone(attrList[0])
+    for i = 1; i < attrList.length; i++{
+        result = addConsAttributes(result,attrList[i])
+    }
+    return result
+}
+
+fun addParAttributes(oldAttr,newAttr){
+    procChange = oldAttr.processChange
+    potProcChange = oldAttr.potProcessChange
+    newProcChange = newAttr.processChange
+    newPotProcChange = newAttr.potProcessChange
+    newChangesTo = newAttr.changesTo
+    if(newAttr.reset == null){
+        newAttr.reset = null
+    }
+    if(newAttr.stateChanged == null){
+        newAttr.stateChanged = null
+    }
+    if(newChangesTo){
+        if (oldAttr.changesTo){
+            newChangesTo = (newChangesTo $\cup$ oldAttr.changesTo)
+        }else{
+            newChangesTo = (newChangesTo $\cup$ [null])
+        }
+    }else{
+        if (oldAttr.changesTo){
+            newChangesTo = (oldAttr.changesTo $\cup$ [null])
+        }else{
+            null
+        }
+    }
+    for proc in definedProcChange(procChange){
+        if(!member(proc,definedProcChange(newProcChange)) ||
+           newProcChange[proc] != procChange[proc]){
+            procChange[proc] = null
+        }
+    }
+    ppc1 = (potProcChange $\cup$ newPotProcChange)
+    oldAttr.processChange = procChange
+    oldAttr.potProcessChange = ppc1
+    return oldAttr
+}
+fun addParAttributesConc(oldAttr){
+    procChange = oldAttr.processChange
+    potProcChange = oldAttr.potProcessChange
+    definedProc = definedProcChange(procChange)
+    ppc = []
+    for elem in potProcChange{
+        procName = elem.process
+        if(member(procName,definedProc)){
+            candidate = {process:procName,change:procChange[procName]}
+            if(!exists(function(left){
+                return left.process == candidate.process &&
+                       left.change == candidate.change
+            },ppc)){
+                ppc.pushback(candidate)
+            }
+        }else{
+            ppc.pushback(elem)
+        }
+    }
+    oldAttr.potProcessChange = ppc
+    return oldAttr
+}
+fun parAttributes(attrList){
+    result = clone(attrList[0])
+    for i = 1; i < attrList.length; i++{
+        result = addParAttributes(result,attrList[i])
+    }
+    return addParAttributesConc(result)
+}
+\end{lstlisting}
+
+\section{Функция расстановки базовых аттрибутов}
+Определим функцию attributePrepare(st) расставляющую аттрибуты по операторам.
+
+\begin{lstlisting}[style=PseudoStyle,mathescape=true]
+fun attributePrepare(resetTimer) {
+    attr = createAttributes({
+        reset: true
+    })
+    resetTimer.analysisAttributes = attr
+    return attr
+}
+
+fun attributePrepare(setState) {
+    state = setState.state
+    chanesTo = [state]
+    attr = createAttributes({
+        reset: true,
+        chanesTo: chanesTo
+    })
+    setState.analysisAttributes = attr
+    return attr 
+}
+
+fun attributePrepare(restartProcess) {
+    curProc = ctx.currentProcess
+    curState = ctx.currentState
+    fstate = firstState(env, curProc)
+    if (fstate != curState) {
+        chanesTo = [fstate]
+    } else {
+        chanesTo = null
+    }
+    attr = createAttributes({
+        processChange: {curProc:"start"},
+        potProcessChange: [(curProc,"start")],
+        reset: true,
+        chanesTo: chanesTo,
+        stateChanged: fstate != curState
+    })
+    restartProcess.analysisAttributes = attr
+    return attr
+}
+
+fun attributePrepare(startProcess) {
+    process = startProcess.process
+    curProc = ctx.currentProcess
+    if (process == curProc) {
+        return attributePrepare(createRestartProcess())
+    }
+    attr = createAttributes({
+        processChange: {process:"start"},
+        potProcessChange: [(process,"start")]
+    })
+    startProcess.analysisAttributes = attr
+    return attr
+}
+
+fun attributePrepare(stopCurrentProcess) {
+    curProc = ctxcurrentProcess
+    attr = createAttributes({
+        processChange: {curProc:"stop"},
+        potProcessChange: [{process:CurProc,change:"stop"}],
+        reset: true,
+        chanesTo: [ "stop" ],
+        stateChanged: true
+    })
+    stopCurrentProcess.analysisAttributes = attr
+    return attr
+}
+
+fun attributePrepare(stopProcess){
+    process = stopProcess.process
+    curProc = ctx.currentProcess
+    if(process == curProc){
+        attr = attributePrepare(createStopCurrentProcess())
+        stopProcess.analysisAttributes = attr
+        return attr
+    }
+    attr =createAttributes({
+        processChange:{process:"stop"},
+        potProcessChange:[{process:process,change:"stop"}]
+    })
+    stopProcess.analysisAttributes = attr
+    return attr
+}
+
+fun attributePrepare(errorCurrentProcess){
+    curProc = ctx.currentProcess
+    attr = createAttributes({
+        processChange:{curProc:"error"},
+        potProcessChange:[{process:curProc,change:"error"}],
+        reset:true,
+        chanesTo:["error"],
+        stateChanged:true
+    })
+    errorCurrentProcess.analysisAttributes = attr
+    return attr
+}
+
+fun attributePrepare(errorProcess){
+    process = errorProcess.process
+    curProc = ctx.currentProcess
+    if(process == curProc){
+        attr = attributePrepare(createErrorCurrentProcess())
+        errorProcess.analysisAttributes = attr
+        return attr
+    }
+    attr = createAttributes({
+        processChange:{process:"error"},
+        potProcessChange:[{process:process,change:"error"}]
+    })
+    errorProcess.analysisAttributes = attr
+    return attr
+}
+
+fun attributePrepare(statementList){
+    collectedAttr = createAttributes({})
+    for st in statementList {
+        val = attributePrepare(st)
+        addConsAttributes(collectedAttr,val)
+    }
+    return collectedAttr
+}
+fun attributePrepare(timeoutStatement){
+    val = attributePrepare(timeoutStatement.statements)
+    res = addParAttributesConc(
+        addParAttributes(createAttributes({}),val)
+    )
+    timeoutStatement.analysisAttributes = res
+    return res
+}
+fun attributePrepare(ifThen){
+    val = attributePrepare(ifThen.then)
+    res = addParAttributesConc(
+        addParAttributes(createAttributes({}),val)
+    )
+    ifThen.analysisAttributes = res
+    return res
+}
+fun attributePrepare(ifThenElse){
+    thenVal = attributePrepare(ifThenElse.then)
+    elseVal = attributePrepare(ifThenElse.else)
+    res = addParAttributesConc(
+        addParAttributes(thenVal,elseVal)
+    )
+    ifThenElse.analysisAttributes = res
+    return res
+}
+
+fun attributePrepare(switchS){
+    css = switchStatement.cases
+    collected = []
+    for cs in css {
+        val = attributePrepare(cs)
+        cs.analysisAttributes = val
+        collected.pushback(val)
+    }
+    def = switchStatement.default
+    if(def){
+        defVal = attributePrepare(def)
+    }else{
+        defVal = createAttributes({})
+    }
+    collected.pushback(defVal)
+    parAttr = parAttributes(collected)
+    switchStatement.analysisAttributes = parAttr
+    return parAttr
+}
+
+fun attributePrepare(defaultStatement){
+    attr = attributePrepare(defaultStatement.statements)
+    defaultStatement.analysisAttributes = attr
+    return attr
+}
+fun attributePrepare(caseStatement){
+    attr = attributePrepare(caseStatement.statements)
+    caseStatement.analysisAttributes = attr
+    return attr
+}
+fun attributePrepare(statementBlock){
+    attr = attributePrepare(statementBlock.statements)
+    statementBlock.analysisAttributes = attr
+    return attr
+}
+fun attributePrepare(forStatement){
+    val = attributePrepare(forStatement.statement)
+    res =addParAttributesConc(   
+        addParAttributes(createAttributes({}),val)
+    )
+    forStatement.analysisAttributes = res
+    return res
+}
+
+fun attributePrepare(stateDeclaration){
+    val = attributePrepare(stateDeclaration.statements)
+    stateDeclaration.analysisAttributes = val
+    return val
+}
+fun attributePrepare(processDeclaration){
+    states = processDeclaration.states
+    collected = []
+    for st in states{
+        val = attributePrepare(st)
+        collected.pushback(val)
+    }
+    procAttr = parAttributes(collected)
+    processDeclaration.analysisAttributes = procAttr
+    return procAttr
+}
+fun attributePrepare(programDeclaration){
+    procs = programDeclaration.processes
+    for p in procs{
+        attributePrepare(p)
+    }
+}
+
+\end{lstlisting}
+
+\section{Расстановка дополнительных атрибутов}
+Для дальнейшего анализа используются несколько дополнительных атрибутов:
+\begin{itemize}
+    \item \textbf{reachS} -- обозначет, может ли текущий процесс быть переведен в состояние "stop".
+    \item \textbf{startS} -- обозначает, начинается ли текщий процесс в состоянии "stop".
+    \item \textbf{reachE}  -- обозначет, может ли текущий процесс быть переведен в состояние "error".
+    \item \textbf{group} -- целочисленное значение, определяющее группу процесса.
+\end{itemize}
+
+Если несколько процессов обьеденины в одну группу, то они запускаются, останавливаются и останваливаются с ошибкой одновременно.
+
+Означивание атрибутов \textbf{reachS}, \textbf{startS} и \textbf{reachE} определяется следующим алгоритмом:
+
+\begin{lstlisting}[style=PseudoStyle,mathescape=true]
+fun setReachS(procs){
+    procsSetStop = []
+    for p in procs {
+        for change in p.potProcChange {
+            if change.change == "stop" {
+                procsSetStop = procsSetStop $\cup$ change.process}}}
+    for p in procs {
+        if "stop" $\in$ p.changesTo  || p.name $\in$ procsSetStop{
+            p.analysisAttributes.reachS = true}}
+}
+
+fun setReachE(procs){
+    procsSetStop = []
+    for p in procs {
+        for change in p.potProcChange {
+            if change.change == "error" {
+                procsSetStop = procsSetStop $\cup$ change.process}}}
+    for p in procs {
+        if "error" $\in$ p.changesTo  || p.name $\in$ procsSetStop{
+            p.analysisAttributes.reachS = true}}
+}
+
+// В данном определении исполтзуется функция tailAfter (list,el) -- она возвращает список элементов list идущих после el.
+fun setStartS(procs){
+    for proc in procs {
+        if proc.active {
+            proc.analysisAttributes.startS = false
+        } else {
+            proc.analysisAttributes.startS = true
+        }
+    }
+    revProcs = reverse(procs)
+    for curProc in procs{
+        curName = curProc.name
+        tailRev = tailAfter(revProcs,curProc)
+        headList = reverse(tailRev)
+        found = findIf(function(prevProc){
+            prevStartS = prevProc.analysisAttributes.startS
+            firstState = prevProc.states[0]
+            procChange = firstState.analysisAttributes.processChange[curName]
+            if(prevStartS && procChange == "start"){
+                midList = tailAfter(prevProc,headList)
+                blocked = findIf(function(midProc){
+                    return pairInPotProcChange(
+                        curName,
+                        "stop",
+                        midProc.analysisAttributes.potProcessChange
+                    )
+                }, midList)
+                return !blocked
+            }
+            return false
+        }, headList)
+        if(found){
+            curProc.analysisAttributes.startS = false
+        }
+    }
+} 
+\end{lstlisting}
+
+Определение атрибута \textbf{group} определяется следующими функциями:
+
+\begin{lstlisting}[style=PseudoStyle,mathescape=true]
+fun setsInter(setsSet,procSet){
+    coll = []
+    for el in setsSet {
+        inter = el $\cap$ procSet 
+        diff = el $\setminus$ procSet 
+        tmp = inter $\cup$ coll
+        coll = diff $\cup$ tmp
+    }
+    return coll
+}
+
+fun procId(procName){
+    return env.processId[procName]
+}
+
+fun setsDivCore(setsSet,hpc,procChange){
+    currentProcess = ctx.currentProcess
+    currentState = ctx.currentState
+    nhpc = clone(procChange) $\cup$ hpc
+    startPpred = []
+    startPsucc = []
+    stopPpred = []
+    stopPsucc = []
+    errorPpred = []
+    errorPsucc = []
+    curPid = procId(env,currentProcess)
+    for proc in nhpc.keys {
+        pid = procId(env,proc)
+        change = nhpc[proc]
+        if(change == 'start'){
+            if(pid < curPid){
+                startPpred.pushback(proc)
+            }
+            else if(
+                pid > curPid ||
+                (pid == curPid && currentState == firstState(env,currentProcess))
+            ){
+                startPsucc.pushback(proc)
+            }
+        }
+        if(change == 'stop'){
+            if(pid < curPid){
+                stopPpred.pushback(proc)
+            }
+            else if(pid > curPid){
+                stopPsucc.pushback(proc)
+            }
+        }
+        if(change == 'error'){
+            if(pid < curPid){
+                errorPpred.pushback(proc)
+            }
+            else if(pid > curPid){
+                errorPsucc.pushback(proc)
+            }
+        }
+    }
+    newSets = setsSet
+    groups = [startPpred,
+        startPsucc,
+        stopPpred,
+        stopPsucc,
+        errorPpred,
+        errorPsucc]
+
+    for grp in groups {
+        newSets = setsInter(newSets,grp)
+    }
+
+    return [nhpc,newSets]
+}
+
+fun groupStaticAnalysisPrepare(program){
+    program = closure.instance
+    procs = program.processes
+    nonStart = []
+    start = []
+    for proc in procs {
+        proc.analysisAttributes.group = uid(proc)
+        if(!proc.analysisAttributes.startS){
+            nonStart.pushback(proc.name)
+        } else {
+            start.pushback(proc.name)
+        }
+    }
+    setsDiv(program, [nonStart,start],{})
+    setsSet = setsDiv(program, [nonStart,start],{})
+    index = 0
+    for group in setsSet {
+        for gel in group {
+            for proc in procs {
+                if(gel == proc.name){
+                    proc.analysisAttributes.group = index
+                }
+            }
+        }
+        index = index + 1
+    }
+}
+
+fun setsDiv(resetTimer,setsSet,hpc){
+    procChange = resetTimer.analysisAttributes.procChange
+    return setsDivCore(setsSet,hpc,procChange)
+}
+fun setsDiv(setState,setsSet,hpc){
+    procChange = setState.analysisAttributes.procChange
+    return setsDivCore(setsSet,hpc,procChange)
+}
+fun setsDiv(restartProcess,setsSet,hpc){
+    procChange = restartProcess.analysisAttributes.procChange
+    return setsDivCore(setsSet,hpc,procChange)
+}
+fun setsDiv(startProcess,setsSet,hpc){
+    procChange = startProcess.analysisAttributes.procChange
+    return setsDivCore(setsSet,hpc,procChange)
+}
+fun setsDiv(stopCurrentProcess,setsSet,hpc){
+    procChange = stopCurrentProcess.analysisAttributes.procChange
+    return setsDivCore(setsSet,hpc,procChange)
+}
+fun setsDiv(stopProcess,setsSet,hpc){
+    procChange = stopProcess.analysisAttributes.procChange
+    return setsDivCore(setsSet,hpc,procChange)
+}
+fun setsDiv(errorCurrentProcess,setsSet,hpc){
+    procChange = errorCurrentProcess.analysisAttributes.procChange
+    return setsDivCore(setsSet,hpc,procChange)
+}
+fun setsDiv(errorProcess,setsSet,hpc){
+    procChange = errorProcess.analysisAttributes.procChange
+    return setsDivCore(setsSet,hpc,procChange)
+}
+fun setsDiv(statementList,setsSet,hpc){
+    rst = statementList.slice(1)
+    val = setsDiv(statementList[0],setsSet,hpc)
+    for st in rst{
+        val = setsDiv(st,val[1],val[0])
+    }
+    return val
+}
+fun setsDiv(timeoutStatement,setsSet,hpc){
+    procChange = timeoutStatement.analysisAttributes.procChange
+    newHpcSets = setsDivCore(setsSet,hpc,procChange)
+    return setsDiv(
+        timeoutStatement.statements,
+        newHpcSets[1],
+        newHpcSets[0]
+    )
+}
+
+fun setsDiv(ifThenStatement,setsSet,hpc){
+    procChange = ifThenStatement.analysisAttributes.procChange
+    newHpcSets = setsDivCore(setsSet,hpc,procChange)
+    return setsDiv(
+        ifThenStatement.then,
+        newHpcSets[1],
+        newHpcSets[0]
+    )
+}
+fun setsDiv(ifThenElseStatement,setsSet,hpc){
+    procChange = ifThenElseStatement.analysisAttributes.procChange
+    newHpcSets = setsDivCore(setsSet,hpc,procChange)
+    thenVal = setsDiv(
+        ifThenElseStatement.then,
+        newHpcSets[1],
+        newHpcSets[0]
+    )
+    return setsDiv(
+        ifThenElseStatement.else,
+        thenVal[1],
+        newHpcSets[0]
+    )
+}
+fun setsDiv(switchStatement,setsSet,hpc){
+    procChange = switchStatement.analysisAttributes.procChange
+    newHpcSets = setsDivCore(setsSet,hpc,procChange)
+    val = setsDiv(
+        switchStatement.cases[0],
+        newHpcSets[1],
+        newHpcSets[0]
+    )
+    for cs in switchStatement.cases.slice(1){
+        val = setsDiv(cs,val[1],newHpcSets[0])
+    }
+    if(switchStatement.default){
+        return setsDiv(
+            switchStatement.default,
+            val[1],
+            newHpcSets[0]
+        )
+    }
+    return val
+}
+fun setsDiv(caseStatement,setsSet,hpc){
+    procChange = caseStatement.analysisAttributes.procChange
+    newHpcSets = setsDivCore(setsSet,hpc,procChange)
+    return setsDiv(
+        caseStatement.statements,
+        newHpcSets[1],
+        newHpcSets[0]
+    )
+}
+fun setsDiv(defaultStatement,setsSet,hpc){
+    procChange = defaultStatement.analysisAttributes.procChange
+    newHpcSets = setsDivCore(setsSet,hpc,procChange)
+    return setsDiv(
+        defaultStatement.statements,
+        newHpcSets[1],
+        newHpcSets[0]
+    )
+}
+fun setsDiv(statementBlock,setsSet,hpc){
+    procChange = statementBlock.analysisAttributes.procChange
+    newHpcSets = setsDivCore(setsSet,hpc,procChange)
+    return setsDiv(
+        statementBlock.statements,
+        newHpcSets[1],
+        newHpcSets[0]
+    )
+}
+fun setsDiv(expressionStatement,setsSet,hpc){
+    return setsSet
+}
+fun setsDiv(stateDeclaration,setsSet,hpc){
+    ctx.currentState = stateDeclaration.name
+    procChange = stateDeclaration.analysisAttributes.procChange
+    newHpcSets = setsDivCore(setsSet,hpc,procChange)
+    return setsDiv(
+        stateDeclaration.statements,
+        newHpcSets[1],
+        newHpcSets[0]
+    )
+}
+fun setsDiv(processDeclaration,setsSet,hpc){
+    ctx.currentProcess = processDeclaration.name
+    procChange = processDeclaration.analysisAttributes.procChange
+    newHpcSets = setsDivCore(setsSet,hpc,procChange)
+    val = setsDiv(
+        processDeclaration.states[0],
+        newHpcSets[1],
+        newHpcSets[0]
+    )
+    for st in processDeclaration.states.slice(1){
+        val = setsDiv(st,val[1],newHpcSets[0])
+    }
+    return val
+}
+fun setsDiv(programDeclaration,setsSet,hpc){
+    procChange = programDeclaration.analysisAttributes.procChange
+    newHpcSets = setsDivCore(setsSet,hpc,procChange)
+    val = setsDiv(
+        programDeclaration.processes[0],
+        newHpcSets[1],
+        newHpcSets[0]
+    )
+    for p in programDeclaration.processes.slice(1){
+        val = setsDiv(p,val[1],newHpcSets[0])
+    }
+    return val
+}
+
+\end{lstlisting}
+
+\section{Применение атрибутов}
+
+Для использования атрибутов применяются наборы правил. Некоторые из них опираются на поле локального контекста curAttr. Данное поле хранит атрибуты статического анализа полученные на пройденом пути. 
+Для применения общих правил:
+
+\begin{lstlisting}[style=PseudoStyle,mathescape=true]
+fun isProcessActivity(term,process,activity){
+    if(isInstance(term,"processActivity")){
+        return term.process == process &&
+               term.activity == activity
+    }
+    if(isInstance(term,"processActivityBlock")){
+        for act in term {
+            if(isProcessActivity(act,process,activity)){ return true }
+        }
+    }
+    return false
+}
+
+fun simpleStaticAnalysisWork(term){
+    currentProcess = ctx.currentProcess
+    curFirstState = firstState(env,currentProcess)
+    curCond = reverse(ctx.curCond)
+    if(isInstance(term,"pstateCompare")){
+        if(checkRule1(term)){ return false }
+        if(checkRule2(term)){ return false }
+        if(checkRule3(term,curCond,curFirstState,currentProcess)){ return false }
+        if(checkRule4(term,curCond,currentProcess)){ return false }
+        if(checkRule5(term,curCond,currentProcess)){ return false }
+        if(checkRule6(term,curCond,currentProcess)){ return false }
+        return true
+    }
+    if(isInstance(term,"ltimeCheck")){
+        if(checkRule7(term,curCond,currentProcess)){ return false }
+        return true
+    }
+    if(isInstance(term,"processActivity")){
+        if(checkRule8(term,curCond)){ return false }
+        if(checkRule9(term,curCond)){ return false }
+        return true
+    }
+    if(isInstance(term,"processActivityBlock")){
+        for formula in term {
+            if(checkRule8(term,curCond)){ return false }
+            if(checkRule9(term,curCond)){ return false }
+        }
+        return true
+    }
+    return true
+}
+
+fun checkRule1(term){
+    return term.pstate == "error" &&
+           !ctx.curAttr.reachE
+}
+
+fun checkRule2(term){
+    return term.pstate == "stop" &&
+           !ctx.curAttr.reachS &&
+           !ctx.curAttr.startS
+}
+
+fun checkRule3(term,curCond,curFirstState,currentProcess){
+    return term.pstate != curFirstState &&
+           ctx.curAttr.processChange[currentProcess] == 'start'
+}
+
+fun checkRule4(term,curCond,currentProcess){
+    return term.pstate != "stop" &&
+           ctx.curAttr.processChange[currentProcess] == 'stop'
+}
+
+fun checkRule5(term,curCond,currentProcess){
+    return term.pstate != "error" &&
+           ctx.curAttr.processChange[currentProcess] == 'error'
+}
+
+fun checkRule6(term,curCond,currentProcess){
+    for formula in curCond {
+        p = term.pstate
+        if((p == "stop" || p == "error") &&
+           isProcessActivity(formula,currentProcess,'active')){ return true }
+        if(p != "stop" && p != "error" &&
+           isProcessActivity(formula,currentProcess,'inactive')){ return true }
+        if(p != "stop" &&
+           isProcessActivity(formula,currentProcess,'stop')){ return true }
+        if(p != "error" &&
+           isProcessActivity(formula,currentProcess,'error')){ return true }
+        if(p == "stop" &&
+           isProcessActivity(formula,currentProcess,'nonstop')){ return true }
+        if(p != "error" &&
+           isProcessActivity(formula,currentProcess,'nonerror')){ return true }
+    }
+    return false
+}
+
+fun checkRule7(term,curCond,currentProcess){
+    return !ctx.curAttr.reset
+}
+
+fun checkRule8(term,curCond){
+    proc = term.process
+    act = term.activity
+    curChange = ctx.curAttr.processChange[proc]
+    // sub1
+    if(act == 'active'){
+        found = false
+        for formula in curCond {
+            if(isProcessActivity(formula,proc,'inactive') ||
+               isProcessActivity(formula,proc,'stop') ||
+               isProcessActivity(formula,proc,'error')){
+                found = true
+            }
+        }
+        if(found && curChange != 'start'){ return true }
+    }
+    // sub2
+    if(act == 'inactive'){
+        found = false
+        for formula in curCond {
+            if(isProcessActivity(formula,proc,'active')){ found = true }
+        }
+
+        if(found && curChange != 'stop' && curChange != 'error'){ return true }
+    }
+    // sub3
+    if(act == 'stop'){
+        found = false
+        for formula in curCond {
+            if(isProcessActivity(formula,proc,'active') ||
+               isProcessActivity(formula,proc,'nonstop') ||
+               isProcessActivity(formula,proc,'error')){
+                found = true
+            }
+        }
+        if(found && curChange != 'stop'){ return true }
+    }
+    // sub4
+    if(act == 'error'){
+
+        found = false
+        for formula in curCond {
+            if(isProcessActivity(formula,proc,'active') ||
+               isProcessActivity(formula,proc,'nonerror') ||
+               isProcessActivity(formula,proc,'stop')){
+                found = true
+            }
+        }
+        if(found && curChange != 'error'){ return true }
+    }
+    // sub5
+    if(act == 'nonstop'){
+        found = false
+        for formula in curCond {
+            if(isProcessActivity(formula,proc,'stop')){ found = true }
+        }
+        if(found && curChange != 'start' && curChange != 'error'){ return true }
+    }
+    // sub6
+    if(act == 'nonerror'){
+        found = false
+        for formula in curCond {
+            if(isProcessActivity(formula,proc,'error')){ found = true }
+        }
+        if(found && curChange != 'start' && curChange != 'stop'){ return true }
+    }
+    return false
+}
+
+fun checkRule9(term,curCond){
+    proc = term.process
+    act = term.activity
+    curChange = ctx.curAttr.processChange[proc]
+    if(act == 'active'){
+        if(curChange != 'stop' && curChange != 'error'){ return true }
+    }
+    if(act == 'inactive'){
+        found = false
+        for formula in curCond {
+            if(isProcessActivity(formula,proc,'active')){ found = true }
+        }
+        if(found && curChange != 'start'){ return true }
+    }
+    if(act == 'stop'){
+        if(curChange != 'start' && curChange != 'error'){ return true }
+    }
+    if(act == 'error'){
+        if(curChange != 'stop' && curChange != 'start'){ return true }
+    }
+    if(act == 'nonstop'){
+        found = false
+        for formula in curCond {
+            if(isProcessActivity(formula,proc,'stop')){ found = true }
+        }
+        if(found && curChange != 'stop'){ return true }
+    }
+    if(act == 'nonerror'){
+        found = false
+        for formula in curCond {
+            if(isProcessActivity(formula,proc,'error')){ found = true }
+        }
+        if(found && curChange != 'error'){ return true }
+    }
+    return false
+}
+\end{lstlisting}
+
+Для применения правил группировки:
+
+\begin{lstlisting}[style=PseudoStyle,mathescape=true]
+fun groupStaticAnalysisWork(term){
+    currentProcess = ctx.currentProcess
+    revCurCond = ctx.curCond
+    curCond = reverse(revCurCond)
+    if(isInstance(term,"pstateCompare")){
+        r1 = checkRule1(term,curCond,currentProcess)
+        if(r1){ return false }
+        r2 = checkRule2(term,curCond,currentProcess)
+        if(r2){ return false }
+        r3 = checkRule3(term,curCond,currentProcess)
+        if(r3){ return false }
+        r4 = checkRule4(term,curCond,currentProcess)
+        if(r4){ return false }
+        return true
+    }
+    return true
+}
+fun getProcGroup(procName){
+    for proc in env.program.processes {
+        if(proc.name == procName){
+            return proc.analysisAttributes.group
+        }
+    }
+    return null
+}
+fun getProc(procName){
+    for proc in env.program.processes {
+        if(proc.name == procName){
+            return proc
+        }
+    }
+    return null
+}
+fun checkRule1(term,curCond,currentProcess){
+    for formula in curCond {
+        if(isInstance(formula,"pstateCompare")){
+            otherProcName = formula.process
+            if(otherProcName != currentProcess &&
+               getProcGroup(otherProcName) == getProcGroup(currentProcess)){
+                termStop = (term.change == 'stop')
+                formulaStop = (formula.change == 'stop')
+                if(termStop != formulaStop){
+                    return true
+                }}}
+    }
+    return false
+}
+fun checkRule2(term,curCond,currentProcess){
+    for formula in curCond {
+        if(isInstance(formula,"pstateCompare")){
+            otherProcName = formula.process
+            if(otherProcName != currentProcess &&
+               getProcGroup(otherProcName) == getProcGroup(currentProcess)){
+                termErr = (term.change == 'error')
+                formulaErr = (formula.change == 'error')
+                if(termErr != formulaErr){
+                    return true
+                }}}
+    }
+    return false
+}
+fun checkRule3(term,curCond,currentProcess){
+    curStateName = ctx.currentState
+    curProc = getProc(currentProcess)
+    curFirstState = curProc.states[0]
+    for formula in curCond {
+        if(isInstance(formula,"pstateCompare")){
+            otherProcName = formula.process
+            otherProc = getProc(otherProcName)
+            otherFirstState = otherProc.states[0]
+            if(otherProcName != currentProcess &&
+               getProcGroup(otherProcName) == getProcGroup(currentProcess) &&
+               curFirstState.analysisAttributes.reachFrom == null &&
+               curFirstState.name == curStateName &&
+               curFirstState.analysisAttributes.stateChanged &&
+               otherFirstState.name == otherProcName){
+                return true
+            }}
+    }
+    return false
+}
+fun checkRule4(term,curCond,currentProcess){
+    curStateName = ctx.currentState
+    curProc = getProc(currentProcess)
+    curFirstState = curProc.states[0]
+    for formula in curCond {
+        if(isInstance(formula,"pstateCompare")){
+            otherProcName = formula.process
+            otherProc = getProc(otherProcName)
+            otherFirstState = otherProc.states[0]
+            if(otherProcName != currentProcess &&
+               getProcGroup(otherProcName) == getProcGroup(currentProcess) &&
+               otherFirstState.analysisAttributes.reachFrom == null &&
+               otherFirstState.name == formula.pstate &&
+               otherFirstState.analysisAttributes.stateChanged &&
+               curFirstState.name == currentProcess){
+
+                return true
+            }}
+    }
+    return false
+}
+\end{lstlisting}
+
+Вызов проверки соответствия терма правилам производится функцией checkCompatability(term)
+
+\begin{lstlisting}[style=PseudoStyle,mathescape=true]
+fun checkCompatability(term){
+    return simpleStaticAnalysisWork(term) || groupStaticAnalysisWork(term)
+}
+\end{lstlisting}

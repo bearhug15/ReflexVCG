@@ -1,5 +1,5 @@
 theory ReflexPatterns
-  imports Reflex
+  imports ReflexLemmas
 begin
 
 (*
