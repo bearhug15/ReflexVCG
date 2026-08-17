@@ -73,9 +73,11 @@ exactly one place, at the very end.
 ## Key points
 
 - **The static analysis readings are provisional.** `StaticalAnalysis.tex` was never verified and is
-  internally inconsistent in about ten places; every reading taken is marked `SPEC` in
-  `analysis/`. `StaticAnalysisMeasurementTest` prints the comparison against the old pipeline.
-  Over-pruning silently drops proof obligations, so treat the counts as unconfirmed.
+  internally inconsistent in about ten places; every reading taken is marked `SPEC` in `analysis/`.
+  `IvReadings2026.pdf` states the rules precisely and is the better reference. Every single-process
+  program now reproduces the old pruned counts exactly; the four multi-process ones differ, in the
+  grouping rules. Over-pruning silently drops proof obligations, so treat those four as unconfirmed.
+  `StaticAnalysisMeasurementTest` prints the table; `StaticAnalysisRulesTest` covers rules one by one.
 - **`ReflexBase.thy` is the semantics** (`src/main/resources/ReflexTheory/`). One `val` datatype with an
   access path, rather than four typed getters. Reflex types map onto HOL as: signed ints → `int`,
   unsigned and `time` → `nat`, `bool` → `bool`, float/double → `real`. Changing codegen means keeping
@@ -99,8 +101,8 @@ them.
 
 ## Not done yet
 
-- **The pruned counts for the five realistic programs are unconfirmed**, differing from the old
-  pipeline in both directions. See the memory note and `StaticAnalysisMeasurementTest`.
+- **The pruned counts for the four multi-process programs are unconfirmed.** They differ from the old
+  pipeline, whose grouping was the non-deterministic part, so matching it is not evidence either way.
 - **Nothing is generated from annotations.** They are parsed, bound and reachable from
   `ExtraInvariantGenerator`, whose hooks all do nothing. The temporal operators of Reflex-AL need an
   execution-history model the theory does not have.
