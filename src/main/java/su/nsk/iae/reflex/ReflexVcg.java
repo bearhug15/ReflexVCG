@@ -19,6 +19,7 @@ import su.nsk.iae.reflex.frontend.AstBuilder;
 import su.nsk.iae.reflex.ir.IrProgram;
 import su.nsk.iae.reflex.preprocess.Preprocessor;
 import su.nsk.iae.reflex.vc.ExtraInvariantGenerator;
+import su.nsk.iae.reflex.vc.InitialCondition;
 import su.nsk.iae.reflex.vc.VcWriter;
 import su.nsk.iae.reflex.vc.VerificationCondition;
 
@@ -120,6 +121,13 @@ public final class ReflexVcg {
 
         VcWriter writer = new VcWriter(destination, program.getName());
         writer.writeSupportingTheories(program, extras.extraDefinitions());
+        // The base case first: the inductive step below assumes the invariant holds,
+        // so something has to establish that it holds to begin with.
+        VerificationCondition initial = extras.process(InitialCondition.build(program));
+        if (initial != null) {
+            writer.write(initial);
+        }
+
         StaticAnalysis analysis = staticAnalysis ? new StaticAnalysis(program) : null;
         new PathEnumerator(graph, analysis).forEach(condition -> {
             VerificationCondition processed = extras.process(condition);

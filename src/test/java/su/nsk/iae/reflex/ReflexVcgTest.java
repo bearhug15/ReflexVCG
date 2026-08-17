@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -22,16 +23,23 @@ class ReflexVcgTest {
         ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rx"));
         int written = generator.generate(output);
 
-        // Two of the four paths survive static analysis, which is on by default.
-        assertEquals(2, written);
+        // Two of the four cycle paths survive static analysis, plus the base case.
+        assertEquals(3, written);
         for (String expected : List.of("ReflexBase.thy", "Requirements.thy", "ifTestTheory.thy",
                 "ifTest_VC0.thy", "ifTest_VC1.thy")) {
             assertTrue(Files.exists(output.resolve(expected)), "missing " + expected);
         }
 
-        String condition = Files.readString(output.resolve("ifTest_VC0.thy"));
-        assertTrue(condition.startsWith("theory ifTest_VC0"), condition);
+        // VC0 is the base case: it starts from emptyState and assumes no invariant.
+        String base = Files.readString(output.resolve("ifTest_VC0.thy"));
+        assertTrue(base.contains("st0=emptyState"), base);
+        assertFalse(base.contains("base_inv"), base);
+
+        // The rest are inductive steps over one cycle.
+        String condition = Files.readString(output.resolve("ifTest_VC1.thy"));
+        assertTrue(condition.startsWith("theory ifTest_VC1"), condition);
         assertTrue(condition.contains("imports ifTestTheory Requirements"), condition);
+        assertTrue(condition.contains("base_inv:\"inv(st0)\""), condition);
         assertTrue(condition.contains("shows \"inv(st_final)\""), condition);
         // Values go through ReflexBase's single-constructor state, not the old typed one.
         assertTrue(condition.contains("getVarVal"), condition);
@@ -44,7 +52,7 @@ class ReflexVcgTest {
         ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rx"));
         generator.setStaticAnalysis(false);
 
-        assertEquals(4, generator.generate(output), "every path should be emitted");
+        assertEquals(5, generator.generate(output), "every path, plus the base case");
     }
 
     @Test
