@@ -79,6 +79,13 @@ public final class CastInsertionPass {
         if (isTime(left) || isTime(right)) {
             return IrType.TIME;
         }
+        // Comparing two booleans: the spec's promotion rules send these to int32, since
+        // bool takes part in the integer order, which renders as
+        // `(if a then 1 else 0) = (if b then 1 else 0)`. That is equivalent to `a = b`
+        // and much harder to work with in a proof, so the comparison stays at bool.
+        if (("==".equals(op) || "!=".equals(op)) && left != null && left.isBool() && right.isBool()) {
+            return IrType.BOOL;
+        }
         return switch (op) {
             case "&&", "||", "!." -> IrType.BOOL;
             case "&", "|", "^", "&=", "|=", "^=" -> wider(left, right);

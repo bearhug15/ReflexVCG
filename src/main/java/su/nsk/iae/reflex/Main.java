@@ -1,124 +1,88 @@
 package su.nsk.iae.reflex;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 
-import org.antlr.v4.runtime.ANTLRInputStream;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.apache.commons.cli.*;
-import su.nsk.iae.reflex.antlr.ReflexLexer;
-import su.nsk.iae.reflex.antlr.ReflexParser;
-import su.nsk.iae.reflex.vcg.VCGenerator2;
-
-import java.io.FileInputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
-// Press Shift twice to open the Search Everywhere dialog and type `show whitespaces`,
-// then press Enter. You can now see whitespace characters in your code.
-public class Main {
-    public static void main(String[] args) throws ParseException {
+/**
+ * Command line entry point.
+ *
+ * <p>Reads a Reflex program, generates the verification conditions for it, and writes
+ * them as Isabelle theories.
+ */
+public final class Main {
 
+    private Main() {
+    }
+
+    public static void main(String[] args) throws Exception {
         Options options = new Options();
-        options.addOption("s","source",true,"Путь к файлу с программой.");
-        options.addOption("o","output",true,"Путь для вывода результата.");
-        options.addOption("e","expr",true,"Способ обработки выражений: simple/regular.");
-        options.addOption("pe","processExpr",true,"Обработка выражений: true/false.");
-        options.addOption("g","graph",true,"Вывод графа программы: true/false.");
-        options.addOption("a","analysis",true,"Использование статического анализа: true/false.");
-        options.addOption("h","help",false,"Справка.");
-
+        options.addOption("s", "source", true, "Path to the Reflex program (required).");
+        options.addOption("o", "output", true, "Directory to write conditions into (default: the source's).");
+        options.addOption("g", "graph", false, "Also export the program graph in Graphviz format.");
+        options.addOption("h", "help", false, "Show this help.");
 
         CommandLineParser commandLineParser = new DefaultParser();
-        CommandLine commandLine = commandLineParser.parse(options,args);
-
-        if (commandLine.hasOption("h")){
-            HelpFormatter formatter = new HelpFormatter();
-            formatter.printHelp("Available options", options);
-            return;
-        }
-
-        String source = commandLine.getOptionValue("s");
-        if (source==null) throw new RuntimeException("Source not defined");
-
-        String destination = commandLine.getOptionValue("o");
-        if (destination==null) destination="./";
-
-
-        Path sourcePath = Path.of(source);
-        Path destPath = Path.of(destination);
-        System.out.println("Starting program parsing.");
-        FileInputStream fileInput = null;
-        ANTLRInputStream input;
+        CommandLine commandLine;
         try {
-            fileInput = new FileInputStream(sourcePath.toFile());
-            input = new ANTLRInputStream(fileInput);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        ReflexLexer lexer = new ReflexLexer(input);
-        CommonTokenStream tokenStream = new CommonTokenStream(lexer);
-        ReflexParser parser = new ReflexParser(tokenStream);
-        ReflexParser.ProgramContext context = parser.program();
-        System.out.println("Completed program parsing. Starting program analysis.");
-        VCGenerator2 generator;
-
-        boolean isSimpleExp;
-        String expressionKind = commandLine.getOptionValue("e");
-        if(expressionKind==null){
-            isSimpleExp = false;
-        }else if(expressionKind.equals("regular")){
-            isSimpleExp = false;
-        }else if(expressionKind.equals("simple")){
-            isSimpleExp = true;
-        }else{
-            System.out.println("Unknown argument for expression processing type. Possible arguments: regular, simple");
-            return;
-        }
-        boolean isProcessExpr;
-        String expressionProcess = commandLine.getOptionValue("pe");
-        if(expressionProcess==null){
-            isProcessExpr = false;
-        }else if(expressionProcess.equals("false")){
-            isProcessExpr = false;
-        }else if(expressionProcess.equals("true")){
-            isProcessExpr = true;
-        }else{
-            System.out.println("Unknown argument for process expression processing type. Possible arguments: true, false");
+            commandLine = commandLineParser.parse(options, args);
+        } catch (ParseException e) {
+            System.err.println(e.getMessage());
+            usage(options);
+            System.exit(2);
             return;
         }
 
-        boolean exportGraph;
-        String exportG = commandLine.getOptionValue("g");
-        if(exportG==null){
-            exportGraph = false;
-        }else if(exportG.equals("false")){
-            exportGraph = false;
-        }else if(exportG.equals("true")){
-            exportGraph = true;
-        }else{
-            System.out.println("Unknown argument for graph export. Possible arguments: true, false");
+        if (commandLine.hasOption("h") || !commandLine.hasOption("s")) {
+            usage(options);
+            System.exit(commandLine.hasOption("h") ? 0 : 2);
             return;
         }
 
-        boolean staticAnalysis;
-        String analysis = commandLine.getOptionValue("a");
-        if(analysis==null){
-            staticAnalysis = true;
-        }else if(analysis.equals("false")){
-            staticAnalysis = false;
-        }else if(analysis.equals("true")){
-            staticAnalysis = true;
-        }else{
-            System.out.println("Unknown argument for static analysis. Possible arguments: true, false");
+        Path source = Path.of(commandLine.getOptionValue("s"));
+        if (!Files.isRegularFile(source)) {
+            System.err.println("No such file: " + source);
+            System.exit(2);
             return;
         }
 
-        generator = new VCGenerator2(context,isSimpleExp,isProcessExpr,exportGraph,staticAnalysis);
-        generator.generateVC(sourcePath,destPath);
+        Path destination = commandLine.hasOption("o")
+                ? Path.of(commandLine.getOptionValue("o"))
+                : source.toAbsolutePath().getParent();
+        Files.createDirectories(destination);
 
-        //VCGenerator generator = new VCGenerator();
-        //generator.generateVC(Path.of(source),Path.of(destination));
+        try {
+            System.out.println("Parsing " + source);
+            ReflexVcg generator = ReflexVcg.load(source);
 
-        /*
-        VCGenerator generator = new VCGenerator();
-        generator.test();*/
+            if (!generator.getAnnotations().getDiagnostics().isEmpty()) {
+                System.out.println("Annotation warnings:");
+                generator.getAnnotations().getDiagnostics().forEach(d -> System.out.println("  " + d));
+            }
+
+            if (commandLine.hasOption("g")) {
+                generator.exportGraph(destination);
+                System.out.println("Wrote the program graph to " + destination);
+            }
+
+            int generated = generator.generate(destination);
+            System.out.println("Wrote " + generated + " verification conditions to " + destination);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            System.err.println(e.getMessage());
+            System.exit(1);
+        }
+    }
+
+    private static void usage(Options options) {
+        new HelpFormatter().printHelp(
+                "ReflexVCG -s <program.rx> [-o <dir>] [-g]",
+                "Generates Isabelle/HOL verification conditions for a Reflex program.",
+                options, "");
     }
 }
