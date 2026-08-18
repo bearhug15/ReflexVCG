@@ -88,7 +88,7 @@ public final class Main {
 
     private static void usage(Options options) {
         new HelpFormatter().printHelp(
-                "ReflexVCG -s <program.rx> [-o <dir>] [-g] [-a true|false]",
+                "ReflexVCG -s <program.rcs> [-o <dir>] [-g] [-a true|false]",
                 "Generates Isabelle/HOL verification conditions for a Reflex program.",
                 options, "");
     }

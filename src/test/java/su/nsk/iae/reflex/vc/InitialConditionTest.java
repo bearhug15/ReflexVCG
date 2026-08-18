@@ -97,7 +97,7 @@ class InitialConditionTest {
                 .toList();
 
         assertEquals(1, writes.size(), "only the variable with an initialiser is written");
-        assertEquals("::counter", writes.get(0).variable().getName());
+        assertEquals("#counter", writes.get(0).variable().getName());
     }
 
     /** Aggregate initialisers are partial: only the members actually given are written. */

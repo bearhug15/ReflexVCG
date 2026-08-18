@@ -84,26 +84,26 @@ class IsabelleRendererTest {
     @Test
     void readsAScalarThroughGetVarValAndProjectsIt() {
         String rendered = renderFirstAssignedValue("  int32 a;\n  int32 b;\n", "      a = b;");
-        assertEquals("(theInt (getVarVal st0 ''::b'' []))", rendered);
+        assertEquals("(theInt (getVarVal st0 ''#b'' []))", rendered);
     }
 
     @Test
     void readsABooleanWithTheBool() {
         String rendered = renderFirstAssignedValue("  bool a;\n  bool b;\n", "      a = b;");
-        assertEquals("(theBool (getVarVal st0 ''::b'' []))", rendered);
+        assertEquals("(theBool (getVarVal st0 ''#b'' []))", rendered);
     }
 
     @Test
     void rendersArithmeticInTheProjectedSort() {
         String rendered = renderFirstAssignedValue("  int32 a;\n  int32 b;\n", "      a = b + 1;");
-        assertEquals("((theInt (getVarVal st0 ''::b'' [])) + 1)", rendered);
+        assertEquals("((theInt (getVarVal st0 ''#b'' [])) + 1)", rendered);
     }
 
     @Test
     void rendersComparisonsAndConnectives() {
         String rendered = renderFirstCondition("  int32 a;\n  int32 b;\n",
                 "      if (a < b) { ; }");
-        assertEquals("((theInt (getVarVal st0 ''::a'' [])) < (theInt (getVarVal st0 ''::b'' [])))",
+        assertEquals("((theInt (getVarVal st0 ''#a'' [])) < (theInt (getVarVal st0 ''#b'' [])))",
                 rendered);
 
         String conjunction = renderFirstCondition("  bool x;\n  bool y;\n", "      if (x && y) { ; }");
@@ -113,7 +113,7 @@ class IsabelleRendererTest {
     @Test
     void rendersNegationAsHolNot() {
         String rendered = renderFirstCondition("  bool x;\n", "      if (!x) { ; }");
-        assertEquals("(\\<not> (theBool (getVarVal st0 ''::x'' [])))", rendered);
+        assertEquals("(\\<not> (theBool (getVarVal st0 ''#x'' [])))", rendered);
     }
 
     @Test
@@ -125,7 +125,7 @@ class IsabelleRendererTest {
                 program.getProcesses().get(0).getStates().get(0).getStatements().get(0));
         IrExpr.Assign assign = assertInstanceOf(IrExpr.Assign.class, stmt.getExpression());
 
-        assertEquals("(theInt (getVarVal st0 ''::p'' [AccessField ''y'']))",
+        assertEquals("(theInt (getVarVal st0 ''#p'' [AccessField ''y'']))",
                 renderer.renderExpression(assign.getValue(), "st0"));
     }
 
@@ -154,14 +154,14 @@ class IsabelleRendererTest {
     void rendersCastsBetweenSorts() {
         // int32 -> uint8 crosses from int to nat.
         String rendered = renderFirstAssignedValue("  uint8 a;\n  int32 b;\n", "      a = b;");
-        assertEquals("(nat (theInt (getVarVal st0 ''::b'' [])))", rendered);
+        assertEquals("(nat (theInt (getVarVal st0 ''#b'' [])))", rendered);
     }
 
     @Test
     void omitsCastsWithinOneSort() {
         // int8 and int32 both map onto int, so no conversion is emitted.
         String rendered = renderFirstAssignedValue("  int8 a;\n  int32 b;\n", "      a = b;");
-        assertEquals("(theInt (getVarVal st0 ''::b'' []))", rendered);
+        assertEquals("(theInt (getVarVal st0 ''#b'' []))", rendered);
     }
 
     // ------------------------------------------------------------------ literals
@@ -223,7 +223,7 @@ class IsabelleRendererTest {
 
         String rendered = renderer.renderStatement(
                 new VcStatement.Assign("st1", "st0", assign.getTarget(), assign.getValue()));
-        assertEquals("st1:\"st1=(setVarVal st0 ''::a'' [] (ValInt 1))\"", rendered);
+        assertEquals("st1:\"st1=(setVarVal st0 ''#a'' [] (ValInt 1))\"", rendered);
     }
 
     @Test

@@ -8,10 +8,10 @@ import su.nsk.iae.reflex.ir.IrState;
 import su.nsk.iae.reflex.ir.IrStmt;
 import su.nsk.iae.reflex.ir.TimeRef;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -23,10 +23,14 @@ import java.util.Map;
  * (process, variable) lookup table the old VariableMapper maintained is unnecessary: a
  * name means exactly one thing everywhere.
  *
- * <p>Naming follows the spec:
+ * <p>Naming:
  * <ul>
- *   <li>{@code newName(path, name)} joins the enclosing scopes as {@code .a.b::name}.
- *       The path is pushed at the front on entry, so the innermost scope comes first.</li>
+ *   <li>{@code newName(path, name)} joins the enclosing scopes with {@code #}, outermost
+ *       first, and separates the variable with a further {@code #}, giving
+ *       {@code node#process#state#variable}. A name declared at program level has no
+ *       enclosing scope and so begins with the separator, {@code #variable}; every
+ *       mangled name therefore contains one, which keeps it distinct from the unmangled
+ *       names physical variables take from their ports.</li>
  *   <li>Physical variables take their name from the port they are bound to,
  *       {@code newIndirectName(port, bit)}.</li>
  *   <li>Each <em>use</em> of a {@code direct} variable gets its own name,
@@ -45,8 +49,8 @@ public final class NameManglingPass {
     /** Global context: mangled name -> whether the binding is direct. */
     private final Map<String, Boolean> isDirect = new LinkedHashMap<>();
 
-    /** Local context: enclosing scope names, innermost first. */
-    private Deque<String> path = new ArrayDeque<>();
+    /** Local context: enclosing scope names, outermost first. */
+    private final List<String> path = new ArrayList<>();
 
     /** Local context: original name -> mangled name, in the current scope. */
     private Map<String, String> variableMap = new LinkedHashMap<>();
@@ -79,13 +83,12 @@ public final class NameManglingPass {
 
     // ------------------------------------------------------------------ naming
 
-    static String newName(Deque<String> path, String name) {
-        StringBuilder sb = new StringBuilder();
-        for (String p : path) {
-            sb.append('.').append(p);
-        }
-        return sb.append("::").append(name).toString();
+    static String newName(List<String> path, String name) {
+        return String.join(SEPARATOR, path) + SEPARATOR + name;
     }
+
+    /** Separates the enclosing scopes from each other and from the variable name. */
+    static final String SEPARATOR = "#";
 
     static String newIndirectName(String port, String position) {
         return position == null ? port : port + "_" + position;
@@ -93,6 +96,32 @@ public final class NameManglingPass {
 
     static String newDirectName(String name, int accessNumber) {
         return name + "." + accessNumber;
+    }
+
+    private void pushScope(String scope) {
+        path.add(scope);
+    }
+
+    /**
+     * A process is scoped by the node it is bound to, so its variables are named
+     * {@code node#process#variable}. Programs that declare no nodes leave it out.
+     */
+    private void pushProcessScope(IrProcess process) {
+        if (process.getNodeName() != null) {
+            pushScope(process.getNodeName());
+        }
+        pushScope(process.getName());
+    }
+
+    private void popProcessScope(IrProcess process) {
+        popScope();
+        if (process.getNodeName() != null) {
+            popScope();
+        }
+    }
+
+    private void popScope() {
+        path.remove(path.size() - 1);
     }
 
     // ------------------------------------------------------------------ program
@@ -127,7 +156,7 @@ public final class NameManglingPass {
      */
     private void mapNode(IrDecl.Node node) {
         Map<String, String> saved = new LinkedHashMap<>(variableMap);
-        path.addFirst(node.getName());
+        pushScope(node.getName());
 
         Map<String, String> introduced = new LinkedHashMap<>();
         for (IrDecl.Constant constant : node.getConstants()) {
@@ -141,7 +170,7 @@ public final class NameManglingPass {
             introduced.put(original, declaration.getName());
         }
 
-        path.removeFirst();
+        popScope();
         nodeVariables.put(node.getName(), introduced);
         variableMap = saved;
     }
@@ -155,14 +184,14 @@ public final class NameManglingPass {
             variableMap.putAll(fromNode);
         }
 
-        path.addFirst(process.getName());
+        pushProcessScope(process);
         Map<String, String> own = new LinkedHashMap<>();
         for (IrDecl declaration : process.getVariables()) {
             String original = declaration.getName();
             mapDeclaration(declaration);
             own.put(original, declaration.getName());
         }
-        path.removeFirst();
+        popProcessScope(process);
 
         processVariables.put(process.getName(), own);
         variableMap = saved;
@@ -196,18 +225,18 @@ public final class NameManglingPass {
             }
         }
 
-        path.addFirst(process.getName());
+        pushProcessScope(process);
         for (IrState state : process.getStates()) {
             mapState(state);
         }
-        path.removeFirst();
+        popProcessScope(process);
 
         variableMap = saved;
     }
 
     private void mapState(IrState state) {
         Map<String, String> saved = new LinkedHashMap<>(variableMap);
-        path.addFirst(state.getName());
+        pushScope(state.getName());
 
         for (IrStmt statement : state.getStatements()) {
             mapStatement(statement);
@@ -217,7 +246,7 @@ public final class NameManglingPass {
             mapStatement(state.getTimeout().getBody());
         }
 
-        path.removeFirst();
+        popScope();
         variableMap = saved;
     }
 
@@ -287,9 +316,9 @@ public final class NameManglingPass {
         if (statement instanceof IrStmt.Block block) {
             // A block is a scope of its own; the spec names it by a unique id.
             Map<String, String> saved = new LinkedHashMap<>(variableMap);
-            path.addFirst("block" + blockCounter++);
+            pushScope("block" + blockCounter++);
             block.getStatements().forEach(this::mapStatement);
-            path.removeFirst();
+            popScope();
             variableMap = saved;
         } else if (statement instanceof IrStmt.If ifStmt) {
             mapExpression(ifStmt.getCondition());
@@ -301,7 +330,7 @@ public final class NameManglingPass {
             variableMap = saved;
         } else if (statement instanceof IrStmt.Switch switchStmt) {
             Map<String, String> saved = new LinkedHashMap<>(variableMap);
-            path.addFirst("switch" + blockCounter++);
+            pushScope("switch" + blockCounter++);
             mapExpression(switchStmt.getSelector());
             for (IrStmt.SwitchCase clause : switchStmt.getCases()) {
                 if (clause.getLabel() != null) {
@@ -309,7 +338,7 @@ public final class NameManglingPass {
                 }
                 clause.getStatements().forEach(this::mapStatement);
             }
-            path.removeFirst();
+            popScope();
             variableMap = saved;
         } else if (statement instanceof IrStmt.ExprStatement expr) {
             mapExpression(expr.getExpression());
@@ -325,7 +354,7 @@ public final class NameManglingPass {
             variableMap = saved;
         } else if (statement instanceof IrStmt.For forStmt) {
             Map<String, String> saved = new LinkedHashMap<>(variableMap);
-            path.addFirst("for" + blockCounter++);
+            pushScope("for" + blockCounter++);
             forStmt.getInitDeclarations().forEach(this::mapVariable);
             if (forStmt.getInitExpression() != null) {
                 mapExpression(forStmt.getInitExpression());
@@ -333,7 +362,7 @@ public final class NameManglingPass {
             mapExpression(forStmt.getCondition());
             mapExpression(forStmt.getUpdate());
             mapStatement(forStmt.getBody());
-            path.removeFirst();
+            popScope();
             variableMap = saved;
         }
         // Empty, ProcessControl, ResetTimer, SetState, Slice and CCode name no variables.

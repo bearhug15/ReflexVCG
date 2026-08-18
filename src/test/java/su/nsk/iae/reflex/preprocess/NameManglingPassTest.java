@@ -94,8 +94,8 @@ class NameManglingPassTest {
                 + "}");
 
         IrDecl.Variable counter = assertInstanceOf(IrDecl.Variable.class, program.getGlobalVariables().get(0));
-        assertEquals("::counter", counter.getName(), "a program-level name has an empty path");
-        assertEquals(List.of("::counter"), variableUses(program), "uses follow the declaration");
+        assertEquals("#counter", counter.getName(), "a program-level name has no enclosing scope");
+        assertEquals(List.of("#counter"), variableUses(program), "uses follow the declaration");
     }
 
     /**
@@ -114,10 +114,10 @@ class NameManglingPassTest {
         String inA = program.findProcess("A").getVariables().get(0).getName();
         String inB = program.findProcess("B").getVariables().get(0).getName();
 
-        assertEquals(".A::v", inA);
-        assertEquals(".B::v", inB);
+        assertEquals("N#A#v", inA);
+        assertEquals("N#B#v", inB);
         assertNotEquals(inA, inB);
-        assertEquals(List.of(".A::v", ".B::v"), variableUses(program));
+        assertEquals(List.of("N#A#v", "N#B#v"), variableUses(program));
     }
 
     @Test
@@ -130,8 +130,8 @@ class NameManglingPassTest {
                 + "  }\n"
                 + "}");
 
-        // path is pushed innermost-first: state s inside process Proc.
-        assertEquals(List.of(".s.Proc::local", ".s.Proc::local"), variableUses(program));
+        // Scopes read outermost first: node N, process Proc, state s.
+        assertEquals(List.of("N#Proc#s#local", "N#Proc#s#local"), variableUses(program));
     }
 
     /** An inner declaration shadows an outer one, and the outer name returns after. */
@@ -151,10 +151,10 @@ class NameManglingPassTest {
                 + "}");
 
         List<String> uses = variableUses(program);
-        assertEquals("::v", uses.get(0), "before the inner declaration, the global is in scope");
+        assertEquals("#v", uses.get(0), "before the inner declaration, the global is in scope");
         assertTrue(uses.get(1).contains("block"), "the inner declaration is scoped to its block");
         assertEquals(uses.get(1), uses.get(2), "the inner use resolves to the inner declaration");
-        assertEquals("::v", uses.get(3), "after the block the global is in scope again");
+        assertEquals("#v", uses.get(3), "after the block the global is in scope again");
     }
 
     @Test
@@ -167,11 +167,11 @@ class NameManglingPassTest {
 
         IrDecl.Node node = program.findNode("N");
         String declared = node.getVariables().get(0).getName();
-        assertEquals(".N::nodeVar", declared);
+        assertEquals("N#nodeVar", declared);
 
         List<String> uses = variableUses(program);
         assertEquals(declared, uses.get(0), "the process sees the node's variable by its mangled name");
-        assertEquals(".N::K", uses.get(1));
+        assertEquals("N#K", uses.get(1));
     }
 
     /** An imported name refers to the very same variable, so it gets the owner's name. */
@@ -188,7 +188,7 @@ class NameManglingPassTest {
                 + "}");
 
         String owner = program.findProcess("Producer").getVariables().get(0).getName();
-        assertEquals(".Producer::v", owner);
+        assertEquals("N#Producer#v", owner);
         assertEquals(List.of(owner), variableUses(program),
                 "the consumer's use points at the producer's variable, even though "
                         + "Producer is declared after Consumer");
@@ -285,8 +285,8 @@ class NameManglingPassTest {
                 + "  }\n"
                 + "}");
 
-        assertEquals("::Delay", program.getConstants().get(0).getName());
-        assertEquals("::Delay",
+        assertEquals("#Delay", program.getConstants().get(0).getName());
+        assertEquals("#Delay",
                 program.getProcesses().get(0).getStates().get(0).getTimeout().getDuration().getText(),
                 "a timeout naming a constant follows it through mangling");
     }
