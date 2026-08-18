@@ -6,15 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ReflexVCG generates formal verification conditions (VCs) for programs written in **Reflex**, a small
 C-like DSL for programming PLC-style reactive controllers (processes with states, transitions, timeouts).
-Given a `.rx` source file it parses the program, lowers it to an IR, rewrites that IR into a canonical
+Given a `.rcs` source file it parses the program, lowers it to an IR, rewrites that IR into a canonical
 form, builds a control-flow graph, enumerates the paths through one execution cycle, and emits an
 Isabelle/HOL lemma per path (one `.thy` file per VC) that a human later proves. `FinalVCGRules.pdf` holds
 the formal rules; `Preprocessing.tex` specifies the preprocessing passes.
 
 ## Build / test / run
 
-Maven project, Java 17. Three ANTLR grammars are compiled during `generate-sources`, so always build
-through Maven — the generated parsers are not in `src/`.
+Maven project, Java 17. `NewReflex.g4` and `ReflexAL.g4` are compiled during `generate-sources`, so
+always build through Maven — the generated parsers are not in `src/`.
 
 ```
 mvn compile                                   # generate parsers + compile
@@ -24,10 +24,10 @@ mvn package                                   # builds the jar-with-dependencies
 ```
 
 ```
-java -jar target/ReflexVCG-1.0-jar-with-dependencies.jar -s program.rx [-o outDir] [-g] [-a true|false]
+java -jar target/ReflexVCG-1.0-jar-with-dependencies.jar -s program.rcs [-o outDir] [-g] [-a true|false]
 ```
 
-- `-s` source `.rx` path (required)
+- `-s` source `.rcs` path (required)
 - `-o` output directory (defaults to the source's directory)
 - `-g` also export the control-flow graph as Graphviz
 - `-a` discard conditions for impossible paths (default true)
@@ -38,7 +38,7 @@ Each stage has one input and one output, and no stage knows about the others. Is
 exactly one place, at the very end.
 
 ```
-.rx ──1──▶ parse tree + comment tokens
+.rcs ──1──▶ parse tree + comment tokens
       2──▶ Reflex IR, annotations bound to constructs
       3──▶ canonical IR   [mangle → cast → normalize]
       4──▶ control-flow graph
@@ -52,7 +52,8 @@ exactly one place, at the very end.
    `frontend/AnnotationBinder` pulls Reflex-AL annotations from comments and binds each to the construct
    whose first token it precedes, claiming each exactly once.
 3. **Preprocess** (`preprocess/`, spec: `Preprocessing.tex`) — `Preprocessor.run` in dependency order:
-   `NameManglingPass` (globally unique names — this is why no `VariableMapper` exists), then
+   `NameManglingPass` (globally unique `node#process#state#variable` names — this is why there is no
+   variable lookup table), then
    `CastInsertionPass` + `TypeEnvironment` (every expression typed, every conversion an explicit cast),
    then `NormalizationPass` (`set next state` resolved, switch fall-through expanded, `wait`/`slice`
    turned into ordinary states). The result is *canonical* IR.
@@ -85,19 +86,13 @@ exactly one place, at the very end.
 - **The IR is mutable on purpose.** The preprocessing passes rewrite the program in place, which is not
   expressible against an ANTLR tree. Use `IrCopier` when duplicating a subtree — sharing one would let a
   later rewrite of one place silently change another.
-- **Regression gate.** `src/test/baseline/` holds a structural digest of the *old* pipeline's output;
-  `tools/baseline_digest.py` regenerates it. `NewPipelineEndToEndTest` asserts the new pipeline's path
-  counts against the old unpruned behaviour, program by program.
+- **Regression gate.** `NewPipelineEndToEndTest` asserts path counts per program against the old
+  pipeline's unpruned behaviour, and `StaticAnalysisMeasurementTest` against its pruned behaviour.
+  Those numbers are recorded in the tests; the old pipeline that produced them has been removed, so
+  they cannot be regenerated - see the history if the detail is ever needed.
 - **Generation must stay deterministic.** It was not: maps keyed by graph nodes without `hashCode`
   iterated in identity-hash order, so the same input produced different VC sets on different runs. Prefer
   insertion-ordered collections and explicit sorts anywhere output depends on order.
-
-## Legacy code
-
-The `ProgramGraph/`, `StatementsCreator/`, `expression/`, `formulas/` and `vcg/` packages, `Reflex.g4`,
-and `Reflex.thy` are the **previous** pipeline. They are kept only so `BaselineCaptureTest` can regenerate
-the comparison baseline, and are due for removal once the static analysis rework lands. Do not extend
-them.
 
 ## Not done yet
 
@@ -106,6 +101,5 @@ them.
 - **Nothing is generated from annotations.** They are parsed, bound and reachable from
   `ExtraInvariantGenerator`, whose hooks all do nothing. The temporal operators of Reflex-AL need an
   execution-history model the theory does not have.
-- **The legacy pipeline has not been removed** (see above).
 - Division domain conditions, which the old generator emitted as *assumptions*, are not reproduced.
 - `exprTest`'s `var++ + var` - the ordering of effects within a single expression is not modelled.

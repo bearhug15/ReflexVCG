@@ -64,11 +64,9 @@
                    <!-- Grammars live next to the Java sources; the plugin derives the
                         generated package from the path relative to sourceDirectory. -->
                    <sourceDirectory>${basedir}/src/main/java</sourceDirectory>
-                   <!-- Reflex.g4 is the legacy grammar, still driving the current
-                        pipeline; NewReflex.g4 and ReflexAL.g4 are the migration targets.
-                        All three are generated so old and new can coexist. -->
+                   <!-- NewReflex.g4 is the program grammar; ReflexAL.g4 parses the
+                        annotations carried in comments. -->
                    <includes>
-                       <include>su/nsk/iae/reflex/antlr/Reflex.g4</include>
                        <include>su/nsk/iae/reflex/antlr/NewReflex.g4</include>
                        <include>su/nsk/iae/reflex/antlr/ReflexAL.g4</include>
                    </includes>
