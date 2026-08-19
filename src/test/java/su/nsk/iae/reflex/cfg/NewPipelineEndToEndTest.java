@@ -36,8 +36,7 @@ class NewPipelineEndToEndTest {
     private static final Path PROGRAMS = Path.of("src/test/resources/programs-new");
 
     /** Programs whose source writes to something inside a larger expression. */
-    private static final List<String> WRITES_INSIDE_EXPRESSIONS =
-            List.of("exprTest.rx", "newSmartLighting.rx");
+    private static final List<String> WRITES_INSIDE_EXPRESSIONS = List.of("exprTest.rx");
 
     private static IrProgram load(Path file) throws IOException {
         NewReflexLexer lexer = new NewReflexLexer(CharStreams.fromPath(file));
@@ -67,10 +66,8 @@ class NewPipelineEndToEndTest {
             IrProgram program = load(file);
             Cfg cfg = new CfgBuilder(program).build();
 
-            // Two programs write inside an expression and are reported rather than
-            // generated: exprTest with `var++ + var`, and newSmartLighting with
-            // `if (motion && light = LOW)` - a single '=' assigning to a physical input,
-            // which also makes that branch unreachable. Asserted in their own test below.
+            // exprTest writes inside a larger expression (`var++ + var`) and is
+            // reported rather than generated; asserted in its own test below.
             if (WRITES_INSIDE_EXPRESSIONS.contains(file.getFileName().toString())) {
                 assertFalse(cfg.unsupportedNodes().isEmpty(),
                         file.getFileName() + " should be reported as unsupported, not generated");
@@ -116,10 +113,9 @@ class NewPipelineEndToEndTest {
                 new Expected("switchTest1", 6, 0, ""),
                 new Expected("switchTest2", 7, 0, ""),
                 // The realistic programs, the largest of which has 1008 paths.
-                // newSmartLighting is absent: it writes inside a condition and is
-                // reported rather than generated.
                 new Expected("newBarrier", 73, 0, ""),
                 new Expected("newEscalator", 43, 0, ""),
+                new Expected("newSmartLighting", 487, 0, ""),
                 new Expected("newThermopot", 181, 0, ""),
                 new Expected("newTurnstile", 1009, 0, ""));
 

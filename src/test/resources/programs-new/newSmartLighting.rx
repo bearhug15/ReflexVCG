@@ -31,7 +31,7 @@ node MainNode { clock 100; }
 	
 	process Motion :: node MainNode {
 		state noMovement{
-			if (motion && light = LOW){
+			if (motion && light == LOW){
 				turnedOn = true;
 				set next state;
 			}
