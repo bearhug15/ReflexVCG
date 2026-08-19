@@ -11,6 +11,7 @@ import org.antlr.v4.runtime.Token;
 import su.nsk.iae.reflex.antlr.NewReflexLexer;
 import su.nsk.iae.reflex.antlr.ReflexALLexer;
 import su.nsk.iae.reflex.antlr.ReflexALParser;
+import su.nsk.iae.reflex.ann.AnnLowering;
 import su.nsk.iae.reflex.ir.Annotation;
 
 import java.util.ArrayList;
@@ -19,6 +20,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Extracts Reflex-AL annotations from comments and binds them to the constructs they
@@ -39,6 +42,15 @@ public final class AnnotationBinder {
     private final Map<Integer, List<Annotation>> byTokenIndex = new HashMap<>();
     private final Set<Integer> claimed = new HashSet<>();
     private final List<String> diagnostics = new ArrayList<>();
+    private final AnnLowering lowering = new AnnLowering();
+
+    /**
+     * The head of an annotation: its kind and, optionally, the language its body is
+     * written in. Read before parsing, because a body in another language is not
+     * Reflex-AL and must not be put through that grammar.
+     */
+    private static final Pattern HEAD = Pattern.compile(
+            "\\[\\s*(assume|assert|invariant|define)\\s*(?:\\(\\s*(\\w+)\\s*\\))?\\s*:");
 
     public AnnotationBinder(BufferedTokenStream tokens) {
         collect(tokens);
@@ -171,6 +183,15 @@ public final class AnnotationBinder {
     }
 
     private Annotation parseAnnotation(String text, int line) {
+        Matcher head = HEAD.matcher(text);
+        if (head.lookingAt() && head.group(2) != null) {
+            // Written in another language: only the names inside are rewritten later, and
+            // the text goes into the condition as it stands.
+            String body = text.substring(head.end(), text.lastIndexOf(']')).trim();
+            return new Annotation(Annotation.kindFromKeyword(head.group(1)),
+                    head.group(2), body, null, line);
+        }
+
         List<String> errors = new ArrayList<>();
         BaseErrorListener listener = new BaseErrorListener() {
             @Override
@@ -204,6 +225,20 @@ public final class AnnotationBinder {
         String languageSpec = tree.languageSpec() == null
                 ? null
                 : tree.languageSpec().Identifier().getText();
-        return new Annotation(kind, languageSpec, text, tree, line);
+
+        Annotation annotation = new Annotation(kind, languageSpec, text, tree, line);
+        if (languageSpec == null) {
+            // A body in another language is passed through unparsed, so there is nothing
+            // to lower.
+            try {
+                annotation.setBody(lowering.lowerBody(tree.annotationBody()));
+                annotation.setDefinitions(lowering.lowerDefinitions(tree.annotationBody()));
+            } catch (RuntimeException e) {
+                diagnostics.add("line " + line + ": cannot interpret annotation " + text
+                        + " (" + e.getMessage() + ")");
+                return null;
+            }
+        }
+        return annotation;
     }
 }

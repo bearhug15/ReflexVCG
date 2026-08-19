@@ -1,7 +1,9 @@
 package su.nsk.iae.reflex.preprocess;
 
+import su.nsk.iae.reflex.ann.AnnMangling;
 import su.nsk.iae.reflex.ir.IrDecl;
 import su.nsk.iae.reflex.ir.IrExpr;
+import su.nsk.iae.reflex.ir.IrNode;
 import su.nsk.iae.reflex.ir.IrProcess;
 import su.nsk.iae.reflex.ir.IrProgram;
 import su.nsk.iae.reflex.ir.IrState;
@@ -63,8 +65,16 @@ public final class NameManglingPass {
 
     private int blockCounter;
 
+    /** Annotations are scoped like the code they are attached to. */
+    private final AnnMangling annotations = new AnnMangling();
+
     public void run(IrProgram program) {
         mapProgram(program);
+    }
+
+    /** Names an annotation referred to that no scope declares. */
+    public java.util.List<String> getUnresolvedAnnotationNames() {
+        return annotations.getUnresolved();
     }
 
     /** Mangled name -> whether that binding is direct; for later stages. */
@@ -148,6 +158,8 @@ public final class NameManglingPass {
         for (IrProcess process : program.getProcesses()) {
             mapProcessBody(process);
         }
+        // Program-level annotations see the program scope only.
+        annotations.mangle(program, variableMap);
     }
 
     /**
@@ -226,6 +238,7 @@ public final class NameManglingPass {
         }
 
         pushProcessScope(process);
+        annotations.mangle(process, variableMap);
         for (IrState state : process.getStates()) {
             mapState(state);
         }
@@ -238,6 +251,7 @@ public final class NameManglingPass {
         Map<String, String> saved = new LinkedHashMap<>(variableMap);
         pushScope(state.getName());
 
+        annotations.mangle(state, variableMap);
         for (IrStmt statement : state.getStatements()) {
             mapStatement(statement);
         }
@@ -313,6 +327,9 @@ public final class NameManglingPass {
         if (statement == null) {
             return;
         }
+        // Bound before descending: an annotation on a statement is read in the scope
+        // the statement sits in, not the one its body introduces.
+        annotations.mangle(statement, variableMap);
         if (statement instanceof IrStmt.Block block) {
             // A block is a scope of its own; the spec names it by a unique id.
             Map<String, String> saved = new LinkedHashMap<>(variableMap);

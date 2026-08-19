@@ -1,6 +1,10 @@
 package su.nsk.iae.reflex.ir;
 
 import org.antlr.v4.runtime.ParserRuleContext;
+import su.nsk.iae.reflex.ann.AnnDefinition;
+import su.nsk.iae.reflex.ann.AnnExpr;
+
+import java.util.List;
 
 /**
  * A Reflex-AL annotation bound to an IR construct.
@@ -20,6 +24,8 @@ public final class Annotation {
     private final String text;
     private final ParserRuleContext tree;
     private final int line;
+    private AnnExpr body;
+    private List<AnnDefinition> definitions = List.of();
 
     public Annotation(Kind kind, String languageSpec, String text, ParserRuleContext tree, int line) {
         this.kind = kind;
@@ -46,6 +52,33 @@ public final class Annotation {
     /** Parse tree of the annotation body, produced by ReflexALParser. */
     public ParserRuleContext getTree() {
         return tree;
+    }
+
+    /**
+     * The annotation's formula, lowered from the parse tree. Null for a {@code define},
+     * which carries {@link #getDefinitions()} instead, and for an annotation written in
+     * another language, which is passed through unparsed.
+     */
+    public AnnExpr getBody() {
+        return body;
+    }
+
+    public void setBody(AnnExpr body) {
+        this.body = body;
+    }
+
+    /** The definitions a {@code define} introduces; empty for every other kind. */
+    public List<AnnDefinition> getDefinitions() {
+        return definitions;
+    }
+
+    public void setDefinitions(List<AnnDefinition> definitions) {
+        this.definitions = List.copyOf(definitions);
+    }
+
+    /** True when a language other than Reflex-AL was named, so the body is opaque. */
+    public boolean isForeignLanguage() {
+        return languageSpec != null;
     }
 
     /** Source line the annotation appeared on. */
