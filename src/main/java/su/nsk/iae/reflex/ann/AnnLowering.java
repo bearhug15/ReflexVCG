@@ -316,7 +316,13 @@ public final class AnnLowering {
         if (ctx.stableExpr() != null) {
             return binaryTemporal(AnnExpr.Temporal.Kind.STABLE, ctx.stableExpr().specificationExpr());
         }
-        return binaryTemporal(AnnExpr.Temporal.Kind.COOLDOWN, ctx.cooldownExpr().specificationExpr());
+        if (ctx.cooldownExpr() != null) {
+            return binaryTemporal(AnnExpr.Temporal.Kind.COOLDOWN,
+                    ctx.cooldownExpr().specificationExpr());
+        }
+        ReflexALParser.OnExprContext on = ctx.onExpr();
+        return new AnnExpr.Temporal(AnnExpr.Temporal.Kind.ON,
+                lower(on.trigger), lower(on.property), null);
     }
 
     private AnnExpr temporal(AnnExpr.Temporal.Kind kind,

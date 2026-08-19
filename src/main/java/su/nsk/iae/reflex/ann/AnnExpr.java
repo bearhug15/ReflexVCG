@@ -586,7 +586,9 @@ public abstract class AnnExpr {
             /** stable(phi, t): phi throughout the next t. */
             STABLE,
             /** cooldown(phi, t): phi happened, and not again within t. */
-            COOLDOWN
+            COOLDOWN,
+            /** on(trigger, property): wherever the trigger holds, so does the property. */
+            ON
         }
 
         private final Kind kind;
@@ -605,12 +607,15 @@ public abstract class AnnExpr {
             return kind;
         }
 
-        /** phi, or the trigger for during. */
+        /** phi, or the trigger for during and on. */
         public AnnExpr getFirst() {
             return first;
         }
 
-        /** The duration for timer/within/stable/cooldown, or during's interrupt. */
+        /**
+         * The duration for timer/within/stable/cooldown, during's interrupt, or on's
+         * property.
+         */
         public AnnExpr getSecond() {
             return second;
         }

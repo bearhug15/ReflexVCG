@@ -142,7 +142,10 @@ class AnnotationPreprocessingTest {
                 new Case("during(a, b, c)", AnnExpr.Temporal.Kind.DURING),
                 new Case("within(a, 5)", AnnExpr.Temporal.Kind.WITHIN),
                 new Case("stable(a, 5)", AnnExpr.Temporal.Kind.STABLE),
-                new Case("cooldown(a, 5)", AnnExpr.Temporal.Kind.COOLDOWN));
+                new Case("cooldown(a, 5)", AnnExpr.Temporal.Kind.COOLDOWN),
+                // on() is specified in the translation document but was missing from the
+                // grammar, so it could not be written until now.
+                new Case("on(a, b)", AnnExpr.Temporal.Kind.ON));
 
         for (Case testCase : cases) {
             IrProgram program = process("program P {\n"
@@ -271,6 +274,27 @@ class AnnotationPreprocessingTest {
 
         assertEquals(List.of("i", "#limit"), namesIn(firstStateAnnotationBody(program)),
                 "i is bound by the quantifier; limit is a program variable");
+    }
+
+    /** on(trigger, property) carries both arguments, and both are mangled. */
+    @Test
+    void lowersAndManglesBothArgumentsOfOn() {
+        IrProgram program = process("program P {\n"
+                + "  clock 100;\n"
+                + "  bool alarm;\n"
+                + "  bool siren;\n"
+                + "  node N { clock 100; }\n"
+                + "  process Proc :: node N {\n"
+                + "    //[invariant: on(alarm, siren)]\n"
+                + "    state s { ; }\n"
+                + "  }\n"
+                + "}");
+
+        AnnExpr.Temporal on =
+                assertInstanceOf(AnnExpr.Temporal.class, firstStateAnnotationBody(program));
+        assertEquals(AnnExpr.Temporal.Kind.ON, on.getKind());
+        assertEquals("#alarm", assertInstanceOf(AnnExpr.VarRef.class, on.getFirst()).getName());
+        assertEquals("#siren", assertInstanceOf(AnnExpr.VarRef.class, on.getSecond()).getName());
     }
 
     @Test

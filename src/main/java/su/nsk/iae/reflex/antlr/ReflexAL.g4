@@ -178,6 +178,7 @@ temporalExpr
     | withinExpr
     | stableExpr
     | cooldownExpr
+    | onExpr
     ;
 
 previousExpr: 'previously' '(' specificationExpr ')';
@@ -195,6 +196,11 @@ stableExpr: 'stable' '(' specificationExpr ',' specificationExpr ')';
 cooldownExpr: 'cooldown' '(' specificationExpr ',' specificationExpr ')';
 
 timerExpr: 'timer' '(' specificationExpr ')';
+
+// on(trigger, property): wherever the trigger holds at a reachable state, so does the
+// property. Defined in the translation specification but absent from the source grammar,
+// so it is added here rather than being unwritable.
+onExpr: 'on' '(' trigger=specificationExpr ',' property=specificationExpr ')';
 
 // ---- Process-oriented functions -----------------------------------------
 
