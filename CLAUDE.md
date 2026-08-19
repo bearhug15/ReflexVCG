@@ -102,4 +102,8 @@ exactly one place, at the very end.
   `ExtraInvariantGenerator`, whose hooks all do nothing. The temporal operators of Reflex-AL need an
   execution-history model the theory does not have.
 - Division domain conditions, which the old generator emitted as *assumptions*, are not reproduced.
-- `exprTest`'s `var++ + var` - the ordering of effects within a single expression is not modelled.
+- **Writes inside an expression are rejected, not modelled.** `v = v++ + v` and
+  `if (motion && light = LOW)` have no ordering condition generation can rely on, so `CfgBuilder`
+  reports them. Supporting them means threading the pre-write state through expression rendering,
+  the way the old `ExprGenRes` did. Two test programs hit this: `exprTest` and `newSmartLighting`,
+  the latter because its source says `=` where it means `==`.

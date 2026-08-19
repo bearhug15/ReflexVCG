@@ -215,8 +215,68 @@ public final class CfgBuilder {
         return target.getStartState().getName();
     }
 
+    /**
+     * Whether an expression writes to anything: an assignment, or an increment.
+     */
+    private static boolean writesAnything(IrExpr expr) {
+        if (expr == null) {
+            return false;
+        }
+        if (expr instanceof IrExpr.Assign || expr instanceof IrExpr.IncDec) {
+            return true;
+        }
+        if (expr instanceof IrExpr.Binary binary) {
+            return writesAnything(binary.getLeft()) || writesAnything(binary.getRight());
+        }
+        if (expr instanceof IrExpr.Unary unary) {
+            return writesAnything(unary.getOperand());
+        }
+        if (expr instanceof IrExpr.Cast cast) {
+            return writesAnything(cast.getOperand());
+        }
+        if (expr instanceof IrExpr.Call call) {
+            return call.getArguments().stream().anyMatch(CfgBuilder::writesAnything);
+        }
+        return false;
+    }
+
+    /** Index expressions are evaluated too, so a write inside one counts. */
+    private static boolean writesInIndex(IrExpr.VarRef target) {
+        return target.getAccesses().stream()
+                .anyMatch(access -> access instanceof IrExpr.IndexAccess index
+                        && writesAnything(index.getIndex()));
+    }
+
+    /**
+     * A write anywhere other than at the very top of a statement's expression.
+     *
+     * <p>{@code x = 1;} and {@code x++;} are ordinary statements: one write, and the value
+     * is discarded. {@code y = x++ + x} is not - the increment and the surrounding reads
+     * have no ordering the generator can rely on, and in C the expression is undefined
+     * outright. Rather than emit a condition that quietly drops the increment, such an
+     * expression is reported as unsupported.
+     */
+    private static boolean hasNestedWrite(IrExpr root) {
+        if (root instanceof IrExpr.Assign assign) {
+            return writesAnything(assign.getValue()) || writesInIndex(assign.getTarget());
+        }
+        if (root instanceof IrExpr.IncDec incDec) {
+            return writesInIndex(incDec.getTarget());
+        }
+        return writesAnything(root);
+    }
+
+    private Fragment unsupportedWrite(String where) {
+        return effect(new CfgNode.Unsupported("write inside an expression",
+                "a write nested in " + where + " has no ordering that condition generation "
+                        + "can rely on; lift it into a statement of its own"));
+    }
+
     /** An expression statement contributes an effect only when it assigns something. */
     private Fragment buildExpressionStatement(IrExpr expr) {
+        if (hasNestedWrite(expr)) {
+            return unsupportedWrite("a larger expression");
+        }
         if (expr instanceof IrExpr.Assign assign) {
             return effect(new CfgNode.Assign(assign.getTarget(), valueOf(assign)));
         }
@@ -247,6 +307,9 @@ public final class CfgBuilder {
     }
 
     private Fragment buildLocalDeclaration(IrDecl.Variable variable) {
+        if (writesAnything(variable.getInitializer())) {
+            return unsupportedWrite("an initialiser");
+        }
         if (variable.getInitializer() == null) {
             CfgNode.Join node = new CfgNode.Join();
             return new Fragment(node, node);
@@ -263,6 +326,9 @@ public final class CfgBuilder {
      * constant contributes only the branch it can actually take.
      */
     private Fragment buildIf(IrProcess process, IrStmt.If ifStmt) {
+        if (writesAnything(ifStmt.getCondition())) {
+            return unsupportedWrite("a condition");
+        }
         CfgNode.Join entry = new CfgNode.Join();
         CfgNode.Join exit = new CfgNode.Join();
 
@@ -296,6 +362,9 @@ public final class CfgBuilder {
      * none of them.
      */
     private Fragment buildSwitch(IrProcess process, IrStmt.Switch switchStmt) {
+        if (writesAnything(switchStmt.getSelector())) {
+            return unsupportedWrite("a switch selector");
+        }
         CfgNode.Join entry = new CfgNode.Join();
         CfgNode.Join exit = new CfgNode.Join();
 

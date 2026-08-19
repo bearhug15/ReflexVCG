@@ -35,6 +35,10 @@ class NewPipelineEndToEndTest {
 
     private static final Path PROGRAMS = Path.of("src/test/resources/programs-new");
 
+    /** Programs whose source writes to something inside a larger expression. */
+    private static final List<String> WRITES_INSIDE_EXPRESSIONS =
+            List.of("exprTest.rx", "newSmartLighting.rx");
+
     private static IrProgram load(Path file) throws IOException {
         NewReflexLexer lexer = new NewReflexLexer(CharStreams.fromPath(file));
         BufferedTokenStream tokens = new CommonTokenStream(lexer);
@@ -63,9 +67,13 @@ class NewPipelineEndToEndTest {
             IrProgram program = load(file);
             Cfg cfg = new CfgBuilder(program).build();
 
-            // exprTest uses `var++ + var`, whose ordering of effects within one
-            // expression the pipeline does not model; it is covered separately below.
-            if (file.getFileName().toString().equals("exprTest.rx")) {
+            // Two programs write inside an expression and are reported rather than
+            // generated: exprTest with `var++ + var`, and newSmartLighting with
+            // `if (motion && light = LOW)` - a single '=' assigning to a physical input,
+            // which also makes that branch unreachable. Asserted in their own test below.
+            if (WRITES_INSIDE_EXPRESSIONS.contains(file.getFileName().toString())) {
+                assertFalse(cfg.unsupportedNodes().isEmpty(),
+                        file.getFileName() + " should be reported as unsupported, not generated");
                 continue;
             }
 
@@ -107,10 +115,11 @@ class NewPipelineEndToEndTest {
                 new Expected("ifTest3", 6, 0, ""),
                 new Expected("switchTest1", 6, 0, ""),
                 new Expected("switchTest2", 7, 0, ""),
-                // The five realistic programs, the largest of which has 1008 paths.
+                // The realistic programs, the largest of which has 1008 paths.
+                // newSmartLighting is absent: it writes inside a condition and is
+                // reported rather than generated.
                 new Expected("newBarrier", 73, 0, ""),
                 new Expected("newEscalator", 43, 0, ""),
-                new Expected("newSmartLighting", 487, 0, ""),
                 new Expected("newThermopot", 181, 0, ""),
                 new Expected("newTurnstile", 1009, 0, ""));
 
@@ -156,6 +165,41 @@ class NewPipelineEndToEndTest {
                 .assertThrows(PathEnumerator.UnsupportedConstructException.class,
                         () -> new PathEnumerator(cfg).enumerate());
         assertTrue(raised.getMessage().contains("not supported"), raised.getMessage());
+    }
+
+    /**
+     * A write nested in a larger expression has no ordering condition generation can rely
+     * on - in C the expression is undefined outright - so it is reported rather than
+     * silently generating a condition that drops the write.
+     */
+    @Test
+    void reportsWritesNestedInsideExpressions() throws IOException {
+        Path file = Files.createTempFile("nested", ".rx");
+        Files.writeString(file, "program P {\n"
+                + "  clock 100;\n"
+                + "  node N { clock 100; }\n"
+                + "  int8 v = 0;\n"
+                + "  process Proc :: node N { state s { v = v++ + v; } }\n"
+                + "}");
+
+        Cfg cfg = new CfgBuilder(load(file)).build();
+        assertEquals(1, cfg.unsupportedNodes().size());
+        assertEquals("write inside an expression", cfg.unsupportedNodes().get(0).getConstruct());
+    }
+
+    /** A write at the top of a statement is the ordinary case and stays supported. */
+    @Test
+    void allowsWritesAtTheTopOfAStatement() throws IOException {
+        Path file = Files.createTempFile("plain", ".rx");
+        Files.writeString(file, "program P {\n"
+                + "  clock 100;\n"
+                + "  node N { clock 100; }\n"
+                + "  int8 v = 0;\n"
+                + "  process Proc :: node N { state s { v = v + 1; v++; } }\n"
+                + "}");
+
+        Cfg cfg = new CfgBuilder(load(file)).build();
+        assertTrue(cfg.unsupportedNodes().isEmpty(), "both statements are ordinary writes");
     }
 
     @Test

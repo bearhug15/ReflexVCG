@@ -33,7 +33,10 @@ class StaticAnalysisMeasurementTest {
 
     private static final Path PROGRAMS = Path.of("src/test/resources/programs-new");
 
-    /** What the old pipeline emitted with -a true, from src/test/baseline/vc-counts.txt. */
+    /**
+     * What the old pipeline emitted with -a true. newSmartLighting is absent: its source
+     * writes inside a condition, which this pipeline reports rather than generating.
+     */
     private static final Map<String, Integer> OLD_WITH_ANALYSIS = new LinkedHashMap<>(Map.of(
             "ifTest1", 3,
             "ifTest2", 5,
@@ -42,7 +45,6 @@ class StaticAnalysisMeasurementTest {
             "switchTest2", 5,
             "newBarrier", 33,
             "newEscalator", 27,
-            "newSmartLighting", 127,
             "newThermopot", 41,
             "newTurnstile", 134));
 
