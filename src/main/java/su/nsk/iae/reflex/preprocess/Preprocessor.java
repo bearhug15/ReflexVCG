@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.preprocess;
 
+import su.nsk.iae.reflex.ann.AnnTyping;
 import su.nsk.iae.reflex.ir.IrProgram;
 
 /**
@@ -17,6 +18,11 @@ import su.nsk.iae.reflex.ir.IrProgram;
  *   <li><b>Normalisation</b> last, so the states it synthesises already contain fully
  *       typed, explicitly converted expressions.</li>
  * </ol>
+ *
+ * <p>Annotations are carried through the same passes: mangled alongside the program, then
+ * typed from the same environment. The translation of an annotation to Isabelle reads a
+ * variable under its final name and converts operands by their types, so both have to have
+ * happened by then.
  *
  * <p>The result is a canonical program: names are globally unique, every conversion is
  * an explicit cast, and no {@code wait} or {@code slice} remains.
@@ -37,6 +43,9 @@ public final class Preprocessor {
 
         TypeEnvironment types = new TypeEnvironment(program, mangling.getDirectAccessNames());
         new CastInsertionPass(types).run(program);
+        // Annotations are typed from the same environment: their names were mangled
+        // alongside the program's, so a variable resolves the same way in both.
+        new AnnTyping(types).run(program);
 
         new NormalizationPass().run(program);
         return types;

@@ -56,7 +56,7 @@ public final class CastInsertionPass {
      * Type an operation is carried out at, given its operands - {@code defType} of the
      * spec. A null {@code left} means a unary operator.
      */
-    static IrType defType(String op, IrType left, IrType right) {
+    public static IrType defType(String op, IrType left, IrType right) {
         if (left != null && left.isUndefined()) {
             if (right.isUndefined()) {
                 return left == IrType.UNDEFINED_FLOAT || right == IrType.UNDEFINED_FLOAT

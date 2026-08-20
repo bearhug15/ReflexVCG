@@ -102,6 +102,23 @@ public final class TypeEnvironment {
         return null;
     }
 
+    /**
+     * The type of a struct's field, or null when the owner is not a struct declaring it.
+     * Exposed so annotations can follow an access path without duplicating the lookup.
+     */
+    public IrType fieldType(IrType owner, String field) {
+        if (!(owner instanceof IrType.Struct struct)) {
+            return null;
+        }
+        Map<String, IrType> fields = structFields.get(struct.name());
+        return fields == null ? null : fields.get(field);
+    }
+
+    /** The element type of an array, or null when the owner is not one. */
+    public IrType elementType(IrType owner) {
+        return owner instanceof IrType.Array array ? array.element() : null;
+    }
+
     /** Replaces a Named type with the struct or enum it refers to. */
     public IrType resolve(IrType type) {
         if (type instanceof IrType.Named named) {
