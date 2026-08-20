@@ -63,8 +63,10 @@ exactly one place, at the very end.
    which are branches, not operators. Nodes carry IR, never rendered text.
 5. **Enumerate** — `cfg/PathEnumerator` walks paths depth-first; each becomes a `VerificationCondition`
    of symbolic `VcStatement`s. `analysis/StaticAnalysis` (spec: `StaticalAnalysis.tex`) discards a path
-   at the node that makes it impossible, so the subtree below is never explored. `for` and inline C
-   become `Unsupported` nodes and stop generation.
+   at the node that makes it impossible, so the subtree below is never explored. A path may produce more
+   than one condition: an annotation on it contributes the obligation discharging it, and a loop
+   contributes its entry and preservation conditions. Inline C, and a `for` with no invariant, become
+   `Unsupported` nodes and stop generation.
 6. **Render** — `vc/IsabelleRenderer` is the *only* class that knows Isabelle; `vc/VcWriter` writes the
    files. Values live in ReflexBase's `val` datatype: read with `getVarVal` then a projection
    (`theInt`/`theNat`/`theBool`/`theReal`), written through the matching constructor.
@@ -83,6 +85,26 @@ exactly one place, at the very end.
   access path, rather than four typed getters. Reflex types map onto HOL as: signed ints → `int`,
   unsigned and `time` → `nat`, `bool` → `bool`, float/double → `real`. Changing codegen means keeping
   step with this file.
+- **Annotations reach the output four ways** (spec: `Annotations.tex`, language: `Reflex-AL.pdf`).
+  `ann/AnnTranslator` turns a bound annotation into a `term/Term`; nothing else renders one.
+  - `assume` — an obligation proving it (`ASSUME<n>.thy`), *and* an intermediate assumption in every
+    main condition that passes it.
+  - `assert` — the same obligation (`ASSERT<n>.thy`), and nothing else. Both kinds are stated where
+    they are written, in front of the statement they annotate; the only difference is that assumption.
+  - `invariant` on the program, a process or a state — conjoined into `inv` in `Requirements.thy`, so
+    every condition carries it without restating it. The scope decides the guard: none for a program,
+    "not stopped and not in error" for a process, "in that state" for a state.
+  - `invariant` on a `for` — the loop is cut out of the path. It becomes `LOOPENTRY<n>` (holds on
+    entry), `LOOPSTEP<n>` (one iteration preserves it), and an opaque state on the main path knowing
+    only the invariant and the negated loop condition.
+
+  Mangling and typing run over annotations along with the code, so an unqualified name resolves in the
+  scope the annotation sits in. `AnnotatedGenerationTest` covers all of this against
+  `programs-new/annotatedTank.rx`, which carries one of every kind.
+- **An obligation is written once, not once per path.** It depends only on the path up to where it is
+  stated, so every path continuing past it restates it word for word. `VcWriter` drops the repeats,
+  comparing lemmas with their bound state names renumbered, since those come from a program-wide
+  counter and differ between otherwise identical statements.
 - **The IR is mutable on purpose.** The preprocessing passes rewrite the program in place, which is not
   expressible against an ANTLR tree. Use `IrCopier` when duplicating a subtree — sharing one would let a
   later rewrite of one place silently change another.
@@ -98,9 +120,17 @@ exactly one place, at the very end.
 
 - **The pruned counts for the four multi-process programs are unconfirmed.** They differ from the old
   pipeline, whose grouping was the non-deterministic part, so matching it is not evidence either way.
-- **Nothing is generated from annotations.** They are parsed, bound and reachable from
-  `ExtraInvariantGenerator`, whose hooks all do nothing. The temporal operators of Reflex-AL need an
-  execution-history model the theory does not have.
+- **`ExtraInvariantGenerator` still does nothing.** Its hooks are wired in and reach the annotations,
+  the graph and each generated condition, but every one returns its input unchanged.
+- **Two gaps in `ReflexAL.g4`.** Its `variable` rule writes a qualified prefix with exactly two
+  separators, so a program-scope variable has to be written `##x` to mean the mangled `#x`
+  (`AnnMangling` normalises that away), and a state-scoped name — four parts,
+  `node#process#state#x` — cannot be written at all. Unqualified names resolve by scope, which is
+  what the test programs use.
+- **No annotation output has been proved in Isabelle.** Every temporal operator translates and is
+  covered by `AnnTranslatorTest` — they become quantifiers over substates, with `timer`, `within`,
+  `stable` and `cooldown` leaning on `ltime` — but no generated lemma has been put to a prover, so
+  the shapes are only as good as `Annotations.tex` and `ReflexBase.thy`.
 - Division domain conditions, which the old generator emitted as *assumptions*, are not reproduced.
 - **Writes inside an expression are rejected, not modelled.** `v = v++ + v` and
   `if (motion && light = LOW)` have no ordering condition generation can rely on, so `CfgBuilder`

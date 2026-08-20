@@ -2,6 +2,7 @@ package su.nsk.iae.reflex.vc;
 
 import su.nsk.iae.reflex.ir.IrExpr;
 import su.nsk.iae.reflex.ir.TimeRef;
+import su.nsk.iae.reflex.term.Term;
 
 /**
  * One assumption of a verification condition, held symbolically.
@@ -23,6 +24,20 @@ public sealed interface VcStatement {
 
     /** {@code getPstate st ''P'' = ''s''}: the process is in a particular state. */
     record ProcessInState(String state, String process, String pstate) implements VcStatement {
+    }
+
+    /**
+     * A formula an annotation contributes. An {@code assume} adds one to the main
+     * condition; a loop invariant adds one for the state after the loop.
+     */
+    record Assumption(String label, Term formula) implements VcStatement {
+    }
+
+    /**
+     * A state the condition knows nothing about beyond what is assumed of it - the
+     * state a loop leaves behind, whose body is proved separately.
+     */
+    record OpaqueState(String target, String source) implements VcStatement {
     }
 
     /** A path condition: the branch taken required this to hold. */

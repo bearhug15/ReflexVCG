@@ -4,6 +4,12 @@ import su.nsk.iae.reflex.analysis.Event;
 import su.nsk.iae.reflex.analysis.PathState;
 import su.nsk.iae.reflex.analysis.StaticAnalysis;
 import su.nsk.iae.reflex.analysis.Term;
+import su.nsk.iae.reflex.ann.AnnTranslator;
+import su.nsk.iae.reflex.ir.Annotation;
+import su.nsk.iae.reflex.ir.IrCopier;
+import su.nsk.iae.reflex.ir.IrExpr;
+import su.nsk.iae.reflex.ir.IrType;
+import su.nsk.iae.reflex.vc.IsabelleRenderer;
 import su.nsk.iae.reflex.vc.VcStatement;
 import su.nsk.iae.reflex.vc.VerificationCondition;
 
@@ -12,15 +18,19 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Enumerates the paths of a {@link Cfg}, turning each into a verification condition.
+ * Enumerates the paths of a {@link Cfg}, turning each into verification conditions.
  *
- * <p>A plain depth-first walk, emitting a condition on reaching the exit. The previous
- * generator extended jgrapht's AbstractGraphIterator while firing its own traversal
- * events and keeping the accumulated state in listener fields, which made the order of
- * effects hard to follow; here the recursion carries its own state and nothing is shared.
+ * <p>A plain depth-first walk, emitting on reaching the exit. The previous generator
+ * extended jgrapht's AbstractGraphIterator while firing its own traversal events and
+ * keeping the accumulated state in listener fields; here the recursion carries its own
+ * state and nothing is shared.
  *
  * <p>State variables are numbered along the path: an effect consumes the current one and
  * produces the next, so a condition reads as a chain {@code st0, st1, ... st_final}.
+ *
+ * <p>A path may produce more than one condition. An annotation contributes an obligation
+ * discharging it, and a loop contributes the conditions that its invariant holds on entry
+ * and survives an iteration.
  */
 public final class PathEnumerator {
 
@@ -29,25 +39,35 @@ public final class PathEnumerator {
 
     private final Cfg cfg;
     private final StaticAnalysis analysis;
+    private final AnnTranslator annotations;
     private int emitted;
     private int pruned;
 
     public PathEnumerator(Cfg cfg) {
-        this(cfg, null);
+        this(cfg, null, null);
+    }
+
+    public PathEnumerator(Cfg cfg, StaticAnalysis analysis) {
+        this(cfg, analysis, null);
     }
 
     /**
-     * @param analysis discards paths the analysis shows to be impossible; null keeps
-     *                 every path
+     * @param analysis    discards paths shown to be impossible; null keeps every path
+     * @param annotations translates the annotations met along a path; null ignores them
      */
-    public PathEnumerator(Cfg cfg, StaticAnalysis analysis) {
+    public PathEnumerator(Cfg cfg, StaticAnalysis analysis, AnnTranslator annotations) {
         this.cfg = cfg;
         this.analysis = analysis;
+        this.annotations = annotations;
     }
 
     /** How many times a subtree was abandoned because the path became impossible. */
     public int getPruned() {
         return pruned;
+    }
+
+    public int getEmitted() {
+        return emitted;
     }
 
     /** Collects every condition. Convenient for tests and small programs. */
@@ -62,10 +82,6 @@ public final class PathEnumerator {
         emitted = 0;
         pruned = 0;
         walk(cfg.getEntry(), PathState.INITIAL, new ArrayList<>(), sink);
-    }
-
-    public int getEmitted() {
-        return emitted;
     }
 
     private void walk(CfgNode node, PathState state, List<CfgNode> path,
@@ -86,8 +102,10 @@ public final class PathEnumerator {
 
         path.add(node);
         if (node.isTerminal()) {
-            sink.accept(toCondition(path));
-            emitted++;
+            for (VerificationCondition condition : build(path)) {
+                sink.accept(condition);
+                emitted++;
+            }
         } else {
             for (CfgNode successor : node.getSuccessors()) {
                 walk(successor, next, path, sink);
@@ -130,53 +148,211 @@ public final class PathEnumerator {
         return state;
     }
 
-    /** Converts one path into the chain of assumptions describing it. */
-    private VerificationCondition toCondition(List<CfgNode> path) {
-        VerificationCondition condition = new VerificationCondition();
-        int stateIndex = 0;
-        String current = stateName(stateIndex);
+    // ------------------------------------------------------------------ conditions
 
-        condition.add(new VcStatement.Invariant(current));
+    /** Numbers the states along one path and collects what it produces. */
+    private static final class Builder {
+        private final VerificationCondition main = new VerificationCondition();
+        private final List<VerificationCondition> derived = new ArrayList<>();
+        private int stateIndex;
+        private int checks;
+        private String current = "st0";
 
-        for (CfgNode node : path) {
-            if (node instanceof CfgNode.InState inState) {
-                condition.add(new VcStatement.ProcessInState(
-                        current, inState.getProcess(), inState.getState()));
-            } else if (node instanceof CfgNode.Guard guard) {
-                condition.add(new VcStatement.Condition(current, guard.getCondition()));
-            } else if (node instanceof CfgNode.TimeoutGuard timeout) {
-                condition.add(new VcStatement.TimeoutCheck(current, timeout.getProcess(),
-                        timeout.getDuration(), timeout.isExceeded()));
-            } else if (node instanceof CfgNode.Assign assign) {
-                String next = stateName(++stateIndex);
-                condition.add(new VcStatement.Assign(next, current, assign.getTarget(), assign.getValue()));
-                current = next;
-            } else if (node instanceof CfgNode.SetState setState) {
-                String next = stateName(++stateIndex);
-                condition.add(new VcStatement.SetProcessState(
-                        next, current, setState.getProcess(), setState.getState()));
-                current = next;
-            } else if (node instanceof CfgNode.ResetTimer reset) {
-                String next = stateName(++stateIndex);
-                condition.add(new VcStatement.ResetTimer(next, current, reset.getProcess()));
-                current = next;
-            } else if (node instanceof CfgNode.ToEnv) {
-                String next = stateName(++stateIndex);
-                condition.add(new VcStatement.ToEnv(next, current));
-                current = next;
-            } else if (node instanceof CfgNode.Unsupported unsupported) {
-                throw new UnsupportedConstructException(unsupported);
-            }
-            // Entry, Exit and Join carry no assumption.
+        String next() {
+            return "st" + (++stateIndex);
         }
-
-        condition.add(new VcStatement.Final(su.nsk.iae.reflex.vc.IsabelleRenderer.FINAL_STATE, current));
-        condition.setFinalState(su.nsk.iae.reflex.vc.IsabelleRenderer.FINAL_STATE);
-        return condition;
     }
 
-    private static String stateName(int index) {
-        return "st" + index;
+    /** Converts one path into the conditions describing it. */
+    private List<VerificationCondition> build(List<CfgNode> path) {
+        Builder builder = new Builder();
+        builder.main.add(new VcStatement.Invariant(builder.current));
+
+        for (CfgNode node : path) {
+            step(builder, node);
+        }
+
+        builder.main.add(new VcStatement.Final(IsabelleRenderer.FINAL_STATE, builder.current));
+        builder.main.setFinalState(IsabelleRenderer.FINAL_STATE);
+
+        List<VerificationCondition> conditions = new ArrayList<>();
+        conditions.add(builder.main);
+        conditions.addAll(builder.derived);
+        return conditions;
+    }
+
+    private void step(Builder builder, CfgNode node) {
+        if (node instanceof CfgNode.InState inState) {
+            builder.main.add(new VcStatement.ProcessInState(
+                    builder.current, inState.getProcess(), inState.getState()));
+        } else if (node instanceof CfgNode.Guard guard) {
+            builder.main.add(new VcStatement.Condition(builder.current, guard.getCondition()));
+        } else if (node instanceof CfgNode.TimeoutGuard timeout) {
+            builder.main.add(new VcStatement.TimeoutCheck(builder.current, timeout.getProcess(),
+                    timeout.getDuration(), timeout.isExceeded()));
+        } else if (node instanceof CfgNode.Assign assign) {
+            String target = builder.next();
+            builder.main.add(new VcStatement.Assign(
+                    target, builder.current, assign.getTarget(), assign.getValue()));
+            builder.current = target;
+        } else if (node instanceof CfgNode.SetState setState) {
+            String target = builder.next();
+            builder.main.add(new VcStatement.SetProcessState(
+                    target, builder.current, setState.getProcess(), setState.getState()));
+            builder.current = target;
+        } else if (node instanceof CfgNode.ResetTimer reset) {
+            String target = builder.next();
+            builder.main.add(new VcStatement.ResetTimer(target, builder.current, reset.getProcess()));
+            builder.current = target;
+        } else if (node instanceof CfgNode.ToEnv) {
+            String target = builder.next();
+            builder.main.add(new VcStatement.ToEnv(target, builder.current));
+            builder.current = target;
+        } else if (node instanceof CfgNode.Check check) {
+            annotationCheck(builder, check);
+        } else if (node instanceof CfgNode.LoopCut cut) {
+            loopCut(builder, cut);
+        } else if (node instanceof CfgNode.Unsupported unsupported) {
+            throw new UnsupportedConstructException(unsupported);
+        }
+        // Entry, Exit and Join carry no assumption.
+    }
+
+    /**
+     * An annotation met along the path. Both kinds produce an obligation discharging the
+     * formula where it is written; an {@code assume} additionally lets the rest of the
+     * path rely on it.
+     */
+    private void annotationCheck(Builder builder, CfgNode.Check check) {
+        if (annotations == null) {
+            return;
+        }
+        Annotation annotation = check.getAnnotation();
+        su.nsk.iae.reflex.term.Term state = new su.nsk.iae.reflex.term.Term.Var(builder.current);
+        su.nsk.iae.reflex.term.Term formula = annotations.translateAt(annotation, state, state);
+
+        VerificationCondition obligation = builder.main.copy();
+        obligation.setKind(annotation.getKind() == Annotation.Kind.ASSUME
+                ? VerificationCondition.Kind.ASSUME
+                : VerificationCondition.Kind.ASSERT);
+        obligation.setConclusion(formula);
+        obligation.setFinalState(builder.current);
+        obligation.setNote(annotation.getKind().name().toLowerCase()
+                + " at line " + annotation.getLine() + ": " + annotation.getText());
+        builder.derived.add(obligation);
+
+        if (annotation.getKind() == Annotation.Kind.ASSUME) {
+            builder.main.add(new VcStatement.Assumption(
+                    builder.current + "_assume_" + builder.checks++, formula));
+        }
+    }
+
+    /**
+     * A loop, split by its invariant and its condition into three parts, as the loop
+     * section of the specification has it:
+     *
+     * <ul>
+     *   <li>the invariant holds on entry;</li>
+     *   <li>assuming it and the loop condition, one iteration preserves it;</li>
+     *   <li>the path continues past the loop knowing the invariant, and that the condition
+     *       has become false.</li>
+     * </ul>
+     *
+     * <p>The state after the loop is opaque: how many iterations ran is not known, so
+     * nothing is claimed of it beyond the invariant.
+     */
+    private void loopCut(Builder builder, CfgNode.LoopCut cut) {
+        if (annotations == null) {
+            throw new UnsupportedConstructException(new CfgNode.Unsupported("for",
+                    "a loop needs its invariant translated, which needs annotations enabled"));
+        }
+
+        su.nsk.iae.reflex.term.Term preLoop = new su.nsk.iae.reflex.term.Term.Var(builder.current);
+        AnnTranslator.Template template =
+                annotations.translateLoopInvariant(cut.getInvariant(), preLoop);
+
+        String afterLoop = builder.next();
+        AnnTranslator.LoopInvariant outer = annotations.instantiateLoopInvariant(
+                template, preLoop, preLoop, new su.nsk.iae.reflex.term.Term.Var(afterLoop));
+
+        // The invariant holds when the loop is reached.
+        VerificationCondition entry = builder.main.copy();
+        entry.setKind(VerificationCondition.Kind.LOOP_ENTRY);
+        entry.setConclusion(outer.onEntry());
+        entry.setFinalState(builder.current);
+        entry.setNote("loop invariant on entry, line " + cut.getInvariant().getLine());
+        builder.derived.add(entry);
+
+        // One iteration preserves it.
+        builder.derived.addAll(preservationConditions(cut, template));
+
+        // Past the loop.
+        builder.main.add(new VcStatement.OpaqueState(afterLoop, builder.current));
+        builder.main.add(new VcStatement.Assumption(afterLoop + "_invariant", outer.onExit()));
+        builder.current = afterLoop;
+        if (cut.getCondition() != null) {
+            builder.main.add(new VcStatement.Condition(builder.current, negated(cut.getCondition())));
+        }
+    }
+
+    /**
+     * One condition per path through the loop body: it keeps the invariant.
+     *
+     * <p>The body is numbered from its own {@code st0}, so the invariant is instantiated
+     * against those states rather than the enclosing path's - it is assumed up to where the
+     * body starts and shown up to the environment step that ends the iteration.
+     */
+    private List<VerificationCondition> preservationConditions(
+            CfgNode.LoopCut cut, AnnTranslator.Template template) {
+
+        List<VerificationCondition> conditions = new ArrayList<>();
+        Cfg bodyGraph = new Cfg(cut.getBodyEntry(), null, cfg.getProgram());
+        // No pruning inside the body: the analysis reasons about whole cycles.
+        new PathEnumerator(bodyGraph, null, annotations).forEach(bodyPath -> {
+            if (bodyPath.getKind() != VerificationCondition.Kind.MAIN) {
+                // An annotation inside the body keeps its own obligation.
+                conditions.add(bodyPath);
+                return;
+            }
+            su.nsk.iae.reflex.term.Term bodyStart = new su.nsk.iae.reflex.term.Term.Var("st0");
+            su.nsk.iae.reflex.term.Term bodyEnd =
+                    new su.nsk.iae.reflex.term.Term.Var(lastStateOf(bodyPath));
+            AnnTranslator.LoopInvariant parts =
+                    annotations.instantiateLoopInvariant(template, bodyStart, bodyEnd, bodyEnd);
+
+            VerificationCondition preserved = new VerificationCondition();
+            preserved.setKind(VerificationCondition.Kind.LOOP_PRESERVED);
+            preserved.setNote("loop invariant preserved, line " + cut.getInvariant().getLine());
+
+            preserved.add(new VcStatement.Assumption("loop_invariant", parts.assumedBeforeBody()));
+            if (cut.getCondition() != null) {
+                preserved.add(new VcStatement.Condition("st0", cut.getCondition()));
+            }
+            // The body's statements, less the invariant assumption a main path starts with.
+            bodyPath.getStatements().stream()
+                    .filter(statement -> !(statement instanceof VcStatement.Invariant))
+                    .forEach(preserved::add);
+            preserved.setConclusion(parts.shownAfterBody());
+            preserved.setFinalState(bodyPath.getFinalState());
+            conditions.add(preserved);
+        });
+        return conditions;
+    }
+
+    /** The last state a path actually reached, which its Final statement binds. */
+    private static String lastStateOf(VerificationCondition condition) {
+        for (VcStatement statement : condition.getStatements()) {
+            if (statement instanceof VcStatement.Final last) {
+                return last.source();
+            }
+        }
+        return "st0";
+    }
+
+    private static IrExpr negated(IrExpr condition) {
+        IrExpr result = new IrExpr.Unary(IrExpr.UnaryOp.NOT, IrCopier.copy(condition));
+        result.setResultType(IrType.BOOL);
+        return result;
     }
 
     /** Raised when a path reaches a construct VC generation does not support. */

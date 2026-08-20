@@ -1,6 +1,7 @@
 package su.nsk.iae.reflex.cfg;
 
 import su.nsk.iae.reflex.analysis.Attributes;
+import su.nsk.iae.reflex.ir.Annotation;
 import su.nsk.iae.reflex.ir.IrExpr;
 import su.nsk.iae.reflex.ir.TimeRef;
 
@@ -230,6 +231,65 @@ public abstract class CfgNode {
         @Override
         public String describe() {
             return "reset " + process;
+        }
+    }
+
+    /**
+     * A point where an annotation has to be checked.
+     *
+     * <p>The difference between assume and assert is entirely which state the formula
+     * is read in - before the statement or after it - so the two are placed on either
+     * side of the statement's fragment and the traversal needs no further distinction.
+     */
+    public static final class Check extends CfgNode {
+        private final Annotation annotation;
+
+        public Check(Annotation annotation) {
+            this.annotation = annotation;
+        }
+
+        public Annotation getAnnotation() {
+            return annotation;
+        }
+
+        @Override
+        public String describe() {
+            return annotation.getKind().name().toLowerCase() + " " + annotation.getText();
+        }
+    }
+
+    /**
+     * A loop whose invariant lets the path continue past it without unrolling: the
+     * body is proved separately, and here the invariant is all that is known.
+     */
+    public static final class LoopCut extends CfgNode {
+        private final Annotation invariant;
+        private final IrExpr condition;
+        private final CfgNode bodyEntry;
+
+        public LoopCut(Annotation invariant, IrExpr condition, CfgNode bodyEntry) {
+            this.invariant = invariant;
+            this.condition = condition;
+            this.bodyEntry = bodyEntry;
+        }
+
+        public Annotation getInvariant() {
+            return invariant;
+        }
+
+        /** The loop's condition: true while the body runs, false once it stops. */
+        public IrExpr getCondition() {
+            return condition;
+        }
+
+        /** Entry to the body's own graph, enumerated to prove the invariant kept. */
+        public CfgNode getBodyEntry() {
+            return bodyEntry;
+        }
+
+        @Override
+        public String describe() {
+            return "loop with invariant";
         }
     }
 

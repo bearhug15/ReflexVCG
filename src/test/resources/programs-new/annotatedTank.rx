@@ -1,0 +1,70 @@
+// A water tank controller, carrying every kind of annotation Reflex-AL offers.
+//
+// The tank fills until the level sensors agree it is full, then drains. A loop sums the
+// four sensor readings, and its invariant is what survives one iteration.
+//
+// Names are written unqualified and resolved in the scope the annotation sits in. A name
+// may also be written out in full, as `Tank#Controller#total`.
+//
+//[invariant: !(pumpIn && pumpOut)]
+program AnnotatedTank {
+	clock 100;
+
+	input sensors 0x00 0x00 8;
+	output valves 0x00 0x01 8;
+
+	node Tank { clock 100; }
+
+	const int32 SENSOR_COUNT = 4;
+	const int32 FULL_LEVEL = 3;
+
+	int32 level[4] = {0, 0, 0, 0};
+	int32 total;
+	int32 i;
+
+	bool full as (read = sensors, bit = 0);
+	bool empty as (read = sensors, bit = 1);
+	bool pumpIn as (read = valves, write = valves, bit = 0);
+	bool pumpOut as (read = valves, write = valves, bit = 1);
+
+	//[define: bool draining = pumpOut && !pumpIn]
+	//[invariant: in(Controller, filling) ==> !pumpOut]
+	process Controller :: node Tank {
+
+		//[invariant: total <= 4]
+		state filling {
+			pumpIn = true;
+			pumpOut = false;
+
+			total = 0;
+			i = 0;
+			// The running total never exceeds the number of sensors counted so far.
+			//[invariant: total <= i]
+			for (; i < SENSOR_COUNT; i = i + 1) {
+				total = total + level[i];
+			}
+
+			//[assume: total >= 0]
+			if (total >= FULL_LEVEL) {
+				//[assert: total >= 3]
+				set state draining;
+			}
+		}
+
+		state draining {
+			pumpIn = false;
+			pumpOut = true;
+
+			//[assert: draining]
+			if (empty) {
+				set next state;
+			}
+		}
+
+		//[invariant: once(in(Controller, filling))]
+		state idle {
+			//[assume: !full]
+			set state filling;
+		}
+	}
+}

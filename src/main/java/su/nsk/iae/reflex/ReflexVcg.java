@@ -9,6 +9,7 @@ import org.antlr.v4.runtime.Recognizer;
 import su.nsk.iae.reflex.antlr.NewReflexLexer;
 import su.nsk.iae.reflex.antlr.NewReflexParser;
 import su.nsk.iae.reflex.analysis.AttributePreparation;
+import su.nsk.iae.reflex.ann.AnnTranslator;
 import su.nsk.iae.reflex.analysis.StaticAnalysis;
 import su.nsk.iae.reflex.cfg.Cfg;
 import su.nsk.iae.reflex.cfg.CfgBuilder;
@@ -16,10 +17,17 @@ import su.nsk.iae.reflex.cfg.CfgNode;
 import su.nsk.iae.reflex.cfg.PathEnumerator;
 import su.nsk.iae.reflex.frontend.AnnotationBinder;
 import su.nsk.iae.reflex.frontend.AstBuilder;
+import su.nsk.iae.reflex.ir.Annotation;
+import su.nsk.iae.reflex.ir.IrProcess;
 import su.nsk.iae.reflex.ir.IrProgram;
+import su.nsk.iae.reflex.ir.IrState;
+import su.nsk.iae.reflex.ir.TimeRef;
 import su.nsk.iae.reflex.preprocess.Preprocessor;
 import su.nsk.iae.reflex.vc.ExtraInvariantGenerator;
 import su.nsk.iae.reflex.vc.InitialCondition;
+import su.nsk.iae.reflex.term.Term;
+import su.nsk.iae.reflex.term.TermRenderer;
+import su.nsk.iae.reflex.vc.IsabelleRenderer;
 import su.nsk.iae.reflex.vc.VcWriter;
 import su.nsk.iae.reflex.vc.VerificationCondition;
 
@@ -120,7 +128,8 @@ public final class ReflexVcg {
         extras.analyse();
 
         VcWriter writer = new VcWriter(destination, program.getName());
-        writer.writeSupportingTheories(program, extras.extraDefinitions());
+        writer.writeSupportingTheories(program, extras.extraDefinitions(),
+                globalInvariants(annotationTranslator()));
         // The base case first: the inductive step below assumes the invariant holds,
         // so something has to establish that it holds to begin with.
         VerificationCondition initial = extras.process(InitialCondition.build(program));
@@ -128,8 +137,9 @@ public final class ReflexVcg {
             writer.write(initial);
         }
 
+        AnnTranslator translator = annotationTranslator();
         StaticAnalysis analysis = staticAnalysis ? new StaticAnalysis(program) : null;
-        new PathEnumerator(graph, analysis).forEach(condition -> {
+        new PathEnumerator(graph, analysis, translator).forEach(condition -> {
             VerificationCondition processed = extras.process(condition);
             if (processed != null) {
                 writer.write(processed);
@@ -145,6 +155,135 @@ public final class ReflexVcg {
      */
     public void setExtraInvariantGenerator(ExtraInvariantGenerator extraInvariants) {
         this.extraInvariants = extraInvariants;
+    }
+
+    /**
+     * A translator holding every {@code define} the program introduces, so a definition is
+     * usable wherever it is in scope.
+     */
+    private AnnTranslator annotationTranslator() {
+        AnnTranslator translator = new AnnTranslator(clockTicks());
+        forEachAnnotation((owner, annotation) -> translator.register(annotation));
+        return translator;
+    }
+
+    /**
+     * Invariants written on the program, a process or a state, translated and conjoined
+     * into the global invariant.
+     *
+     * <p>Which one an invariant is decides how far it reaches: a program invariant holds at
+     * every state, a process invariant only while that process runs, and a state invariant
+     * only while it is in that state.
+     */
+    private List<String> globalInvariants(AnnTranslator translator) {
+        TermRenderer renderer = new TermRenderer();
+        Term state = new Term.Var("s");
+        List<String> invariants = new ArrayList<>();
+
+        forEachAnnotation((owner, annotation) -> {
+            if (annotation.getKind() != Annotation.Kind.INVARIANT) {
+                return;
+            }
+            if (owner instanceof LoopOwner) {
+                // A loop invariant is not global; it belongs to that loop's conditions.
+                return;
+            }
+            invariants.add(renderer.render(translator.translateInvariant(
+                    annotation, state, owner.scale(), owner.process(), owner.state())));
+        });
+        return invariants;
+    }
+
+    /** Where an annotation sits, which decides the shape of an invariant built from it. */
+    private interface Owner {
+        AnnTranslator.Scale scale();
+
+        default String process() {
+            return null;
+        }
+
+        default String state() {
+            return null;
+        }
+    }
+
+    /** Marks a loop's own annotations, which are handled by the loop's conditions. */
+    private interface LoopOwner extends Owner {
+    }
+
+    private void forEachAnnotation(java.util.function.BiConsumer<Owner, Annotation> visitor) {
+        Owner programScope = () -> AnnTranslator.Scale.PROGRAM;
+        program.getAnnotations().forEach(a -> visitor.accept(programScope, a));
+
+        for (IrProcess process : program.getProcesses()) {
+            Owner processScope = new Owner() {
+                @Override
+                public AnnTranslator.Scale scale() {
+                    return AnnTranslator.Scale.PROCESS;
+                }
+
+                @Override
+                public String process() {
+                    return process.getName();
+                }
+            };
+            process.getAnnotations().forEach(a -> visitor.accept(processScope, a));
+
+            for (IrState state : process.getStates()) {
+                Owner stateScope = new Owner() {
+                    @Override
+                    public AnnTranslator.Scale scale() {
+                        return AnnTranslator.Scale.PSTATE;
+                    }
+
+                    @Override
+                    public String process() {
+                        return process.getName();
+                    }
+
+                    @Override
+                    public String state() {
+                        return state.getName();
+                    }
+                };
+                state.getAnnotations().forEach(a -> visitor.accept(stateScope, a));
+                state.getStatements().forEach(s -> statementAnnotations(s, stateScope, visitor));
+            }
+        }
+    }
+
+    /**
+     * Annotations on statements. Those on a loop are reported against a loop owner so the
+     * global invariant leaves them to the loop's own conditions.
+     */
+    private void statementAnnotations(su.nsk.iae.reflex.ir.IrStmt statement, Owner scope,
+                                      java.util.function.BiConsumer<Owner, Annotation> visitor) {
+        if (statement == null) {
+            return;
+        }
+        Owner owner = statement instanceof su.nsk.iae.reflex.ir.IrStmt.For
+                ? (LoopOwner) () -> AnnTranslator.Scale.FOR
+                : scope;
+        statement.getAnnotations().forEach(a -> visitor.accept(owner, a));
+
+        if (statement instanceof su.nsk.iae.reflex.ir.IrStmt.Block block) {
+            block.getStatements().forEach(s -> statementAnnotations(s, scope, visitor));
+        } else if (statement instanceof su.nsk.iae.reflex.ir.IrStmt.If ifStmt) {
+            statementAnnotations(ifStmt.getThenBranch(), scope, visitor);
+            statementAnnotations(ifStmt.getElseBranch(), scope, visitor);
+        } else if (statement instanceof su.nsk.iae.reflex.ir.IrStmt.Switch switchStmt) {
+            switchStmt.getCases().forEach(
+                    c -> c.getStatements().forEach(s -> statementAnnotations(s, scope, visitor)));
+        } else if (statement instanceof su.nsk.iae.reflex.ir.IrStmt.For forStmt) {
+            statementAnnotations(forStmt.getBody(), scope, visitor);
+        }
+    }
+
+    private long clockTicks() {
+        TimeRef clock = program.getClock();
+        return clock.getKind() == TimeRef.Kind.TIME_LITERAL
+                ? IsabelleRenderer.parseTimeMillis(clock.getText())
+                : IsabelleRenderer.parseInteger(clock.getText());
     }
 
     /** Writes the control-flow graph in Graphviz format. */

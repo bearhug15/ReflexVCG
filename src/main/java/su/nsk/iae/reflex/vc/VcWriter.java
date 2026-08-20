@@ -10,7 +10,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Writes generated verification conditions and their supporting theories to a directory.
@@ -21,9 +27,14 @@ import java.util.List;
  */
 public final class VcWriter {
 
+    /** The names the annotation translator gives to the states it binds. */
+    private static final Pattern BOUND_STATE = Pattern.compile("\\bsa\\d+\\b");
+
     private final Path destination;
     private final String programName;
     private final IsabelleRenderer renderer = new IsabelleRenderer();
+    /** Lemmas already written, so a repeated obligation is not written twice. */
+    private final Set<String> seen = new HashSet<>();
     private int written;
 
     public VcWriter(Path destination, String programName) {
@@ -40,14 +51,21 @@ public final class VcWriter {
 
     /** Copies ReflexBase and writes the program and requirements theories. */
     public void writeSupportingTheories(IrProgram program) {
-        writeSupportingTheories(program, List.of());
+        writeSupportingTheories(program, List.of(), List.of());
+    }
+
+    public void writeSupportingTheories(IrProgram program, List<String> extraDefinitions) {
+        writeSupportingTheories(program, extraDefinitions, List.of());
     }
 
     /**
      * @param extraDefinitions definitions contributed by the extra-invariant stage,
      *                         written into the requirements theory after the invariant
+     * @param globalInvariants invariants written on the program, its processes or their
+     *                         states, conjoined into the invariant itself
      */
-    public void writeSupportingTheories(IrProgram program, List<String> extraDefinitions) {
+    public void writeSupportingTheories(IrProgram program, List<String> extraDefinitions,
+                                        List<String> globalInvariants) {
         // ReflexBase defines the state and its values, ReflexLemmas the facts about them,
         // ReflexPatterns the reusable proof patterns built on those.
         copyResource("ReflexTheory/ReflexBase.thy", "ReflexBase.thy");
@@ -57,15 +75,63 @@ public final class VcWriter {
                 baseTheoryName(), List.of("ReflexPatterns"), programTheoryBody(program)));
         write("Requirements.thy", renderer.renderTheory(
                 "Requirements", List.of("ReflexPatterns"),
-                requirementsBody() + String.join("\n", extraDefinitions)));
+                requirementsBody(globalInvariants) + String.join("\n", extraDefinitions)));
     }
 
-    /** Writes one condition, numbered in the order they were generated. */
+    /**
+     * Writes one condition, numbered in the order they were generated. The name says what
+     * the condition is for, so a failing proof points at the right thing: VC for a cycle,
+     * ASSUME and ASSERT for the annotations that have to be discharged, LOOP for the two
+     * halves of a loop invariant.
+     *
+     * <p>A condition that has already been written is skipped. An obligation depends only
+     * on the path up to where it is stated, so every path that continues past it would
+     * otherwise repeat it word for word.
+     */
     public void write(VerificationCondition condition) {
-        String name = programName + "_VC" + written;
+        String lemma = renderer.renderLemma(condition);
+        if (!seen.add(withCanonicalBoundNames(lemma))) {
+            return;
+        }
+        String name = programName + "_" + prefixOf(condition.getKind()) + written;
         write(name + ".thy", renderer.renderTheory(
-                name, List.of(baseTheoryName(), "Requirements"), renderer.renderLemma(condition)));
+                name, List.of(baseTheoryName(), "Requirements"), lemma));
         written++;
+    }
+
+    /**
+     * The lemma with its bound state names renumbered from one, used as the key deciding
+     * whether it has been written before.
+     *
+     * <p>Bound names are drawn from a counter that runs across the whole program, so two
+     * statements of the same obligation differ in nothing but those names. Renaming them
+     * makes such a pair compare equal; the file itself keeps the names it was given.
+     */
+    private static String withCanonicalBoundNames(String lemma) {
+        Map<String, String> renamed = new LinkedHashMap<>();
+        Matcher matcher = BOUND_STATE.matcher(lemma);
+        StringBuilder canonical = new StringBuilder();
+        while (matcher.find()) {
+            String name = renamed.computeIfAbsent(matcher.group(), n -> "sa" + (renamed.size() + 1));
+            matcher.appendReplacement(canonical, name);
+        }
+        matcher.appendTail(canonical);
+        return canonical.toString();
+    }
+
+    private static String prefixOf(VerificationCondition.Kind kind) {
+        switch (kind) {
+            case ASSUME:
+                return "ASSUME";
+            case ASSERT:
+                return "ASSERT";
+            case LOOP_ENTRY:
+                return "LOOPENTRY";
+            case LOOP_PRESERVED:
+                return "LOOPSTEP";
+            default:
+                return "VC";
+        }
     }
 
     private String baseTheoryName() {
@@ -92,8 +158,14 @@ public final class VcWriter {
                 + "  by (induction s) (auto)\n";
     }
 
-    private String requirementsBody() {
-        return "definition inv where\n\"inv s =\nTrue\n\"\n";
+    /**
+     * The invariant the conditions are stated against. Invariants written on the program,
+     * a process or a state are conjoined into it, which is what makes them global: every
+     * condition then carries them without restating them.
+     */
+    private String requirementsBody(List<String> invariants) {
+        String body = invariants.isEmpty() ? "True" : String.join("\n\\<and> ", invariants);
+        return "definition inv where\n\"inv s =\n" + body + "\n\"\n";
     }
 
     private static long clockTicks(TimeRef clock) {

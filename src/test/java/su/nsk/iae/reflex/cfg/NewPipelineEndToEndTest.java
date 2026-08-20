@@ -38,6 +38,13 @@ class NewPipelineEndToEndTest {
     /** Programs whose source writes to something inside a larger expression. */
     private static final List<String> WRITES_INSIDE_EXPRESSIONS = List.of("exprTest.rx");
 
+    /**
+     * Programs that only generate with annotations enabled. This test loads without an
+     * annotation binder, so a loop here has no invariant to be cut by; the annotated
+     * pipeline is covered by {@link su.nsk.iae.reflex.ann.AnnotatedGenerationTest}.
+     */
+    private static final List<String> NEEDS_ANNOTATIONS = List.of("annotatedTank.rx");
+
     private static IrProgram load(Path file) throws IOException {
         NewReflexLexer lexer = new NewReflexLexer(CharStreams.fromPath(file));
         BufferedTokenStream tokens = new CommonTokenStream(lexer);
@@ -71,6 +78,12 @@ class NewPipelineEndToEndTest {
             if (WRITES_INSIDE_EXPRESSIONS.contains(file.getFileName().toString())) {
                 assertFalse(cfg.unsupportedNodes().isEmpty(),
                         file.getFileName() + " should be reported as unsupported, not generated");
+                continue;
+            }
+
+            if (NEEDS_ANNOTATIONS.contains(file.getFileName().toString())) {
+                assertFalse(cfg.unsupportedNodes().isEmpty(),
+                        file.getFileName() + " should report its loop when annotations are off");
                 continue;
             }
 

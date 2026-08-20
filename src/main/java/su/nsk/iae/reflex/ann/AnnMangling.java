@@ -135,7 +135,16 @@ public final class AnnMangling {
             }
         });
 
-        if (isBound(ref.getName()) || ref.isQualified()) {
+        if (isBound(ref.getName())) {
+            return;
+        }
+        if (ref.isQualified()) {
+            // The annotation grammar writes a qualified name with the prefix always
+            // carrying two separators, so a program-level variable reads `##x` where the
+            // mangled form is `#x`. Every other written form already matches.
+            if (ref.getName().startsWith("##")) {
+                ref.setName(ref.getName().substring(1));
+            }
             return;
         }
         String mangled = variableMap.get(ref.getName());

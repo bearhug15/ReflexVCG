@@ -3,6 +3,7 @@ package su.nsk.iae.reflex.vc;
 import su.nsk.iae.reflex.ir.IrExpr;
 import su.nsk.iae.reflex.ir.IrType;
 import su.nsk.iae.reflex.ir.TimeRef;
+import su.nsk.iae.reflex.term.TermRenderer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +30,8 @@ public final class IsabelleRenderer {
     /** Conditions are numbered within a condition so their labels stay unique. */
     private int conditionCounter;
 
+    private final TermRenderer terms = new TermRenderer();
+
     // ------------------------------------------------------------------ theory
 
     public String renderTheory(String name, List<String> imports, String body) {
@@ -49,10 +52,26 @@ public final class IsabelleRenderer {
             assumptions.add(renderStatement(statement));
         }
 
-        StringBuilder lemma = new StringBuilder("lemma\nassumes ");
+        StringBuilder lemma = new StringBuilder();
+        if (condition.getNote() != null) {
+            // Says which annotation the condition came from, which is otherwise only
+            // recoverable by reading the formula.
+            lemma.append("(* ").append(condition.getNote()).append(" *)\n");
+        }
+        lemma.append("lemma\nassumes ");
         lemma.append(String.join("\n\tand ", assumptions));
-        lemma.append("\nshows \"").append(invariant(condition.getFinalState())).append("\"");
+        lemma.append("\nshows \"").append(renderConclusion(condition)).append("\"");
         return lemma.toString();
+    }
+
+    /**
+     * What the condition shows: an annotation's formula where it has one, and otherwise
+     * the invariant at the final state.
+     */
+    private String renderConclusion(VerificationCondition condition) {
+        return condition.getConclusion() == null
+                ? invariant(condition.getFinalState())
+                : terms.render(condition.getConclusion());
     }
 
     // ------------------------------------------------------------------ statements
@@ -61,6 +80,15 @@ public final class IsabelleRenderer {
     public String renderStatement(VcStatement statement) {
         if (statement instanceof VcStatement.Invariant s) {
             return "base_inv:\"" + invariant(s.state()) + "\"";
+        }
+        if (statement instanceof VcStatement.Assumption s) {
+            return s.label() + ":\"" + terms.render(s.formula()) + "\"";
+        }
+        if (statement instanceof VcStatement.OpaqueState s) {
+            // How many iterations the loop ran is not known, so the state it left behind is
+            // constrained only by being a boundary reachable from where it started.
+            return s.target() + ":\"toEnvP " + s.target() + " \\<and> substate "
+                    + s.source() + " " + s.target() + "\"";
         }
         if (statement instanceof VcStatement.EmptyState s) {
             return s.target() + ":\"" + s.target() + "=emptyState\"";
@@ -336,7 +364,7 @@ public final class IsabelleRenderer {
     // ------------------------------------------------------------------ literals
 
     /** Parses a Reflex integer literal: decimal, hex or octal, with optional suffixes. */
-    static long parseInteger(String text) {
+    public static long parseInteger(String text) {
         String value = text.trim();
         boolean negative = value.startsWith("-");
         if (negative || value.startsWith("+")) {
@@ -360,7 +388,7 @@ public final class IsabelleRenderer {
      * Converts a time literal such as {@code 0t1h30m} to milliseconds. Milliseconds are
      * matched before minutes, since 'ms' also starts with 'm'.
      */
-    static long parseTimeMillis(String text) {
+    public static long parseTimeMillis(String text) {
         String value = text.trim();
         if (value.length() < 2 || (value.charAt(0) != '0')
                 || (value.charAt(1) != 't' && value.charAt(1) != 'T')) {

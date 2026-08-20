@@ -1,6 +1,7 @@
 package su.nsk.iae.reflex.cfg;
 
 import su.nsk.iae.reflex.analysis.AttributePreparation;
+import su.nsk.iae.reflex.ir.Annotation;
 import su.nsk.iae.reflex.ir.IrDecl;
 import su.nsk.iae.reflex.ir.IrExpr;
 import su.nsk.iae.reflex.ir.IrProcess;
@@ -135,6 +136,33 @@ public final class CfgBuilder {
     // ------------------------------------------------------------------ statements
 
     private Fragment buildStatement(IrProcess process, IrStmt statement) {
+        Fragment fragment = buildStatementKind(process, statement);
+        return statement == null ? fragment : withChecks(statement, fragment);
+    }
+
+    /**
+     * Puts an {@code assume} or an {@code assert} in front of the statement it is written
+     * on. Both are read in the same state - where they are written - and both produce the
+     * obligation proving them; the difference is only that what follows an assume may rely
+     * on it. Written in source order, so the first annotation is met first.
+     */
+    private Fragment withChecks(IrStmt statement, Fragment fragment) {
+        Fragment result = fragment;
+        List<Annotation> annotations = statement.getAnnotations();
+        for (int i = annotations.size() - 1; i >= 0; i--) {
+            Annotation annotation = annotations.get(i);
+            if (annotation.getKind() != Annotation.Kind.ASSUME
+                    && annotation.getKind() != Annotation.Kind.ASSERT) {
+                continue;
+            }
+            CfgNode.Check check = new CfgNode.Check(annotation);
+            check.addSuccessor(result.entry());
+            result = new Fragment(check, result.exit());
+        }
+        return result;
+    }
+
+    private Fragment buildStatementKind(IrProcess process, IrStmt statement) {
         if (statement == null || statement instanceof IrStmt.Empty) {
             CfgNode.Join node = new CfgNode.Join();
             return new Fragment(node, node);
@@ -173,8 +201,7 @@ public final class CfgBuilder {
             return carrying(statement, buildProcessControl(process, control));
         }
         if (statement instanceof IrStmt.For forStmt) {
-            return effect(new CfgNode.Unsupported("for",
-                    "loops are not supported by verification condition generation"));
+            return buildFor(process, forStmt);
         }
         if (statement instanceof IrStmt.CCode ccode) {
             return effect(new CfgNode.Unsupported("inline C",
@@ -185,6 +212,51 @@ public final class CfgBuilder {
                     "wait/slice should have been removed by normalisation: " + statement);
         }
         throw new IllegalStateException("Unhandled statement: " + statement.getClass().getSimpleName());
+    }
+
+    /**
+     * A loop is cut out of the enclosing path. The initialiser runs there, since it happens
+     * once; past that the path knows the loop only through its invariant.
+     *
+     * <p>The update belongs to the body: what an iteration preserves is the invariant after
+     * the body <em>and</em> the step that follows it, so the body graph built here runs both.
+     * That graph is enumerated separately, by {@code PathEnumerator}, into the conditions
+     * saying the invariant holds on entry and survives one iteration.
+     */
+    private Fragment buildFor(IrProcess process, IrStmt.For forStmt) {
+        Annotation invariant = loopInvariantOf(forStmt);
+        if (invariant == null) {
+            return effect(new CfgNode.Unsupported("for",
+                    "a loop can only be generated for when an [invariant: ...] says what "
+                            + "it preserves"));
+        }
+
+        CfgNode.Join entry = new CfgNode.Join();
+        CfgNode current = entry;
+        for (IrDecl.Variable declaration : forStmt.getInitDeclarations()) {
+            Fragment fragment = buildLocalDeclaration(declaration);
+            current.addSuccessor(fragment.entry());
+            current = fragment.exit();
+        }
+        if (forStmt.getInitExpression() != null) {
+            Fragment fragment = buildExpressionStatement(forStmt.getInitExpression());
+            current.addSuccessor(fragment.entry());
+            current = fragment.exit();
+        }
+
+        Fragment body = buildStatement(process, forStmt.getBody());
+        CfgNode bodyExit = body.exit();
+        if (forStmt.getUpdate() != null) {
+            Fragment update = buildExpressionStatement(forStmt.getUpdate());
+            bodyExit.addSuccessor(update.entry());
+            bodyExit = update.exit();
+        }
+        bodyExit.addSuccessor(new CfgNode.Exit());
+
+        CfgNode.LoopCut cut =
+                new CfgNode.LoopCut(invariant, forStmt.getCondition(), body.entry());
+        current.addSuccessor(cut);
+        return new Fragment(entry, cut);
     }
 
     /**
@@ -213,6 +285,16 @@ public final class CfgBuilder {
             throw new IllegalStateException("no start state for process " + processName);
         }
         return target.getStartState().getName();
+    }
+
+    /** The invariant annotation attached to a loop, if it carries one. */
+    private static Annotation loopInvariantOf(IrStmt.For loop) {
+        for (Annotation annotation : loop.getAnnotations()) {
+            if (annotation.getKind() == Annotation.Kind.INVARIANT) {
+                return annotation;
+            }
+        }
+        return null;
     }
 
     /**
