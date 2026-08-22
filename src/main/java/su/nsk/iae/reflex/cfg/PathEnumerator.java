@@ -154,12 +154,113 @@ public final class PathEnumerator {
     private static final class Builder {
         private final VerificationCondition main = new VerificationCondition();
         private final List<VerificationCondition> derived = new ArrayList<>();
+        /** Every state named so far, in order, so a read pinned to an earlier one resolves. */
+        private final List<String> states = new ArrayList<>(List.of("st0"));
         private int stateIndex;
         private int checks;
         private String current = "st0";
 
         String next() {
-            return "st" + (++stateIndex);
+            String name = "st" + (++stateIndex);
+            states.add(name);
+            return name;
+        }
+
+        /**
+         * The state {@code stepsBack} before {@link #current}, which is what a read pinned
+         * by {@code ExprLowering} names.
+         */
+        String stateBefore(int stepsBack) {
+            int index = states.size() - 1 - stepsBack;
+            if (index < 0) {
+                throw new IllegalStateException(
+                        "a read pinned " + stepsBack + " states back, but only "
+                                + states.size() + " have been named");
+            }
+            return states.get(index);
+        }
+
+        /**
+         * Names the states an expression's pinned reads refer to.
+         *
+         * <p>A graph node is shared by every path through it and the paths number their
+         * states differently, so this copies rather than filling the node's own
+         * expression in. An expression with no pins - anything without a write inside it -
+         * is returned untouched.
+         */
+        IrExpr resolve(IrExpr expr) {
+            return hasPins(expr) ? pin(expr) : expr;
+        }
+
+        private IrExpr pin(IrExpr expr) {
+            if (expr instanceof IrExpr.At at) {
+                IrExpr resolved = new IrExpr.At(pin(at.getOperand()), stateBefore(at.getStepsBack()));
+                resolved.setResultType(at.getResultType());
+                return resolved;
+            }
+            if (expr instanceof IrExpr.VarRef ref) {
+                List<IrExpr.Access> path = new ArrayList<>();
+                for (IrExpr.Access access : ref.getAccesses()) {
+                    path.add(access instanceof IrExpr.IndexAccess index
+                            ? new IrExpr.IndexAccess(pin(index.getIndex()))
+                            : access);
+                }
+                IrExpr.VarRef resolved = new IrExpr.VarRef(ref.getName(), path);
+                resolved.setResultType(ref.getResultType());
+                return resolved;
+            }
+            if (expr instanceof IrExpr.Binary binary) {
+                IrExpr resolved = new IrExpr.Binary(binary.getOp(),
+                        pin(binary.getLeft()), pin(binary.getRight()));
+                resolved.setResultType(binary.getResultType());
+                return resolved;
+            }
+            if (expr instanceof IrExpr.Unary unary) {
+                IrExpr resolved = new IrExpr.Unary(unary.getOp(), pin(unary.getOperand()));
+                resolved.setResultType(unary.getResultType());
+                return resolved;
+            }
+            if (expr instanceof IrExpr.Cast cast) {
+                IrExpr resolved = new IrExpr.Cast(cast.getTargetType(), pin(cast.getOperand()),
+                        cast.getPreType(), cast.isImplicit());
+                resolved.setResultType(cast.getResultType());
+                return resolved;
+            }
+            if (expr instanceof IrExpr.Call call) {
+                List<IrExpr> arguments = new ArrayList<>();
+                call.getArguments().forEach(a -> arguments.add(pin(a)));
+                IrExpr resolved = new IrExpr.Call(call.getFunction(), arguments);
+                resolved.setResultType(call.getResultType());
+                return resolved;
+            }
+            return expr;
+        }
+
+        private static boolean hasPins(IrExpr expr) {
+            if (expr == null) {
+                return false;
+            }
+            if (expr instanceof IrExpr.At) {
+                return true;
+            }
+            if (expr instanceof IrExpr.VarRef ref) {
+                return ref.getAccesses().stream()
+                        .anyMatch(access -> access instanceof IrExpr.IndexAccess index
+                                && hasPins(index.getIndex()));
+            }
+            if (expr instanceof IrExpr.Binary binary) {
+                return hasPins(binary.getLeft()) || hasPins(binary.getRight());
+            }
+            if (expr instanceof IrExpr.Unary unary) {
+                return hasPins(unary.getOperand());
+            }
+            if (expr instanceof IrExpr.Cast cast) {
+                return hasPins(cast.getOperand());
+            }
+            if (expr instanceof IrExpr.Call call) {
+                return call.getArguments().stream().anyMatch(Builder::hasPins);
+            }
+            return false;
         }
     }
 
@@ -186,14 +287,17 @@ public final class PathEnumerator {
             builder.main.add(new VcStatement.ProcessInState(
                     builder.current, inState.getProcess(), inState.getState()));
         } else if (node instanceof CfgNode.Guard guard) {
-            builder.main.add(new VcStatement.Condition(builder.current, guard.getCondition()));
+            builder.main.add(new VcStatement.Condition(
+                    builder.current, builder.resolve(guard.getCondition())));
         } else if (node instanceof CfgNode.TimeoutGuard timeout) {
             builder.main.add(new VcStatement.TimeoutCheck(builder.current, timeout.getProcess(),
                     timeout.getDuration(), timeout.isExceeded()));
         } else if (node instanceof CfgNode.Assign assign) {
+            // Resolved before the write, since the value is read in the state before it.
+            IrExpr value = builder.resolve(assign.getValue());
+            IrExpr.VarRef into = (IrExpr.VarRef) builder.resolve(assign.getTarget());
             String target = builder.next();
-            builder.main.add(new VcStatement.Assign(
-                    target, builder.current, assign.getTarget(), assign.getValue()));
+            builder.main.add(new VcStatement.Assign(target, builder.current, into, value));
             builder.current = target;
         } else if (node instanceof CfgNode.SetState setState) {
             String target = builder.next();

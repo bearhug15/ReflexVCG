@@ -145,6 +145,15 @@ public final class IsabelleRenderer {
             return project("(getVarVal " + state + " " + quote(ref.getName()) + " "
                     + renderAccessPath(ref, state) + ")", ref.getResultType());
         }
+        if (expr instanceof IrExpr.At at) {
+            // A read pinned to an earlier state, because a write inside the expression
+            // came between. Path enumeration has already named it.
+            if (at.getState() == null) {
+                throw new IllegalStateException(
+                        "unresolved pinned read: " + at + "; path enumeration should have named it");
+            }
+            return renderExpression(at.getOperand(), at.getState());
+        }
         if (expr instanceof IrExpr.CheckState check) {
             return renderCheckState(check, state);
         }

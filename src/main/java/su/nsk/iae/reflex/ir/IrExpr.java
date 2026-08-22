@@ -530,6 +530,77 @@ public abstract class IrExpr extends IrNode {
     }
 
     /**
+     * A subexpression read some number of states before the one its statement is stated
+     * in - the pin an expression with side effects needs.
+     *
+     * <p>Reflex takes its expression semantics from C, where a write may sit anywhere
+     * inside an expression: {@code total = count++ + count} both reads and writes
+     * {@code count}. Each write is a state of its own, so the reads around it do not all
+     * happen in the same state, and an expression can no longer be rendered against one.
+     *
+     * <p>A read carries no state of its own until something fixes it - it floats, and is
+     * fixed at the state current when its value is needed. {@code stepsBack} counts from
+     * the state the statement holding it is stated in: 0 is that state, 1 the state before
+     * the last write, and so on. Only expressions that actually write ever carry these, so
+     * an expression without side effects is untouched.
+     *
+     * <p>Produced by {@code cfg/ExprLowering} and read by the renderer. It never appears
+     * in the IR the preprocessing passes see.
+     */
+    public static final class At extends IrExpr {
+        private final IrExpr operand;
+        private final int stepsBack;
+        private final String state;
+
+        /** As the graph carries it: a distance back, the state itself not yet named. */
+        public At(IrExpr operand, int stepsBack) {
+            if (stepsBack < 0) {
+                throw new IllegalArgumentException("stepsBack must not be negative: " + stepsBack);
+            }
+            this.operand = operand;
+            this.stepsBack = stepsBack;
+            this.state = null;
+            setResultType(operand.getResultType());
+        }
+
+        /**
+         * As a condition carries it, once path enumeration has named the states. A graph
+         * node is shared by every path through it, and the paths name their states
+         * differently, so resolving produces a new node rather than filling this one in.
+         */
+        public At(IrExpr operand, String state) {
+            this.operand = operand;
+            this.stepsBack = 0;
+            this.state = state;
+            setResultType(operand.getResultType());
+        }
+
+        public IrExpr getOperand() {
+            return operand;
+        }
+
+        /** How many states back from the one the statement is stated in. */
+        public int getStepsBack() {
+            return stepsBack;
+        }
+
+        /** The state this reads in, or null while the distance has not been resolved. */
+        public String getState() {
+            return state;
+        }
+
+        @Override
+        public <R> R accept(Visitor<R> visitor) {
+            return visitor.visitAt(this);
+        }
+
+        @Override
+        public String toString() {
+            return operand + "@" + (state != null ? state : "-" + stepsBack);
+        }
+    }
+
+    /**
      * An aggregate initialiser, {@code {1, 2}} or {@code {.y = 5}}. Partial by
      * definition: members with no element keep their default value.
      */
@@ -606,5 +677,7 @@ public abstract class IrExpr extends IrNode {
         R visitCheckState(CheckState expr);
 
         R visitAggregate(Aggregate expr);
+
+        R visitAt(At expr);
     }
 }

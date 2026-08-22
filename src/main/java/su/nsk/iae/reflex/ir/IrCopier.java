@@ -125,6 +125,10 @@ public final class IrCopier {
             copy = new IrExpr.Call(call.getFunction(), args);
         } else if (expr instanceof IrExpr.CheckState check) {
             copy = new IrExpr.CheckState(check.getProcess(), check.getStatus());
+        } else if (expr instanceof IrExpr.At at) {
+            copy = at.getState() == null
+                    ? new IrExpr.At(copy(at.getOperand()), at.getStepsBack())
+                    : new IrExpr.At(copy(at.getOperand()), at.getState());
         } else if (expr instanceof IrExpr.Aggregate aggregate) {
             List<IrExpr.Aggregate.Element> elements = new ArrayList<>();
             for (IrExpr.Aggregate.Element element : aggregate.getElements()) {

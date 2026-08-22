@@ -83,6 +83,12 @@ public sealed interface Term {
         }
         if (expr instanceof IrExpr.Cast cast) {
             collect(cast.getOperand(), positive, terms);
+            return;
+        }
+        if (expr instanceof IrExpr.At at) {
+            // A read pinned to an earlier state, because a write inside the expression came
+            // between. Which state it is read in does not change what it asserts.
+            collect(at.getOperand(), positive, terms);
         }
     }
 }

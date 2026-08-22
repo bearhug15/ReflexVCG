@@ -3,6 +3,7 @@ package su.nsk.iae.reflex.cfg;
 import su.nsk.iae.reflex.analysis.AttributePreparation;
 import su.nsk.iae.reflex.ir.Annotation;
 import su.nsk.iae.reflex.ir.IrDecl;
+import su.nsk.iae.reflex.ir.IrCopier;
 import su.nsk.iae.reflex.ir.IrExpr;
 import su.nsk.iae.reflex.ir.IrProcess;
 import su.nsk.iae.reflex.ir.IrProgram;
@@ -231,6 +232,14 @@ public final class CfgBuilder {
                             + "it preserves"));
         }
 
+        if (ExprLowering.writes(forStmt.getCondition())) {
+            // The cut states the condition twice - negated past the loop, asserted inside
+            // it - which only means anything if evaluating it changes nothing.
+            return effect(new CfgNode.Unsupported("for",
+                    "a loop condition that writes cannot be cut by its invariant, since the "
+                            + "condition is stated both inside and past the loop"));
+        }
+
         CfgNode.Join entry = new CfgNode.Join();
         CfgNode current = entry;
         for (IrDecl.Variable declaration : forStmt.getInitDeclarations()) {
@@ -298,107 +307,64 @@ public final class CfgBuilder {
     }
 
     /**
-     * Whether an expression writes to anything: an assignment, or an increment.
+     * Chains what one way of evaluating an expression does - its guards and its writes -
+     * into a fragment. An expression that neither branches nor writes contributes nothing
+     * but the join it starts with.
      */
-    private static boolean writesAnything(IrExpr expr) {
-        if (expr == null) {
-            return false;
+    private Fragment stepsOf(ExprLowering.Outcome outcome) {
+        CfgNode.Join entry = new CfgNode.Join();
+        CfgNode current = entry;
+        for (CfgNode step : outcome.steps()) {
+            current.addSuccessor(step);
+            current = step;
         }
-        if (expr instanceof IrExpr.Assign || expr instanceof IrExpr.IncDec) {
-            return true;
-        }
-        if (expr instanceof IrExpr.Binary binary) {
-            return writesAnything(binary.getLeft()) || writesAnything(binary.getRight());
-        }
-        if (expr instanceof IrExpr.Unary unary) {
-            return writesAnything(unary.getOperand());
-        }
-        if (expr instanceof IrExpr.Cast cast) {
-            return writesAnything(cast.getOperand());
-        }
-        if (expr instanceof IrExpr.Call call) {
-            return call.getArguments().stream().anyMatch(CfgBuilder::writesAnything);
-        }
-        return false;
-    }
-
-    /** Index expressions are evaluated too, so a write inside one counts. */
-    private static boolean writesInIndex(IrExpr.VarRef target) {
-        return target.getAccesses().stream()
-                .anyMatch(access -> access instanceof IrExpr.IndexAccess index
-                        && writesAnything(index.getIndex()));
+        return new Fragment(entry, current);
     }
 
     /**
-     * A write anywhere other than at the very top of a statement's expression.
+     * An expression statement. Reflex takes C's semantics here, so the statement need not
+     * be an assignment: whatever the expression is, its writes happen and its value is
+     * then discarded. {@code f(x)}, {@code i++} and {@code a = b = c} are all ordinary
+     * statements, and so is an expression that writes in several places.
      *
-     * <p>{@code x = 1;} and {@code x++;} are ordinary statements: one write, and the value
-     * is discarded. {@code y = x++ + x} is not - the increment and the surrounding reads
-     * have no ordering the generator can rely on, and in C the expression is undefined
-     * outright. Rather than emit a condition that quietly drops the increment, such an
-     * expression is reported as unsupported.
+     * <p>An expression that can evaluate more than one way becomes a branch, since the
+     * ways differ in what they write.
      */
-    private static boolean hasNestedWrite(IrExpr root) {
-        if (root instanceof IrExpr.Assign assign) {
-            return writesAnything(assign.getValue()) || writesInIndex(assign.getTarget());
-        }
-        if (root instanceof IrExpr.IncDec incDec) {
-            return writesInIndex(incDec.getTarget());
-        }
-        return writesAnything(root);
-    }
-
-    private Fragment unsupportedWrite(String where) {
-        return effect(new CfgNode.Unsupported("write inside an expression",
-                "a write nested in " + where + " has no ordering that condition generation "
-                        + "can rely on; lift it into a statement of its own"));
-    }
-
-    /** An expression statement contributes an effect only when it assigns something. */
     private Fragment buildExpressionStatement(IrExpr expr) {
-        if (hasNestedWrite(expr)) {
-            return unsupportedWrite("a larger expression");
+        List<ExprLowering.Outcome> outcomes = ExprLowering.lower(expr);
+        if (outcomes.size() == 1) {
+            return stepsOf(outcomes.get(0));
         }
-        if (expr instanceof IrExpr.Assign assign) {
-            return effect(new CfgNode.Assign(assign.getTarget(), valueOf(assign)));
-        }
-        if (expr instanceof IrExpr.IncDec incDec) {
-            IrExpr.BinaryOp op = incDec.getOp() == IrExpr.IncDecOp.INCREMENT
-                    ? IrExpr.BinaryOp.ADD
-                    : IrExpr.BinaryOp.SUB;
-            IrExpr one = new IrExpr.Literal(IrExpr.Literal.Kind.INTEGER, "1");
-            one.setResultType(incDec.getTarget().getResultType());
-            IrExpr updated = new IrExpr.Binary(op, incDec.getTarget(), one);
-            updated.setResultType(incDec.getTarget().getResultType());
-            return effect(new CfgNode.Assign(incDec.getTarget(), updated));
-        }
-        // Any other expression has no observable effect on the program state.
-        CfgNode.Join node = new CfgNode.Join();
-        return new Fragment(node, node);
-    }
 
-    /** A compound assignment stores {@code target op value}, not just {@code value}. */
-    private IrExpr valueOf(IrExpr.Assign assign) {
-        IrExpr.BinaryOp underlying = assign.getOp().underlying();
-        if (underlying == null) {
-            return assign.getValue();
+        CfgNode.Join entry = new CfgNode.Join();
+        CfgNode.Join exit = new CfgNode.Join();
+        for (ExprLowering.Outcome outcome : outcomes) {
+            Fragment fragment = stepsOf(outcome);
+            entry.addSuccessor(fragment.entry());
+            fragment.exit().addSuccessor(exit);
         }
-        IrExpr combined = new IrExpr.Binary(underlying, assign.getTarget(), assign.getValue());
-        combined.setResultType(assign.getTarget().getResultType());
-        return combined;
+        return new Fragment(entry, exit);
     }
 
     private Fragment buildLocalDeclaration(IrDecl.Variable variable) {
-        if (writesAnything(variable.getInitializer())) {
-            return unsupportedWrite("an initialiser");
-        }
         if (variable.getInitializer() == null) {
             CfgNode.Join node = new CfgNode.Join();
             return new Fragment(node, node);
         }
-        IrExpr.VarRef target = new IrExpr.VarRef(variable.getName());
-        target.setResultType(variable.getType());
-        return effect(new CfgNode.Assign(target, variable.getInitializer()));
+
+        CfgNode.Join entry = new CfgNode.Join();
+        CfgNode.Join exit = new CfgNode.Join();
+        for (ExprLowering.Outcome outcome : ExprLowering.lower(variable.getInitializer())) {
+            IrExpr.VarRef target = new IrExpr.VarRef(variable.getName());
+            target.setResultType(variable.getType());
+
+            Fragment fragment = stepsOf(outcome);
+            CfgNode.Assign assign = new CfgNode.Assign(target, outcome.value());
+            fragment.exit().addSuccessor(assign);
+            entry.addSuccessor(fragment.entry());
+            assign.addSuccessor(exit);
+        }
+        return new Fragment(entry, exit);
     }
 
     /**
@@ -408,30 +374,29 @@ public final class CfgBuilder {
      * constant contributes only the branch it can actually take.
      */
     private Fragment buildIf(IrProcess process, IrStmt.If ifStmt) {
-        if (writesAnything(ifStmt.getCondition())) {
-            return unsupportedWrite("a condition");
-        }
         CfgNode.Join entry = new CfgNode.Join();
         CfgNode.Join exit = new CfgNode.Join();
 
         for (ExprLowering.Outcome outcome : ExprLowering.lower(ifStmt.getCondition())) {
+            // What evaluating the condition does happens once, before either branch.
+            Fragment evaluated = stepsOf(outcome);
+            entry.addSuccessor(evaluated.entry());
+
             if (!outcome.isConstant(false)) {
-                List<IrExpr> guards = new ArrayList<>(outcome.guards());
-                guards.add(outcome.value());
-                addBranch(process, entry, exit, guards, ifStmt.getThenBranch());
+                addBranch(process, evaluated.exit(), exit,
+                        IrCopier.copy(outcome.value()), ifStmt.getThenBranch());
             }
             if (!outcome.isConstant(true)) {
-                List<IrExpr> guards = new ArrayList<>(outcome.guards());
-                guards.add(ExprLowering.not(outcome.value()));
-                addBranch(process, entry, exit, guards, ifStmt.getElseBranch());
+                addBranch(process, evaluated.exit(), exit,
+                        ExprLowering.not(outcome.value()), ifStmt.getElseBranch());
             }
         }
         return new Fragment(entry, exit);
     }
 
     private void addBranch(IrProcess process, CfgNode entry, CfgNode exit,
-                           List<IrExpr> guards, IrStmt body) {
-        CfgNode.Guard guard = new CfgNode.Guard(ExprLowering.conjunction(guards));
+                           IrExpr guardCondition, IrStmt body) {
+        CfgNode.Guard guard = new CfgNode.Guard(guardCondition);
         entry.addSuccessor(guard);
         Fragment fragment = buildStatement(process, body);
         guard.addSuccessor(fragment.entry());
@@ -444,12 +409,21 @@ public final class CfgBuilder {
      * none of them.
      */
     private Fragment buildSwitch(IrProcess process, IrStmt.Switch switchStmt) {
-        if (writesAnything(switchStmt.getSelector())) {
-            return unsupportedWrite("a switch selector");
-        }
         CfgNode.Join entry = new CfgNode.Join();
         CfgNode.Join exit = new CfgNode.Join();
 
+        // The selector is evaluated once, before any case is chosen, so its writes happen
+        // once however many cases there are.
+        for (ExprLowering.Outcome outcome : ExprLowering.lower(switchStmt.getSelector())) {
+            Fragment evaluated = stepsOf(outcome);
+            entry.addSuccessor(evaluated.entry());
+            addCases(process, switchStmt, outcome.value(), evaluated.exit(), exit);
+        }
+        return new Fragment(entry, exit);
+    }
+
+    private void addCases(IrProcess process, IrStmt.Switch switchStmt, IrExpr selector,
+                          CfgNode entry, CfgNode exit) {
         List<IrExpr> labels = new ArrayList<>();
         boolean hasDefault = false;
 
@@ -457,9 +431,9 @@ public final class CfgBuilder {
             IrExpr guard;
             if (clause.isDefault()) {
                 hasDefault = true;
-                guard = matchesNone(switchStmt.getSelector(), labels);
+                guard = matchesNone(selector, labels);
             } else {
-                guard = comparison(IrExpr.BinaryOp.EQ, switchStmt.getSelector(), clause.getLabel());
+                guard = comparison(IrExpr.BinaryOp.EQ, selector, clause.getLabel());
                 labels.add(clause.getLabel());
             }
 
@@ -477,7 +451,7 @@ public final class CfgBuilder {
 
         if (!hasDefault) {
             // With no default, matching nothing simply falls through the switch.
-            CfgNode.Guard none = new CfgNode.Guard(matchesNone(switchStmt.getSelector(), labels));
+            CfgNode.Guard none = new CfgNode.Guard(matchesNone(selector, labels));
             entry.addSuccessor(none);
             none.addSuccessor(exit);
         }
@@ -485,7 +459,6 @@ public final class CfgBuilder {
         if (switchStmt.getCases().isEmpty()) {
             entry.addSuccessor(exit);
         }
-        return new Fragment(entry, exit);
     }
 
     private IrExpr matchesNone(IrExpr selector, List<IrExpr> labels) {
@@ -504,7 +477,7 @@ public final class CfgBuilder {
 
     private IrExpr comparison(IrExpr.BinaryOp op, IrExpr left, IrExpr right) {
         IrExpr comparison = new IrExpr.Binary(op,
-                su.nsk.iae.reflex.ir.IrCopier.copy(left), su.nsk.iae.reflex.ir.IrCopier.copy(right));
+                IrCopier.copy(left), IrCopier.copy(right));
         comparison.setResultType(IrType.BOOL);
         return comparison;
     }
@@ -518,7 +491,7 @@ public final class CfgBuilder {
     @SuppressWarnings("unused")
     private IrExpr negate(IrExpr condition) {
         IrExpr negated = new IrExpr.Unary(IrExpr.UnaryOp.NOT,
-                su.nsk.iae.reflex.ir.IrCopier.copy(condition));
+                IrCopier.copy(condition));
         negated.setResultType(IrType.BOOL);
         return negated;
     }

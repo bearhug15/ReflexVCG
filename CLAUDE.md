@@ -59,8 +59,8 @@ exactly one place, at the very end.
    turned into ordinary states). The result is *canonical* IR.
 4. **Graph** — `cfg/CfgBuilder` builds one execution cycle: every process runs once in declaration order,
    in whichever state it occupies, then the program yields to the environment. Branching is a node with
-   several successors, each starting with a guard. `cfg/ExprLowering` handles short-circuit `&&`/`||`,
-   which are branches, not operators. Nodes carry IR, never rendered text.
+   several successors, each starting with a guard. `cfg/ExprLowering` evaluates an expression into the
+   ways it can run (see **C expression semantics** below). Nodes carry IR, never rendered text.
 5. **Enumerate** — `cfg/PathEnumerator` walks paths depth-first; each becomes a `VerificationCondition`
    of symbolic `VcStatement`s. `analysis/StaticAnalysis` (spec: `StaticalAnalysis.tex`) discards a path
    at the node that makes it impossible, so the subtree below is never explored. A path may produce more
@@ -81,6 +81,24 @@ exactly one place, at the very end.
   program now reproduces the old pruned counts exactly; the four multi-process ones differ, in the
   grouping rules. Over-pruning silently drops proof obligations, so treat those four as unconfirmed.
   `StaticAnalysisMeasurementTest` prints the table; `StaticAnalysisRulesTest` covers rules one by one.
+- **C expression semantics** (`cfg/ExprLowering`). Reflex takes them from C, so a write can sit
+  anywhere inside an expression and a statement's expression need not be an assignment. An expression
+  therefore lowers to a *sequence* of `CfgNode`s — the writes it performs, in order — plus a value.
+  - **Floating reads.** A read carries no state until something needs its value, and is *fixed* at
+    whatever state is current then; once fixed it never moves. That single rule gives `v++` the old
+    value (fixed before its own write) and `++v` the new one (left floating past it).
+  - **The incoming stage.** Evaluation is told how many writes are already behind it. Without this a
+    cast or a negation wrapping an operand fixes it too early — the bug that made `v = v++ + v` read
+    the pre-increment value on *both* sides. This is what the old `ExpressionVisitor2` got from taking
+    the current state as a constructor argument, the right operand being visited by a visitor already
+    positioned after the left.
+  - **Several outcomes.** Short-circuiting yields one per way (`&&` either stops at a false left or
+    goes on, and the right operand's writes belong only to the way that runs it); operands that each
+    evaluate several ways multiply out. This is the old `ExprGenRes` list.
+  - **`IrExpr.At`** is the pin: a read stated some number of states back. `ExprLowering` emits it as a
+    distance, `PathEnumerator` resolves the distance to a state name — a graph node is shared by every
+    path through it and the paths number their states differently, so resolving copies. Expressions
+    that write nothing carry no pins at all, so nothing here costs anything for ordinary code.
 - **`ReflexBase.thy` is the semantics** (`src/main/resources/ReflexTheory/`). One `val` datatype with an
   access path, rather than four typed getters. Reflex types map onto HOL as: signed ints → `int`,
   unsigned and `time` → `nat`, `bool` → `bool`, float/double → `real`. Changing codegen means keeping
@@ -132,8 +150,11 @@ exactly one place, at the very end.
   `stable` and `cooldown` leaning on `ltime` — but no generated lemma has been put to a prover, so
   the shapes are only as good as `Annotations.tex` and `ReflexBase.thy`.
 - Division domain conditions, which the old generator emitted as *assumptions*, are not reproduced.
-- **Writes inside an expression are rejected, not modelled.** `v = v++ + v` and
-  `if (motion && light = LOW)` have no ordering condition generation can rely on, so `CfgBuilder`
-  reports them. Supporting them means threading the pre-write state through expression rendering,
-  the way the old `ExprGenRes` did. Two test programs hit this: `exprTest` and `newSmartLighting`,
-  the latter because its source says `=` where it means `==`.
+  The old `ExprGenRes` carried a `domain` field alongside the value, accumulating `divisor ≠ 0` per
+  `/` and `%`; `ExprLowering.Outcome` has the same shape to hang it on if it comes back, but as an
+  obligation rather than an assumption.
+- **A write to a read-only physical input is not rejected.** `light = LOW` where `light` is bound to
+  a `read =` address now generates a setter rather than being reported. Nothing checks the direction
+  of a bound address.
+- **A loop condition that writes is still rejected.** The cut states the condition twice — negated
+  past the loop, asserted inside it — which only means anything if evaluating it changes nothing.
