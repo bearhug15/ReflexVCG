@@ -1,14 +1,16 @@
 program Thermopot {
 	clock 100;
 	node MainNode { clock 100; }
-    input temperature 0x00 0x00 8;
-	input buttons 0x00 0x00 8;
-	input boilingButton 0x00 0x00 8;
+	import IO {
+		register temperature
+		register buttons
+		register boilingButton
+		register selectedTemp
+		register heater
+		register lid
+		register mods
+	}
 	
-    output selectedTemp 0x00 0x01 8;
-	output heater 0x00 0x01 8;
-	output lid 0x00 0x01 8;
-	output mods 0x00 0x01 8;
 	
 	const bool LOCKED = true;
 	const bool UNLOCKED = false;
@@ -25,11 +27,11 @@ program Thermopot {
 	bool button3 as (read = buttons, bit = 3);
 	bool boilingButton as (read = boilingButton, bit = 0);
 	
-	int8 selectedTemp as (read = selectedTemp, bit = 0);
-	bool heater as (read = heater, bit = 0);
-	bool lid as (read = lid, bit = 0);
-	bool boilingMode as (read = mods, bit = 0);
-	bool maintainingMode as (read = mods, bit = 1);
+	int8 selectedTemp as (read = selectedTemp, write = selectedTemp, bit = 0);
+	bool heater as (read = heater, write = heater, bit = 0);
+	bool lid as (read = lid, write = lid, bit = 0);
+	bool boilingMode as (read = mods, write = mods, bit = 0);
+	bool maintainingMode as (read = mods, write = mods, bit = 1);
 	
 	process Init :: node MainNode {
 		state begin {

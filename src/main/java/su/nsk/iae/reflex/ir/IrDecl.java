@@ -13,9 +13,11 @@ import java.util.List;
 public abstract class IrDecl extends IrNode {
 
     private String name;
+    private final String originalName;
 
     protected IrDecl(String name) {
         this.name = name;
+        this.originalName = name;
     }
 
     /** The declared name; globally unique after name mangling. */
@@ -25,6 +27,14 @@ public abstract class IrDecl extends IrNode {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    /**
+     * The name as the source spelled it, kept through mangling so a diagnostic can say
+     * {@code pumpIn} where the program does rather than {@code valves_0}.
+     */
+    public String getOriginalName() {
+        return originalName;
     }
 
     /**
@@ -243,45 +253,6 @@ public abstract class IrDecl extends IrNode {
         @Override
         public String toString() {
             return "enum " + getName() + " { " + members.size() + " members }";
-        }
-    }
-
-    /** An {@code input} or {@code output} port. */
-    public static final class Port extends IrDecl {
-        public enum Direction { INPUT, OUTPUT }
-
-        private final Direction direction;
-        private final String address1;
-        private final String address2;
-        private final String size;
-
-        public Port(String name, Direction direction, String address1, String address2, String size) {
-            super(name);
-            this.direction = direction;
-            this.address1 = address1;
-            this.address2 = address2;
-            this.size = size;
-        }
-
-        public Direction getDirection() {
-            return direction;
-        }
-
-        public String getAddress1() {
-            return address1;
-        }
-
-        public String getAddress2() {
-            return address2;
-        }
-
-        public String getSize() {
-            return size;
-        }
-
-        @Override
-        public String toString() {
-            return direction.name().toLowerCase() + " " + getName();
         }
     }
 

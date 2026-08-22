@@ -279,7 +279,7 @@ class CastInsertionPassTest {
     void typesPerAccessNamesOfDirectBindings() {
         IrProgram program = processed("program P {\n"
                 + "  clock 100;\n"
-                + "  input inp 0x00 0x00 24;\n"
+                + "  import IO { register inp }\n"
                 + "  direct bool sensor as (read = inp, bit = 1);\n"
                 + "  bool a;\n"
                 + "  node N { clock 100; }\n"

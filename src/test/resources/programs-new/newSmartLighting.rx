@@ -1,13 +1,15 @@
 program SmartLighting{
 clock 100;
 node MainNode { clock 100; }
-	input inp 0x00 0x00 16;
-	output out 0x00 0x04 24;
+	import IO {
+		register inp
+		register out
+	}
 	bool motion as (read = inp, bit = 0);
 	bool light as (read = inp, bit = 1);
-	bool dayLight as (read = out, bit = 0);
-	bool dimLight as (read = out, bit = 1);
-	int8 timeOfDay as (read = out, bit = 2);
+	bool dayLight as (read = out, write = out, bit = 0);
+	bool dimLight as (read = out, write = out, bit = 1);
+	int8 timeOfDay as (read = out, write = out, bit = 2);
 	
 	const bool TURNED_ON = true;
 	const bool TURNED_OFF = false;

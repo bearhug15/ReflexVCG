@@ -23,6 +23,7 @@ import su.nsk.iae.reflex.ir.IrProgram;
 import su.nsk.iae.reflex.ir.IrState;
 import su.nsk.iae.reflex.ir.TimeRef;
 import su.nsk.iae.reflex.preprocess.Preprocessor;
+import su.nsk.iae.reflex.preprocess.WriteTargetCheck;
 import su.nsk.iae.reflex.vc.ExtraInvariantGenerator;
 import su.nsk.iae.reflex.vc.InitialCondition;
 import su.nsk.iae.reflex.term.Term;
@@ -54,6 +55,7 @@ public final class ReflexVcg {
     private ExtraInvariantGenerator extraInvariants;
     private AttributePreparation attributePreparation;
     private boolean staticAnalysis = true;
+    private List<WriteTargetCheck.Finding> writeTargetWarnings = List.of();
 
     private ReflexVcg(IrProgram program, AnnotationBinder annotations) {
         this.program = program;
@@ -79,11 +81,22 @@ public final class ReflexVcg {
         AnnotationBinder annotations = new AnnotationBinder(tokens);
         IrProgram program = new AstBuilder(annotations).build(context);
         Preprocessor.run(program);
-        return new ReflexVcg(program, annotations);
+
+        ReflexVcg generator = new ReflexVcg(program, annotations);
+        generator.writeTargetWarnings = WriteTargetCheck.run(program);
+        return generator;
     }
 
     public IrProgram getProgram() {
         return program;
+    }
+
+    /**
+     * Writes the program makes to a physical variable bound with no {@code write =}
+     * destination. Reported rather than refused: the condition is still generated.
+     */
+    public List<WriteTargetCheck.Finding> getWriteTargetWarnings() {
+        return writeTargetWarnings;
     }
 
     /** Reflex-AL annotations found in the source, for later stages to consume. */

@@ -220,7 +220,7 @@ class NameManglingPassTest {
     void physicalVariablesAreNamedAfterTheirPort() {
         IrProgram program = mangled("program P {\n"
                 + "  clock 100;\n"
-                + "  input inp 0x00 0x00 24;\n"
+                + "  import IO { register inp }\n"
                 + "  bool flag as (read = inp, bit = 3);\n"
                 + "  bool whole as (read = inp);\n"
                 + "  node N { clock 100; }\n"
@@ -240,7 +240,7 @@ class NameManglingPassTest {
     void everyReadOfADirectBindingGetsItsOwnName() {
         IrProgram program = mangled("program P {\n"
                 + "  clock 100;\n"
-                + "  input inp 0x00 0x00 24;\n"
+                + "  import IO { register inp }\n"
                 + "  direct bool sensor as (read = inp, bit = 1);\n"
                 + "  int32 a;\n"
                 + "  node N { clock 100; }\n"
@@ -262,7 +262,7 @@ class NameManglingPassTest {
     void indirectBindingsKeepOneNameAcrossReads() {
         IrProgram program = mangled("program P {\n"
                 + "  clock 100;\n"
-                + "  input inp 0x00 0x00 24;\n"
+                + "  import IO { register inp }\n"
                 + "  indirect bool sampled as (read = inp, bit = 2);\n"
                 + "  int32 a;\n"
                 + "  node N { clock 100; }\n"

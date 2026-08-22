@@ -10,8 +10,10 @@
 program AnnotatedTank {
 	clock 100;
 
-	input sensors 0x00 0x00 8;
-	output valves 0x00 0x01 8;
+	import IO {
+		register sensors
+		register valves
+	}
 
 	node Tank { clock 100; }
 

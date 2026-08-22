@@ -57,9 +57,6 @@ public final class AstBuilder {
         for (NewReflexParser.FunctionDeclContext f : ctx.functions) {
             program.getFunctions().add(buildFunction(f));
         }
-        for (NewReflexParser.PortContext p : ctx.ports) {
-            program.getPorts().add(buildPort(p));
-        }
         for (NewReflexParser.GlobalVariableContext v : ctx.globalVars) {
             program.getGlobalVariables().add(buildGlobalVariable(v));
         }
@@ -157,15 +154,6 @@ public final class AstBuilder {
         IrDecl.Function function = new IrDecl.Function(
                 "function@" + ctx.getStart().getLine(), buildType(ctx.returnType), parameters);
         return claim(function, ctx);
-    }
-
-    private IrDecl.Port buildPort(NewReflexParser.PortContext ctx) {
-        IrDecl.Port.Direction direction = ctx.varType.getText().equals("input")
-                ? IrDecl.Port.Direction.INPUT
-                : IrDecl.Port.Direction.OUTPUT;
-        IrDecl.Port port = new IrDecl.Port(ctx.name.getText(), direction,
-                ctx.addr1.getText(), ctx.addr2.getText(), ctx.size.getText());
-        return claim(port, ctx);
     }
 
     private IrDecl buildGlobalVariable(NewReflexParser.GlobalVariableContext ctx) {

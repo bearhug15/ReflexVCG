@@ -20,7 +20,6 @@ public final class IrProgram extends IrNode {
     private final List<IrDecl.Enum> enums = new ArrayList<>();
     private final List<IrDecl.Struct> structs = new ArrayList<>();
     private final List<IrDecl.Function> functions = new ArrayList<>();
-    private final List<IrDecl.Port> ports = new ArrayList<>();
     private final List<IrDecl> globalVariables = new ArrayList<>();
     private final List<IrDecl.Node> nodes = new ArrayList<>();
     private final List<IrDecl.ImportBlock> imports = new ArrayList<>();
@@ -61,10 +60,6 @@ public final class IrProgram extends IrNode {
 
     public List<IrDecl.Function> getFunctions() {
         return functions;
-    }
-
-    public List<IrDecl.Port> getPorts() {
-        return ports;
     }
 
     /** Program-level variables: {@link IrDecl.Variable} or {@link IrDecl.PhysicalVariable}. */

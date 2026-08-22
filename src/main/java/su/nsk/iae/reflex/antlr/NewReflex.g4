@@ -17,7 +17,6 @@ program:
      | enums+=enum
      | functions+=functionDecl
      | globalVars+=globalVariable
-     | ports+=port
      | processes+=process
      | structures+=structDeclaration
      | imports+=importBlock
@@ -82,7 +81,6 @@ structDeclaration: 'struct' name=ID '{' (variables+=programVariable ';')+ '}';
 timeoutFunction: 'timeout' (timeAmountOrRef | '(' timeAmountOrRef ')') body=statement;
 timeAmountOrRef: time=TIME | intTime=UNSIGNED_INTEGER | ref=ID;
 functionDecl: returnType=type '(' (argTypes+=type (',' argTypes+=type)*)? ')';
-port: varType=PORT_TYPE name=ID addr1=UNSIGNED_INTEGER addr2=UNSIGNED_INTEGER size=UNSIGNED_INTEGER ';';
 const: 'const' varType=type name=ID '=' value=expression ';';
 // Trailing '*': the previous version accepted exactly two members.
 enum: 'enum' identifier=ID '{' enumMembers+=enumMember (',' enumMembers+=enumMember)* '}';
@@ -209,7 +207,6 @@ builtinType:
 // ---------------------------------------------------------------- lexer rules
 
 BREAK: 'break';
-PORT_TYPE: 'input' | 'output';
 BOOL_VAL: 'true' | 'false';
 
 INFIX_POSTFIX_OP: '++' | '--';

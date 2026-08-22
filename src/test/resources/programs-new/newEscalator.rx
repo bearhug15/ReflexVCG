@@ -1,8 +1,10 @@
 program Escalator{
 	clock 100;
 	node MainNode { clock 100; }
-	input inp 0x00 0x00 8;
-	output out 0x00 0x01 8;
+	import IO {
+		register inp
+		register out
+	}
 	
 	bool userAtTop as (read = inp, bit = 0);
 	bool userAtBottom as (read = inp, bit = 1);
@@ -10,8 +12,8 @@ program Escalator{
 	bool alarmButton as (read = inp, bit = 3);
 	bool stuck as (read = inp, bit = 4);
 	
-	bool up as (read = out, bit = 0);
-	bool down as (read = out, bit = 1);
+	bool up as (read = out, write = out, bit = 0);
+	bool down as (read = out, write = out, bit = 1);
 	
 	const bool UP = true;
 	const bool DOWN = false;

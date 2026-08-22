@@ -110,7 +110,7 @@ class AnnotatedGenerationTest {
     /** An obligation concludes the annotation's own formula, not the invariant. */
     @Test
     void anObligationConcludesTheFormulaItWasWrittenFor() {
-        String assertion = from("assert at line 49");
+        String assertion = from("assert at line 51");
         assertTrue(assertion.contains("shows \"((theInt (getVarVal st5 ''#total'' [])) \\<ge> 3)\""),
                 assertion);
         assertFalse(assertion.contains("shows \"inv("), assertion);
@@ -175,11 +175,11 @@ class AnnotatedGenerationTest {
      */
     @Test
     void aLoopIsCutIntoEntryPreservationAndExit() {
-        String entry = from("loop invariant on entry, line 42");
+        String entry = from("loop invariant on entry, line 44");
         assertTrue(entry.contains("shows \"((theInt (getVarVal st4 ''#total'' [])) "
                 + "\\<le> (theInt (getVarVal st4 ''#i'' [])))\""), entry);
 
-        String step = from("loop invariant preserved, line 42");
+        String step = from("loop invariant preserved, line 44");
         // Assumed up to where the body starts, shown up to where the iteration ends. The
         // body is numbered from its own st0, not the enclosing path's.
         assertTrue(step.contains("loop_invariant:\"(\\<forall> sa"), step);
@@ -207,7 +207,7 @@ class AnnotatedGenerationTest {
     @Test
     void aDefinitionIsExpandedAtItsUse() {
         // `draining` is `pumpOut && !pumpIn`, over the addresses those two map to.
-        String assertion = from("assert at line 58");
+        String assertion = from("assert at line 60");
         assertTrue(assertion.contains("shows \"((theBool (getVarVal st2 ''valves_1'' [])) "
                 + "\\<and> (\\<not> (theBool (getVarVal st2 ''valves_0'' []))))\""), assertion);
     }
@@ -218,10 +218,10 @@ class AnnotatedGenerationTest {
      */
     @Test
     void annotationNamesArePreprocessedWithTheProgram() {
-        String assumption = from("assume at line 66");
+        String assumption = from("assume at line 68");
         assertTrue(assumption.contains("(theBool (getVarVal st0 ''sensors_0'' []))"), assumption);
 
         // A program-scope variable mangles to a bare `#name`, having no enclosing scope.
-        assertTrue(from("assume at line 47").contains("''#total''"), files.toString());
+        assertTrue(from("assume at line 49").contains("''#total''"), files.toString());
     }
 }

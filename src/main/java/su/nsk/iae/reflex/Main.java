@@ -68,6 +68,11 @@ public final class Main {
                 generator.getAnnotations().getDiagnostics().forEach(d -> System.out.println("  " + d));
             }
 
+            if (!generator.getWriteTargetWarnings().isEmpty()) {
+                System.out.println("Warning: a write cannot reach the hardware:");
+                generator.getWriteTargetWarnings().forEach(w -> System.out.println("  " + w));
+            }
+
             if ("false".equalsIgnoreCase(commandLine.getOptionValue("a"))) {
                 generator.setStaticAnalysis(false);
                 System.out.println("Static analysis disabled; every path will be emitted.");

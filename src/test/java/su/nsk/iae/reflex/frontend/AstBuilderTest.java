@@ -335,7 +335,7 @@ class AstBuilderTest {
     void lowersPhysicalVariableBindings() {
         IrProgram program = build("program P {\n"
                 + "  clock 100;\n"
-                + "  input inp 0x00 0x00 24;\n"
+                + "  import IO { register inp }\n"
                 + "  direct bool a as (read = inp, write = outp, bit = 3);\n"
                 + "  bool b as (read = inp);\n"
                 + "  node N { clock 100; }\n"

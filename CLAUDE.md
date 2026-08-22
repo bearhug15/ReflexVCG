@@ -46,8 +46,10 @@ exactly one place, at the very end.
       6──▶ .thy files
 ```
 
-1. **Parse** — `NewReflex.g4` produces the tree; `ReflexAL.g4` parses annotations. Comments are on the
-   **hidden channel**, so they can appear anywhere.
+1. **Parse** — `NewReflex.g4` produces the tree; `ReflexAL.g4` parses annotations. Both live in
+   `src/main/java/su/nsk/iae/reflex/antlr/`. Comments are on the **hidden channel**, so they can
+   appear anywhere. There is no `port` declaration: an `import` block names the addresses, and a
+   binding says for itself where it reads and writes — `as (read = p, write = p)` for an output.
 2. **Lower + bind** — `frontend/AstBuilder` translates the tree to IR (`ir/`) without changing meaning.
    `frontend/AnnotationBinder` pulls Reflex-AL annotations from comments and binds each to the construct
    whose first token it precedes, claiming each exactly once.
@@ -153,8 +155,9 @@ exactly one place, at the very end.
   The old `ExprGenRes` carried a `domain` field alongside the value, accumulating `divisor ≠ 0` per
   `/` and `%`; `ExprLowering.Outcome` has the same shape to hang it on if it comes back, but as an
   obligation rather than an assumption.
-- **A write to a read-only physical input is not rejected.** `light = LOW` where `light` is bound to
-  a `read =` address now generates a setter rather than being reported. Nothing checks the direction
-  of a bound address.
+- **A write to a read-only binding warns but is still generated.** `preprocess/WriteTargetCheck`
+  reports it; `ReflexVcg.getWriteTargetWarnings()` carries the findings and `Main` prints them. The
+  setter is emitted regardless, so the program is still checked — deciding whether that should become
+  an error is open.
 - **A loop condition that writes is still rejected.** The cut states the condition twice — negated
   past the loop, asserted inside it — which only means anything if evaluating it changes nothing.

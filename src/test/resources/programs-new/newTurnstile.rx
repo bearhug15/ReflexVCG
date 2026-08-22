@@ -2,14 +2,16 @@ program Turnsile{
 	clock 100; 
 	node MainNode { clock 100; }
 	bool passed;
-	input inp 0x00 0x00 24;
-	output out 0x00 0x03 24;
+	import IO {
+		register inp
+		register out
+	}
 	bool PdOut as (read = inp, bit = 0);
 	bool paid as (read = inp, bit = 1);
 	bool opened as (read = inp, bit = 2);
-	bool open as (read = out, bit = 0);
-	bool rst as (read = out, bit = 1);
-	bool enter as (read = out, bit = 2);
+	bool open as (read = out, write = out, bit = 0);
+	bool rst as (read = out, write = out, bit = 1);
+	bool enter as (read = out, write = out, bit = 2);
 	
 	process Init :: node MainNode {
 		state init {

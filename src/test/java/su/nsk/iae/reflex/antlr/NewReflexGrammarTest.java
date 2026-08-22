@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -212,12 +213,25 @@ class NewReflexGrammarTest {
     void parsesPhysicalVariableBindings() {
         assertParses("program P {\n"
                 + "  clock 100;\n"
-                + "  input inp 0x00 0x00 24;\n"
+                + "  import IO { register inp }\n"
                 + "  direct bool a as (read = inp);\n"
                 + "  indirect bool b as (read = inp, write = outp);\n"
                 + "  bool c as (read = inp, write = outp, config = cfg, bit = 3);\n"
                 + "  bool d as (read = inp, bit = namedBit);\n"
                 + "}");
+    }
+
+    /**
+     * {@code port} is gone: an import block declares the addresses a binding names, and a
+     * variable that used to reach an output port says so itself, with {@code write =}.
+     */
+    @Test
+    void rejectsThePortDeclarationThatImportsReplaced() {
+        List<String> errors = parseErrors("program P {\n"
+                + "  clock 100;\n"
+                + "  input inp 0x00 0x00 24;\n"
+                + "}");
+        assertFalse(errors.isEmpty(), "a port declaration should no longer parse");
     }
 
     @Test
