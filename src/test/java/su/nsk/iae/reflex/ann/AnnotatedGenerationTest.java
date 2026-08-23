@@ -86,10 +86,13 @@ class AnnotatedGenerationTest {
         return matching.get(0);
     }
 
-    /** The main condition covering the cycle that begins in {@code state}. */
+    /**
+     * The main conditions covering the cycle that begins in {@code state}. Matched without
+     * naming the state variable, which shifts as the head of a cycle grows.
+     */
     private static List<String> mainConditionsFrom(String state) {
         return ofKind("VC").stream()
-                .filter(content -> content.contains("getPstate st0 ''Controller''=''" + state + "''"))
+                .filter(content -> content.contains("''Controller''=''" + state + "''"))
                 .toList();
     }
 
@@ -111,7 +114,7 @@ class AnnotatedGenerationTest {
     @Test
     void anObligationConcludesTheFormulaItWasWrittenFor() {
         String assertion = from("assert at line 51");
-        assertTrue(assertion.contains("shows \"((theInt (getVarVal st5 ''#total'' [])) \\<ge> 3)\""),
+        assertTrue(assertion.contains("shows \"((theInt (getVarVal st7 ''#total'' [])) \\<ge> 3)\""),
                 assertion);
         assertFalse(assertion.contains("shows \"inv("), assertion);
     }
@@ -130,7 +133,7 @@ class AnnotatedGenerationTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("no main condition carries the assume"));
         assertTrue(withAssume.contains(
-                        "st5_assume_0:\"((theInt (getVarVal st5 ''#total'' [])) \\<ge> 0)\""),
+                        "st7_assume_0:\"((theInt (getVarVal st7 ''#total'' [])) \\<ge> 0)\""),
                 withAssume);
         assertTrue(withAssume.contains("shows \"inv(st_final)\""), withAssume);
 
@@ -176,8 +179,8 @@ class AnnotatedGenerationTest {
     @Test
     void aLoopIsCutIntoEntryPreservationAndExit() {
         String entry = from("loop invariant on entry, line 44");
-        assertTrue(entry.contains("shows \"((theInt (getVarVal st4 ''#total'' [])) "
-                + "\\<le> (theInt (getVarVal st4 ''#i'' [])))\""), entry);
+        assertTrue(entry.contains("shows \"((theInt (getVarVal st6 ''#total'' [])) "
+                + "\\<le> (theInt (getVarVal st6 ''#i'' [])))\""), entry);
 
         String step = from("loop invariant preserved, line 44");
         // Assumed up to where the body starts, shown up to where the iteration ends. The
@@ -195,11 +198,11 @@ class AnnotatedGenerationTest {
         // Past the loop nothing is claimed of the state beyond the invariant and the
         // negated condition - how many iterations ran is not known.
         String past = mainConditionsFrom("filling").stream()
-                .filter(content -> content.contains("st5_invariant:"))
+                .filter(content -> content.contains("st7_invariant:"))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("no condition passes the loop"));
-        assertTrue(past.contains("st5:\"toEnvP st5 \\<and> substate st4 st5\""), past);
-        assertTrue(past.contains("st5_condition_0:\"(\\<not> ((theInt (getVarVal st5 ''#i'' []))"),
+        assertTrue(past.contains("st7:\"toEnvP st7 \\<and> substate st6 st7\""), past);
+        assertTrue(past.contains("st7_condition_0:\"(\\<not> ((theInt (getVarVal st7 ''#i'' []))"),
                 past);
     }
 
@@ -208,8 +211,8 @@ class AnnotatedGenerationTest {
     void aDefinitionIsExpandedAtItsUse() {
         // `draining` is `pumpOut && !pumpIn`, over the addresses those two map to.
         String assertion = from("assert at line 60");
-        assertTrue(assertion.contains("shows \"((theBool (getVarVal st2 ''valves_1'' [])) "
-                + "\\<and> (\\<not> (theBool (getVarVal st2 ''valves_0'' []))))\""), assertion);
+        assertTrue(assertion.contains("shows \"((theBool (getVarVal st4 ''valves_1'' [])) "
+                + "\\<and> (\\<not> (theBool (getVarVal st4 ''valves_0'' []))))\""), assertion);
     }
 
     /**
@@ -219,9 +222,46 @@ class AnnotatedGenerationTest {
     @Test
     void annotationNamesArePreprocessedWithTheProgram() {
         String assumption = from("assume at line 68");
-        assertTrue(assumption.contains("(theBool (getVarVal st0 ''sensors_0'' []))"), assumption);
+        assertTrue(assumption.contains("(theBool (getVarVal st2 ''sensors_0'' []))"), assumption);
 
         // A program-scope variable mangles to a bare `#name`, having no enclosing scope.
         assertTrue(from("assume at line 49").contains("''#total''"), files.toString());
+    }
+
+    /**
+     * Every condition begins by letting the inputs be anything: a physical variable bound
+     * with no {@code write =} takes its value from a free variable, which a lemma leaves
+     * universally quantified. Without this a condition would only hold for whatever value
+     * the input happened to have.
+     */
+    @Test
+    void everyConditionLetsTheInputsBeAnything() {
+        List<String> cycles = new ArrayList<>(ofKind("VC"));
+        cycles.addAll(ofKind("ASSUME"));
+        cycles.addAll(ofKind("ASSERT"));
+        cycles.addAll(ofKind("LOOPENTRY"));
+        assertFalse(cycles.isEmpty());
+
+        for (String condition : cycles) {
+            assertTrue(condition.contains(
+                    "st1:\"st1=(setVarVal st0 ''sensors_0'' [] (ValBool sensors_0))\""), condition);
+            assertTrue(condition.contains(
+                    "st2:\"st2=(setVarVal st1 ''sensors_1'' [] (ValBool sensors_1))\""), condition);
+        }
+
+        // The outputs are driven by the program, so they are not free.
+        for (String condition : cycles) {
+            assertFalse(condition.contains("(ValBool valves_0)"), condition);
+        }
+    }
+
+    /**
+     * A loop body is not a cycle: the hardware is read once per cycle, so an iteration
+     * does not get to resample it.
+     */
+    @Test
+    void aLoopIterationDoesNotResampleTheInputs() {
+        String step = from("loop invariant preserved, line 44");
+        assertFalse(step.contains("sensors_0"), step);
     }
 }

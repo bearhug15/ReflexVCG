@@ -3,6 +3,7 @@ package su.nsk.iae.reflex.cfg;
 import su.nsk.iae.reflex.analysis.Attributes;
 import su.nsk.iae.reflex.ir.Annotation;
 import su.nsk.iae.reflex.ir.IrExpr;
+import su.nsk.iae.reflex.ir.IrType;
 import su.nsk.iae.reflex.ir.TimeRef;
 
 import java.util.ArrayList;
@@ -189,6 +190,36 @@ public abstract class CfgNode {
         @Override
         public String describe() {
             return target + " := " + value;
+        }
+    }
+
+    /**
+     * An input is sampled: it takes whatever value the environment supplies.
+     *
+     * <p>Every cycle begins with one of these per input, before any process runs, because
+     * that is when a Reflex controller reads its hardware. Nothing in the program decides
+     * the value, so the condition leaves it free.
+     */
+    public static final class InputChoice extends CfgNode {
+        private final String variable;
+        private final IrType type;
+
+        public InputChoice(String variable, IrType type) {
+            this.variable = variable;
+            this.type = type;
+        }
+
+        public String getVariable() {
+            return variable;
+        }
+
+        public IrType getType() {
+            return type;
+        }
+
+        @Override
+        public String describe() {
+            return variable + " := input";
         }
     }
 

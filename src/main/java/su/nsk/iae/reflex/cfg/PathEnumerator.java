@@ -299,6 +299,11 @@ public final class PathEnumerator {
             String target = builder.next();
             builder.main.add(new VcStatement.Assign(target, builder.current, into, value));
             builder.current = target;
+        } else if (node instanceof CfgNode.InputChoice input) {
+            String target = builder.next();
+            builder.main.add(new VcStatement.InputChoice(
+                    target, builder.current, input.getVariable(), input.getType()));
+            builder.current = target;
         } else if (node instanceof CfgNode.SetState setState) {
             String target = builder.next();
             builder.main.add(new VcStatement.SetProcessState(

@@ -53,6 +53,16 @@ public final class CfgBuilder {
         CfgNode.Entry entry = new CfgNode.Entry();
         CfgNode current = entry;
 
+        // A cycle begins by reading the hardware, so the inputs take their values before
+        // any process runs. Nothing in the program decides them; the condition leaves
+        // them free, and so holds whatever the environment supplies.
+        for (IrDecl.PhysicalVariable input : program.inputVariables()) {
+            CfgNode.InputChoice choice =
+                    new CfgNode.InputChoice(input.getName(), input.getType());
+            current.addSuccessor(choice);
+            current = choice;
+        }
+
         for (IrProcess process : program.getProcesses()) {
             Fragment fragment = buildProcess(process);
             current.addSuccessor(fragment.entry());

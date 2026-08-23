@@ -104,6 +104,12 @@ public final class IsabelleRenderer {
         if (statement instanceof VcStatement.Assign s) {
             return s.target() + ":\"" + s.target() + "=" + renderAssignment(s) + "\"";
         }
+        if (statement instanceof VcStatement.InputChoice s) {
+            // The free variable is named after the input, and a lemma leaves it
+            // universally quantified: the condition has to hold for any value.
+            return s.target() + ":\"" + s.target() + "=(setVarVal " + s.source() + " "
+                    + quote(s.variable()) + " [] " + wrap(s.variable(), s.type()) + ")\"";
+        }
         if (statement instanceof VcStatement.SetProcessState s) {
             return s.target() + ":\"" + s.target() + "=setPstate " + s.source() + " "
                     + quote(s.process()) + " " + quote(s.pstate()) + "\"";

@@ -34,6 +34,15 @@ public final class InitialCondition {
 
         condition.add(new VcStatement.EmptyState(current));
 
+        // The environment has already presented its inputs by the time the program starts,
+        // so the base case leaves them free exactly as a cycle does.
+        for (IrDecl.PhysicalVariable input : program.inputVariables()) {
+            String next = counter.next();
+            condition.add(new VcStatement.InputChoice(
+                    next, current, input.getName(), input.getType()));
+            current = next;
+        }
+
         for (Assignment assignment : initialAssignments(program)) {
             String next = counter.next();
             condition.add(new VcStatement.Assign(next, current, assignment.target(), assignment.value()));

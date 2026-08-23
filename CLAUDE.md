@@ -83,6 +83,14 @@ exactly one place, at the very end.
   program now reproduces the old pruned counts exactly; the four multi-process ones differ, in the
   grouping rules. Over-pruning silently drops proof obligations, so treat those four as unconfirmed.
   `StaticAnalysisMeasurementTest` prints the table; `StaticAnalysisRulesTest` covers rules one by one.
+- **Inputs are free.** A physical variable bound with no `write =` is read from hardware and never
+  written by the program, so every cycle begins by giving it the value of a *free* Isabelle variable
+  named after it — `st1 = setVarVal st0 ''inp_1'' [] (ValBool inp_1)`. A lemma leaves those universally
+  quantified, so the condition holds for whatever the environment supplies; without them a condition
+  would only hold for the value the input happened to carry. `IrProgram.inputVariables()` lists them,
+  `CfgBuilder` puts a `CfgNode.InputChoice` per input at the head of the cycle, and `InitialCondition`
+  does the same for the base case. A loop body is *not* a cycle, so `LOOPSTEP` has none: the hardware
+  is read once per cycle, not once per iteration.
 - **C expression semantics** (`cfg/ExprLowering`). Reflex takes them from C, so a write can sit
   anywhere inside an expression and a statement's expression need not be an assignment. An expression
   therefore lowers to a *sequence* of `CfgNode`s — the writes it performs, in order — plus a value.

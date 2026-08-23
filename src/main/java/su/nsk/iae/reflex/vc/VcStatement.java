@@ -1,6 +1,7 @@
 package su.nsk.iae.reflex.vc;
 
 import su.nsk.iae.reflex.ir.IrExpr;
+import su.nsk.iae.reflex.ir.IrType;
 import su.nsk.iae.reflex.ir.TimeRef;
 import su.nsk.iae.reflex.term.Term;
 
@@ -46,6 +47,19 @@ public sealed interface VcStatement {
 
     /** A variable assignment, including the access path being written through. */
     record Assign(String target, String source, IrExpr.VarRef variable, IrExpr value)
+            implements VcStatement {
+    }
+
+    /**
+     * An input takes whatever value the environment supplies.
+     *
+     * <p>A physical variable bound with no {@code write =} is read from hardware and never
+     * written by the program, so a condition that says nothing about it would be proving
+     * something about one particular input. The value comes from a free variable named
+     * after the input, which a lemma leaves universally quantified - so the condition holds
+     * for every input the environment could present.
+     */
+    record InputChoice(String target, String source, String variable, IrType type)
             implements VcStatement {
     }
 

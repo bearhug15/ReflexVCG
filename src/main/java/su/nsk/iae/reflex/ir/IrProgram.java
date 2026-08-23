@@ -95,6 +95,29 @@ public final class IrProgram extends IrNode {
         return nodes.stream().filter(n -> n.getName().equals(nodeName)).findFirst().orElse(null);
     }
 
+    /**
+     * The program's inputs: physical variables bound for reading with no {@code write =}
+     * destination, wherever they are declared. Nothing in the program decides their value,
+     * so a condition has to let them be anything the environment might supply.
+     *
+     * <p>In declaration order - program level, then each node's, then each process's - so
+     * generation stays deterministic.
+     */
+    public List<IrDecl.PhysicalVariable> inputVariables() {
+        List<IrDecl.PhysicalVariable> inputs = new ArrayList<>();
+        globalVariables.forEach(d -> collectInput(d, inputs));
+        nodes.forEach(node -> node.getVariables().forEach(d -> collectInput(d, inputs)));
+        processes.forEach(process -> process.getVariables().forEach(d -> collectInput(d, inputs)));
+        return inputs;
+    }
+
+    private static void collectInput(IrDecl declaration, List<IrDecl.PhysicalVariable> inputs) {
+        if (declaration instanceof IrDecl.PhysicalVariable physical
+                && physical.getWritePort() == null) {
+            inputs.add(physical);
+        }
+    }
+
     @Override
     public String toString() {
         return "program " + name + " (" + processes.size() + " processes)";
