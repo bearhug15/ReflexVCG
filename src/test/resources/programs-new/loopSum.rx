@@ -1,0 +1,32 @@
+// The smallest program with a `for` and an invariant written on it.
+//
+// The loop adds two to `total` on each of COUNT iterations, counting with `i`. The
+// invariant is what survives one iteration and is all the path past the loop knows:
+// `total` never falls behind `i`, which holds on entry (0 >= 0) and is preserved,
+// since each iteration adds two to `total` and one to `i`.
+program LoopSum {
+	clock 100;
+	node Main { clock 100; }
+
+	const int32 COUNT = 4;
+
+	int32 total;
+	int32 i;
+
+	process Summing :: node Main {
+		state summing {
+			total = 0;
+
+			//[invariant: total >= i]
+			for (i = 0; i < COUNT; i = i + 1) {
+				total = total + 2;
+			}
+
+			set state done;
+		}
+
+		state done {
+			stop;
+		}
+	}
+}
