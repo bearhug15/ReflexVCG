@@ -142,7 +142,8 @@ public final class ReflexVcg {
 
         VcWriter writer = new VcWriter(destination, program.getName());
         writer.writeSupportingTheories(program, extras.extraDefinitions(),
-                globalInvariants(annotationTranslator()), graph.getPlaceholderInvariants());
+                globalInvariants(annotationTranslator()),
+                loopInvariants(graph, annotationTranslator()));
         // The base case first: the inductive step below assumes the invariant holds,
         // so something has to establish that it holds to begin with.
         VerificationCondition initial = extras.process(InitialCondition.build(program));
@@ -205,6 +206,34 @@ public final class ReflexVcg {
                     annotation, state, owner.scale(), owner.process(), owner.state())));
         });
         return invariants;
+    }
+
+    /**
+     * One entry per loop, for the theory that holds them.
+     *
+     * <p>A condition states a loop's invariant by name, so what the name means is settled
+     * here rather than repeated in every condition mentioning it. A loop written with an
+     * {@code [invariant: ...]} gets a definition; a loop written without one gets no
+     * formula, and the writer leaves it uninterpreted.
+     */
+    private List<VcWriter.RenderedLoopInvariant> loopInvariants(Cfg graph,
+                                                               AnnTranslator translator) {
+        TermRenderer renderer = new TermRenderer();
+        Term state = new Term.Var("s");
+        List<VcWriter.RenderedLoopInvariant> rendered = new ArrayList<>();
+
+        for (Cfg.LoopInvariant invariant : graph.getLoopInvariants()) {
+            String formula = null;
+            if (invariant.isDefined()) {
+                AnnTranslator.Template template =
+                        translator.translateLoopInvariant(invariant.annotation(), state);
+                formula = renderer.render(
+                        Term.substitute(template.body(), template.hole(), state));
+            }
+            rendered.add(new VcWriter.RenderedLoopInvariant(
+                    invariant.name(), invariant.line(), formula));
+        }
+        return rendered;
     }
 
     /** Where an annotation sits, which decides the shape of an invariant built from it. */

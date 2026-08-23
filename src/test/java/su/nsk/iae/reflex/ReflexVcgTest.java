@@ -38,7 +38,7 @@ class ReflexVcgTest {
         // The rest are inductive steps over one cycle.
         String condition = Files.readString(output.resolve("ifTest_VC1.thy"));
         assertTrue(condition.startsWith("theory ifTest_VC1"), condition);
-        assertTrue(condition.contains("imports ifTestTheory Requirements"), condition);
+        assertTrue(condition.contains("imports ifTestTheory LoopInvariants Requirements"), condition);
         assertTrue(condition.contains("base_inv:\"inv(st0)\""), condition);
         assertTrue(condition.contains("shows \"inv(st_final)\""), condition);
         // Values go through ReflexBase's single-constructor state, not the old typed one.
@@ -108,7 +108,7 @@ class ReflexVcgTest {
 
     /**
      * A loop with no {@code [invariant: ...]} is generated all the same, against an
-     * invariant named for it, which the program theory declares.
+     * invariant named for it and left uninterpreted in the loop theory.
      */
     @Test
     void generatesALoopWithNoInvariantAgainstAPlaceholder(@TempDir Path output) throws IOException {
@@ -125,14 +125,33 @@ class ReflexVcgTest {
         ReflexVcg generator = ReflexVcg.load(source);
         assertTrue(generator.generate(output) > 0);
 
-        String theory = Files.readString(output.resolve("PTheory.thy"));
-        assertTrue(theory.contains("consts loopInv0 :: \"state \\<Rightarrow> bool\""), theory);
+        String loops = Files.readString(output.resolve("LoopInvariants.thy"));
+        assertTrue(loops.contains("consts loopInv0 :: \"state \\<Rightarrow> bool\""), loops);
+        assertFalse(loops.contains("definition loopInv0"),
+                "nothing said what this loop preserves, so nothing should define it");
 
-        assertTrue(Files.exists(output.resolve("P_LOOPENTRY2.thy"))
-                        || anyNamed(output, "LOOPENTRY"),
+        assertTrue(anyNamed(output, "LOOPENTRY"),
                 "the loop should still produce its entry condition");
         assertTrue(anyNamed(output, "LOOPSTEP"),
                 "the loop should still produce its preservation condition");
+    }
+
+    /** A loop that was written with an invariant gets it defined, not left open. */
+    @Test
+    void definesALoopInvariantThatWasWritten(@TempDir Path output) throws IOException {
+        ReflexVcg.load(PROGRAMS.resolve("loopSum.rx")).generate(output);
+
+        String loops = Files.readString(output.resolve("LoopInvariants.thy"));
+        assertTrue(loops.contains("definition loopInv0 :: \"state \\<Rightarrow> bool\" where"), loops);
+        assertTrue(loops.contains("(theInt (getVarVal s ''#total'' []))"), loops);
+        assertFalse(loops.contains("consts"), loops);
+
+        // The conditions name it rather than repeating the formula.
+        String entry = Files.readString(output.resolve("LoopSum_LOOPENTRY2.thy"));
+        assertTrue(entry.contains("shows \"(loopInv0 st2)\""), entry);
+        // `total >= i` is what the invariant says; only the loop theory should spell it.
+        assertFalse(entry.contains("\\<ge>"),
+                "the formula belongs in the loop theory, not in the condition:\n" + entry);
     }
 
     private static boolean anyNamed(Path directory, String kind) throws IOException {

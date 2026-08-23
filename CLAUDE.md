@@ -124,18 +124,25 @@ exactly one place, at the very end.
     "not stopped and not in error" for a process, "in that state" for a state.
   - `invariant` on a `for` — the loop is cut out of the path. It becomes `LOOPENTRY<n>` (holds on
     entry), `LOOPSTEP<n>` (one iteration preserves it), and an opaque state on the main path knowing
-    only the invariant and the negated loop condition.
+    only the invariant and the negated loop condition. The formula itself goes into
+    `LoopInvariants.thy`, not into the conditions — see below.
 
   Mangling and typing run over annotations along with the code, so an unqualified name resolves in the
   scope the annotation sits in. `AnnotatedGenerationTest` covers all of this against
   `programs-new/annotatedTank.rx`, which carries one of every kind.
-- **A `for` with no invariant is still generated.** `CfgBuilder` names one for it — `loopInv0`,
-  `loopInv1`, in the order the loops are met — and the same three conditions are stated about that
-  name. `VcWriter` declares each as an uninterpreted `consts <name> :: "state ⇒ bool"` in the program
-  theory, with the loop's line in a comment. Deliberately uninterpreted: the conditions then say what
-  an invariant there would have to satisfy, and a human supplies the definition. Defining it as `True`
-  instead would make the entry and preservation conditions trivial while telling the main path nothing
-  about the state the loop leaves behind — a weaker claim than it looks.
+- **Loop invariants live in `LoopInvariants.thy`, one per loop.** Every loop gets a name —
+  `loopInv0`, `loopInv1`, in the order the loops are met — and a condition states the invariant by
+  that name (`shows "(loopInv0 st2)"`) rather than carrying the formula, the same separation the
+  global invariant gets in `Requirements.thy`. Every condition imports it. What the name means is
+  settled once, in that file:
+  - the loop was written with an `[invariant: ...]` → a `definition`, the annotation translated
+    against the definition's own `s`;
+  - it was not → an uninterpreted `consts <name> :: "state ⇒ bool"`, so the loop is still generated
+    and its conditions still say what an invariant there would have to satisfy. Deliberately not
+    `= True`, which would make the entry and preservation conditions trivial while telling the main
+    path nothing about the state the loop leaves behind — a weaker claim than it looks.
+
+  `Cfg.getLoopInvariants()` carries them; `ReflexVcg.loopInvariants` renders the formulas.
 - **An obligation is written once, not once per path.** It depends only on the path up to where it is
   stated, so every path continuing past it restates it word for word. `VcWriter` drops the repeats,
   comparing lemmas with their bound state names renumbered, since those come from a program-wide

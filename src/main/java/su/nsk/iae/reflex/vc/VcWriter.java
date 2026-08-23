@@ -1,6 +1,5 @@
 package su.nsk.iae.reflex.vc;
 
-import su.nsk.iae.reflex.cfg.Cfg;
 import su.nsk.iae.reflex.ir.IrProgram;
 import su.nsk.iae.reflex.ir.TimeRef;
 
@@ -27,6 +26,9 @@ import java.util.regex.Pattern;
  * proved, and a copy of ReflexBase.
  */
 public final class VcWriter {
+
+    /** The theory holding one invariant per loop, which every condition imports. */
+    public static final String LOOP_THEORY = "LoopInvariants";
 
     /** The names the annotation translator gives to the states it binds. */
     private static final Pattern BOUND_STATE = Pattern.compile("\\bsa\\d+\\b");
@@ -69,21 +71,30 @@ public final class VcWriter {
      *                         written into the requirements theory after the invariant
      * @param globalInvariants invariants written on the program, its processes or their
      *                         states, conjoined into the invariant itself
+     * @param loopInvariants   one per loop, each rendered into {@value #LOOP_THEORY}
      */
     public void writeSupportingTheories(IrProgram program, List<String> extraDefinitions,
                                         List<String> globalInvariants,
-                                        List<Cfg.PlaceholderInvariant> loopInvariants) {
+                                        List<RenderedLoopInvariant> loopInvariants) {
         // ReflexBase defines the state and its values, ReflexLemmas the facts about them,
         // ReflexPatterns the reusable proof patterns built on those.
         copyResource("ReflexTheory/ReflexBase.thy", "ReflexBase.thy");
         copyResource("ReflexTheory/ReflexLemmas.thy", "ReflexLemmas.thy");
         copyResource("ReflexTheory/ReflexPatterns.thy", "ReflexPatterns.thy");
         write(baseTheoryName() + ".thy", renderer.renderTheory(
-                baseTheoryName(), List.of("ReflexPatterns"),
-                programTheoryBody(program) + placeholderInvariants(loopInvariants)));
+                baseTheoryName(), List.of("ReflexPatterns"), programTheoryBody(program)));
+        write(LOOP_THEORY + ".thy", renderer.renderTheory(
+                LOOP_THEORY, List.of("ReflexPatterns"), loopInvariantBody(loopInvariants)));
         write("Requirements.thy", renderer.renderTheory(
                 "Requirements", List.of("ReflexPatterns"),
                 requirementsBody(globalInvariants) + String.join("\n", extraDefinitions)));
+    }
+
+    /**
+     * A loop invariant ready to be written: its name, the loop it belongs to, and the
+     * formula defining it - null when no {@code [invariant: ...]} was written for the loop.
+     */
+    public record RenderedLoopInvariant(String name, int line, String formula) {
     }
 
     /**
@@ -103,7 +114,7 @@ public final class VcWriter {
         }
         String name = programName + "_" + prefixOf(condition.getKind()) + written;
         write(name + ".thy", renderer.renderTheory(
-                name, List.of(baseTheoryName(), "Requirements"), lemma));
+                name, List.of(baseTheoryName(), LOOP_THEORY, "Requirements"), lemma));
         written++;
     }
 
@@ -175,20 +186,27 @@ public final class VcWriter {
      * provable. Defining it as True would make the first two trivial and say nothing about
      * the state the loop leaves behind, which is a weaker claim than it looks.
      */
-    private String placeholderInvariants(List<Cfg.PlaceholderInvariant> loopInvariants) {
+    private String loopInvariantBody(List<RenderedLoopInvariant> loopInvariants) {
         if (loopInvariants.isEmpty()) {
-            return "";
+            return "(* The program has no loops. *)\n";
         }
-        StringBuilder declarations = new StringBuilder(
-                "\n(* No [invariant: ...] was written on these loops, so generation named one\n"
-                        + "   per loop and stated the conditions about it. Give each a definition\n"
-                        + "   saying what the loop preserves; until then they cannot be proved. *)\n");
-        for (Cfg.PlaceholderInvariant invariant : loopInvariants) {
-            declarations.append("(* the loop at line ").append(invariant.line()).append(" *)\n")
-                    .append("consts ").append(invariant.name())
-                    .append(" :: \"state \\<Rightarrow> bool\"\n");
+        StringBuilder body = new StringBuilder();
+        for (RenderedLoopInvariant invariant : loopInvariants) {
+            body.append("(* the loop at line ").append(invariant.line()).append(" *)\n");
+            if (invariant.formula() == null) {
+                body.append("(* No [invariant: ...] was written for it, so this stands\n")
+                        .append("   uninterpreted. Give it a definition saying what the loop\n")
+                        .append("   preserves; until then the loop's conditions cannot be proved. *)\n")
+                        .append("consts ").append(invariant.name())
+                        .append(" :: \"state \\<Rightarrow> bool\"\n\n");
+            } else {
+                body.append("definition ").append(invariant.name())
+                        .append(" :: \"state \\<Rightarrow> bool\" where\n")
+                        .append("\"").append(invariant.name()).append(" s =\n")
+                        .append(invariant.formula()).append("\"\n\n");
+            }
         }
-        return declarations.toString();
+        return body.toString();
     }
 
     /**

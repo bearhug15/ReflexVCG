@@ -295,19 +295,20 @@ public abstract class CfgNode {
      */
     public static final class LoopCut extends CfgNode {
         private final Annotation invariant;
-        private final String placeholder;
+        private final String invariantName;
         private final IrExpr condition;
         private final CfgNode bodyEntry;
 
         /**
-         * @param invariant   the {@code [invariant: ...]} written on the loop, or null
-         * @param placeholder the name standing in for an invariant that was not written -
-         *                    unique to this loop, and uninterpreted in the theory
+         * @param invariant     the {@code [invariant: ...]} written on the loop, or null
+         * @param invariantName the name the conditions state the invariant under, unique to
+         *                      this loop. The theory holding it either defines it from
+         *                      {@code invariant} or leaves it uninterpreted.
          */
-        public LoopCut(Annotation invariant, String placeholder, IrExpr condition,
+        public LoopCut(Annotation invariant, String invariantName, IrExpr condition,
                        CfgNode bodyEntry) {
             this.invariant = invariant;
-            this.placeholder = placeholder;
+            this.invariantName = invariantName;
             this.condition = condition;
             this.bodyEntry = bodyEntry;
         }
@@ -317,9 +318,9 @@ public abstract class CfgNode {
             return invariant;
         }
 
-        /** The name of this loop's invariant when none was written. */
-        public String getPlaceholder() {
-            return placeholder;
+        /** The name this loop's invariant is stated under. */
+        public String getInvariantName() {
+            return invariantName;
         }
 
         /** The loop's condition: true while the body runs, false once it stops. */
@@ -334,7 +335,7 @@ public abstract class CfgNode {
 
         @Override
         public String describe() {
-            return invariant != null ? "loop with invariant" : "loop with " + placeholder;
+            return "loop with " + invariantName;
         }
     }
 

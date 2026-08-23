@@ -35,7 +35,7 @@ public final class CfgBuilder {
     private final IrProgram program;
     private final AttributePreparation attributes;
     /** Named as the loops are met, so the names are stable for a given program. */
-    private final List<Cfg.PlaceholderInvariant> placeholderInvariants = new ArrayList<>();
+    private final List<Cfg.LoopInvariant> loopInvariants = new ArrayList<>();
 
     public CfgBuilder(IrProgram program) {
         this(program, null);
@@ -76,7 +76,7 @@ public final class CfgBuilder {
         CfgNode.Exit exit = new CfgNode.Exit();
         toEnv.addSuccessor(exit);
 
-        return new Cfg(entry, exit, program, placeholderInvariants);
+        return new Cfg(entry, exit, program, loopInvariants);
     }
 
     /**
@@ -237,15 +237,13 @@ public final class CfgBuilder {
      * saying the invariant holds on entry and survives one iteration.
      */
     private Fragment buildFor(IrProcess process, IrStmt.For forStmt) {
+        // Every loop's invariant gets a name, whether or not one was written for it, so a
+        // condition mentions the name rather than carrying the formula. The theory holding
+        // the names defines it where an annotation says what it is, and leaves it
+        // uninterpreted where nothing does.
         Annotation invariant = loopInvariantOf(forStmt);
-        String placeholder = null;
-        if (invariant == null) {
-            // Nobody said what the loop preserves, so generation invents a name for it and
-            // states the same three conditions about that. What they are worth depends on
-            // the definition a human gives it, but they exist and say what is required.
-            placeholder = "loopInv" + placeholderInvariants.size();
-            placeholderInvariants.add(new Cfg.PlaceholderInvariant(placeholder, lineOf(forStmt)));
-        }
+        String invariantName = "loopInv" + loopInvariants.size();
+        loopInvariants.add(new Cfg.LoopInvariant(invariantName, lineOf(forStmt), invariant));
 
         if (ExprLowering.writes(forStmt.getCondition())) {
             // The cut states the condition twice - negated past the loop, asserted inside
@@ -278,7 +276,7 @@ public final class CfgBuilder {
         bodyExit.addSuccessor(new CfgNode.Exit());
 
         CfgNode.LoopCut cut = new CfgNode.LoopCut(
-                invariant, placeholder, forStmt.getCondition(), body.entry());
+                invariant, invariantName, forStmt.getCondition(), body.entry());
         current.addSuccessor(cut);
         return new Fragment(entry, cut);
     }

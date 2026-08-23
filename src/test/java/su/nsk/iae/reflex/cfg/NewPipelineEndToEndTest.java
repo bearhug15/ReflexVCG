@@ -179,8 +179,8 @@ class NewPipelineEndToEndTest {
         Cfg cfg = new CfgBuilder(load(file)).build();
         assertTrue(cfg.unsupportedNodes().isEmpty(),
                 "a loop without an invariant is generated, not reported");
-        assertEquals(1, cfg.getPlaceholderInvariants().size());
-        assertEquals("loopInv0", cfg.getPlaceholderInvariants().get(0).name());
+        assertEquals(1, cfg.getLoopInvariants().size());
+        assertEquals("loopInv0", cfg.getLoopInvariants().get(0).name());
 
         IsabelleRenderer renderer = new IsabelleRenderer();
         List<String> lemmas = new ArrayList<>();

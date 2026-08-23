@@ -168,7 +168,7 @@ class AnnotatedGenerationTest {
 
         // Every condition is stated against it.
         for (String condition : ofKind("VC")) {
-            assertTrue(condition.contains("imports AnnotatedTankTheory Requirements"), condition);
+            assertTrue(condition.contains("imports AnnotatedTankTheory LoopInvariants Requirements"), condition);
         }
     }
 
@@ -178,11 +178,16 @@ class AnnotatedGenerationTest {
      */
     @Test
     void aLoopIsCutIntoEntryPreservationAndExit() {
-        String entry = from("loop invariant on entry, line 44");
-        assertTrue(entry.contains("shows \"((theInt (getVarVal st6 ''#total'' [])) "
-                + "\\<le> (theInt (getVarVal st6 ''#i'' [])))\""), entry);
+        // The invariant is stated by name; LoopInvariants.thy says what the name means.
+        String loops = files.get("LoopInvariants.thy");
+        assertTrue(loops.contains("definition loopInv0 :: \"state \\<Rightarrow> bool\" where"), loops);
+        assertTrue(loops.contains("(theInt (getVarVal s ''#total'' [])) "
+                + "\\<le> (theInt (getVarVal s ''#i'' []))"), loops);
 
-        String step = from("loop invariant preserved, line 44");
+        String entry = from("loop invariant on entry, loopInv0");
+        assertTrue(entry.contains("shows \"(loopInv0 st6)\""), entry);
+
+        String step = from("loop invariant preserved, loopInv0");
         // Assumed up to where the body starts, shown up to where the iteration ends. The
         // body is numbered from its own st0, not the enclosing path's.
         assertTrue(step.contains("loop_invariant:\"(\\<forall> sa"), step);
@@ -261,7 +266,7 @@ class AnnotatedGenerationTest {
      */
     @Test
     void aLoopIterationDoesNotResampleTheInputs() {
-        String step = from("loop invariant preserved, line 44");
+        String step = from("loop invariant preserved, loopInv0");
         assertFalse(step.contains("sensors_0"), step);
     }
 }

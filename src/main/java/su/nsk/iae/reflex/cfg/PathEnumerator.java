@@ -374,7 +374,8 @@ public final class PathEnumerator {
     private void loopCut(Builder builder, CfgNode.LoopCut cut) {
         AnnTranslator translator = translator();
         su.nsk.iae.reflex.term.Term preLoop = new su.nsk.iae.reflex.term.Term.Var(builder.current);
-        AnnTranslator.Template template = templateFor(cut, preLoop);
+        AnnTranslator.Template template =
+                translator.loopInvariantReference(cut.getInvariantName());
 
         String afterLoop = builder.next();
         AnnTranslator.LoopInvariant outer = translator.instantiateLoopInvariant(
@@ -445,21 +446,13 @@ public final class PathEnumerator {
     }
 
     /**
-     * The invariant a loop is cut by: the one written on it, or the placeholder standing
-     * in when none was.
+     * Which loop a derived condition came from, for the note it carries. The name is
+     * enough to find it: the theory declaring it says which loop it belongs to.
      */
-    private AnnTranslator.Template templateFor(CfgNode.LoopCut cut,
-                                               su.nsk.iae.reflex.term.Term preLoop) {
-        return cut.getInvariant() != null && annotations != null
-                ? annotations.translateLoopInvariant(cut.getInvariant(), preLoop)
-                : translator().placeholderLoopInvariant(cut.getPlaceholder());
-    }
-
-    /** Which loop a derived condition came from, for the note it carries. */
     private static String describe(CfgNode.LoopCut cut) {
         return cut.getInvariant() != null
-                ? "line " + cut.getInvariant().getLine()
-                : "no invariant written, standing in as " + cut.getPlaceholder();
+                ? cut.getInvariantName()
+                : cut.getInvariantName() + ", which no invariant was written for";
     }
 
     /**

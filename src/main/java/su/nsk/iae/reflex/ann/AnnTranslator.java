@@ -125,15 +125,15 @@ public final class AnnTranslator {
     }
 
     /**
-     * The template of a loop nobody wrote an invariant for: an uninterpreted predicate
-     * applied to the state, standing in for whatever the loop preserves.
+     * The template of a loop invariant referred to by name: the predicate {@code name}
+     * applied to the state.
      *
-     * <p>The three conditions a loop produces have the same shape either way, so a loop
-     * without an invariant still says what one would have to satisfy - it holds on entry,
-     * survives an iteration, and is all the path past the loop may rely on. What they are
-     * worth depends on the definition {@code name} is eventually given.
+     * <p>Every loop is cut this way, whether or not an invariant was written for it, so a
+     * condition mentions {@code loopInv0 st3} rather than carrying the formula. What the
+     * name means is settled once, in the theory declaring it - either by the annotation the
+     * loop carries or, when it carries none, not at all.
      */
-    public Template placeholderLoopInvariant(String name) {
+    public Template loopInvariantReference(String name) {
         Term hole = freshState();
         return new Template(new Term.App(name, List.of(hole)), hole);
     }

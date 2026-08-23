@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.cfg;
 
+import su.nsk.iae.reflex.ir.Annotation;
 import su.nsk.iae.reflex.ir.IrProgram;
 
 import java.util.ArrayDeque;
@@ -18,39 +19,47 @@ import java.util.Set;
 public final class Cfg {
 
     /**
-     * A loop whose invariant nobody wrote, and the name standing in for it.
+     * A loop's invariant: the name the conditions state it under, and what defines it.
      *
-     * <p>Uninterpreted: the conditions state what the loop needs of it, and a human either
-     * supplies a definition or reads them as "this is what an invariant here would have to
-     * satisfy". {@code line} is the loop's line in the source, so the declaration can say
-     * which loop it belongs to.
+     * <p>Every loop gets a name, so a condition mentions {@code loopInv0 st3} rather than
+     * carrying the formula itself. The theory holding those names then either defines one -
+     * when an {@code [invariant: ...]} says what the loop preserves - or leaves it
+     * uninterpreted, when nothing does. {@code line} is the loop's line in the source, so
+     * the declaration can say which loop it belongs to.
+     *
+     * @param annotation what the loop was written to preserve, or null when nothing was
      */
-    public record PlaceholderInvariant(String name, int line) {
+    public record LoopInvariant(String name, int line, Annotation annotation) {
+
+        /** Whether a formula defines this, as against it standing uninterpreted. */
+        public boolean isDefined() {
+            return annotation != null;
+        }
     }
 
     private final CfgNode entry;
     private final CfgNode exit;
     private final IrProgram program;
-    private final List<PlaceholderInvariant> placeholderInvariants;
+    private final List<LoopInvariant> loopInvariants;
 
     public Cfg(CfgNode entry, CfgNode exit, IrProgram program) {
         this(entry, exit, program, List.of());
     }
 
     public Cfg(CfgNode entry, CfgNode exit, IrProgram program,
-               List<PlaceholderInvariant> placeholderInvariants) {
+               List<LoopInvariant> loopInvariants) {
         this.entry = entry;
         this.exit = exit;
         this.program = program;
-        this.placeholderInvariants = List.copyOf(placeholderInvariants);
+        this.loopInvariants = List.copyOf(loopInvariants);
     }
 
     /**
-     * The invariants generation had to invent, in the order the loops appear. Each needs
-     * declaring in the theory the conditions are stated against.
+     * One entry per loop, in the order the loops appear. Each needs a name in the theory
+     * the conditions are stated against.
      */
-    public List<PlaceholderInvariant> getPlaceholderInvariants() {
-        return placeholderInvariants;
+    public List<LoopInvariant> getLoopInvariants() {
+        return loopInvariants;
     }
 
     public CfgNode getEntry() {
