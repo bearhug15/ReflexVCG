@@ -17,14 +17,40 @@ import java.util.Set;
  */
 public final class Cfg {
 
+    /**
+     * A loop whose invariant nobody wrote, and the name standing in for it.
+     *
+     * <p>Uninterpreted: the conditions state what the loop needs of it, and a human either
+     * supplies a definition or reads them as "this is what an invariant here would have to
+     * satisfy". {@code line} is the loop's line in the source, so the declaration can say
+     * which loop it belongs to.
+     */
+    public record PlaceholderInvariant(String name, int line) {
+    }
+
     private final CfgNode entry;
     private final CfgNode exit;
     private final IrProgram program;
+    private final List<PlaceholderInvariant> placeholderInvariants;
 
     public Cfg(CfgNode entry, CfgNode exit, IrProgram program) {
+        this(entry, exit, program, List.of());
+    }
+
+    public Cfg(CfgNode entry, CfgNode exit, IrProgram program,
+               List<PlaceholderInvariant> placeholderInvariants) {
         this.entry = entry;
         this.exit = exit;
         this.program = program;
+        this.placeholderInvariants = List.copyOf(placeholderInvariants);
+    }
+
+    /**
+     * The invariants generation had to invent, in the order the loops appear. Each needs
+     * declaring in the theory the conditions are stated against.
+     */
+    public List<PlaceholderInvariant> getPlaceholderInvariants() {
+        return placeholderInvariants;
     }
 
     public CfgNode getEntry() {

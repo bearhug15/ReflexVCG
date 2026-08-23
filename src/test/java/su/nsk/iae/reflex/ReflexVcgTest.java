@@ -88,6 +88,30 @@ class ReflexVcgTest {
 
     @Test
     void refusesToGenerateForUnsupportedConstructs(@TempDir Path output) throws IOException {
+        Path source = output.resolve("ccode.rx");
+        Files.writeString(source, "program P {\n"
+                + "  clock 100;\n"
+                + "  node N { clock 100; }\n"
+                + "  int32 a;\n"
+                + "  process Proc :: node N {\n"
+                // The C code token runs to the end of the line, so the brace goes below it.
+                + "    state s {\n      $ a = compute()\n    }\n"
+                + "  }\n"
+                + "}");
+
+        ReflexVcg generator = ReflexVcg.load(source);
+        IllegalStateException raised =
+                assertThrows(IllegalStateException.class, () -> generator.generate(output));
+        assertTrue(raised.getMessage().contains("does not support"), raised.getMessage());
+        assertTrue(raised.getMessage().contains("inline C"), raised.getMessage());
+    }
+
+    /**
+     * A loop with no {@code [invariant: ...]} is generated all the same, against an
+     * invariant named for it, which the program theory declares.
+     */
+    @Test
+    void generatesALoopWithNoInvariantAgainstAPlaceholder(@TempDir Path output) throws IOException {
         Path source = output.resolve("loop.rx");
         Files.writeString(source, "program P {\n"
                 + "  clock 100;\n"
@@ -99,10 +123,22 @@ class ReflexVcgTest {
                 + "}");
 
         ReflexVcg generator = ReflexVcg.load(source);
-        IllegalStateException raised =
-                assertThrows(IllegalStateException.class, () -> generator.generate(output));
-        assertTrue(raised.getMessage().contains("does not support"), raised.getMessage());
-        assertTrue(raised.getMessage().contains("for"), raised.getMessage());
+        assertTrue(generator.generate(output) > 0);
+
+        String theory = Files.readString(output.resolve("PTheory.thy"));
+        assertTrue(theory.contains("consts loopInv0 :: \"state \\<Rightarrow> bool\""), theory);
+
+        assertTrue(Files.exists(output.resolve("P_LOOPENTRY2.thy"))
+                        || anyNamed(output, "LOOPENTRY"),
+                "the loop should still produce its entry condition");
+        assertTrue(anyNamed(output, "LOOPSTEP"),
+                "the loop should still produce its preservation condition");
+    }
+
+    private static boolean anyNamed(Path directory, String kind) throws IOException {
+        try (java.util.stream.Stream<Path> files = Files.list(directory)) {
+            return files.anyMatch(p -> p.getFileName().toString().contains(kind));
+        }
     }
 
     @Test

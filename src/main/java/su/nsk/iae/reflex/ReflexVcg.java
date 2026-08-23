@@ -142,7 +142,7 @@ public final class ReflexVcg {
 
         VcWriter writer = new VcWriter(destination, program.getName());
         writer.writeSupportingTheories(program, extras.extraDefinitions(),
-                globalInvariants(annotationTranslator()));
+                globalInvariants(annotationTranslator()), graph.getPlaceholderInvariants());
         // The base case first: the inductive step below assumes the invariant holds,
         // so something has to establish that it holds to begin with.
         VerificationCondition initial = extras.process(InitialCondition.build(program));

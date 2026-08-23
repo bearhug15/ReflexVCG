@@ -34,6 +34,8 @@ public final class CfgBuilder {
 
     private final IrProgram program;
     private final AttributePreparation attributes;
+    /** Named as the loops are met, so the names are stable for a given program. */
+    private final List<Cfg.PlaceholderInvariant> placeholderInvariants = new ArrayList<>();
 
     public CfgBuilder(IrProgram program) {
         this(program, null);
@@ -74,7 +76,7 @@ public final class CfgBuilder {
         CfgNode.Exit exit = new CfgNode.Exit();
         toEnv.addSuccessor(exit);
 
-        return new Cfg(entry, exit, program);
+        return new Cfg(entry, exit, program, placeholderInvariants);
     }
 
     /**
@@ -236,10 +238,13 @@ public final class CfgBuilder {
      */
     private Fragment buildFor(IrProcess process, IrStmt.For forStmt) {
         Annotation invariant = loopInvariantOf(forStmt);
+        String placeholder = null;
         if (invariant == null) {
-            return effect(new CfgNode.Unsupported("for",
-                    "a loop can only be generated for when an [invariant: ...] says what "
-                            + "it preserves"));
+            // Nobody said what the loop preserves, so generation invents a name for it and
+            // states the same three conditions about that. What they are worth depends on
+            // the definition a human gives it, but they exist and say what is required.
+            placeholder = "loopInv" + placeholderInvariants.size();
+            placeholderInvariants.add(new Cfg.PlaceholderInvariant(placeholder, lineOf(forStmt)));
         }
 
         if (ExprLowering.writes(forStmt.getCondition())) {
@@ -272,8 +277,8 @@ public final class CfgBuilder {
         }
         bodyExit.addSuccessor(new CfgNode.Exit());
 
-        CfgNode.LoopCut cut =
-                new CfgNode.LoopCut(invariant, forStmt.getCondition(), body.entry());
+        CfgNode.LoopCut cut = new CfgNode.LoopCut(
+                invariant, placeholder, forStmt.getCondition(), body.entry());
         current.addSuccessor(cut);
         return new Fragment(entry, cut);
     }
@@ -515,6 +520,11 @@ public final class CfgBuilder {
             fragment.entry().setAttributes(attributes.of(statement));
         }
         return fragment;
+    }
+
+    /** The source line a statement came from, or 0 for one no source produced. */
+    private static int lineOf(IrStmt statement) {
+        return statement.getSource() == null ? 0 : statement.getSource().getStart().getLine();
     }
 
     /** A straight-line fragment performing the given effects in order. */

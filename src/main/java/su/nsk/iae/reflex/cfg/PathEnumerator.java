@@ -42,6 +42,7 @@ public final class PathEnumerator {
     private final AnnTranslator annotations;
     private int emitted;
     private int pruned;
+    private AnnTranslator fallbackTranslator;
 
     public PathEnumerator(Cfg cfg) {
         this(cfg, null, null);
@@ -371,17 +372,12 @@ public final class PathEnumerator {
      * nothing is claimed of it beyond the invariant.
      */
     private void loopCut(Builder builder, CfgNode.LoopCut cut) {
-        if (annotations == null) {
-            throw new UnsupportedConstructException(new CfgNode.Unsupported("for",
-                    "a loop needs its invariant translated, which needs annotations enabled"));
-        }
-
+        AnnTranslator translator = translator();
         su.nsk.iae.reflex.term.Term preLoop = new su.nsk.iae.reflex.term.Term.Var(builder.current);
-        AnnTranslator.Template template =
-                annotations.translateLoopInvariant(cut.getInvariant(), preLoop);
+        AnnTranslator.Template template = templateFor(cut, preLoop);
 
         String afterLoop = builder.next();
-        AnnTranslator.LoopInvariant outer = annotations.instantiateLoopInvariant(
+        AnnTranslator.LoopInvariant outer = translator.instantiateLoopInvariant(
                 template, preLoop, preLoop, new su.nsk.iae.reflex.term.Term.Var(afterLoop));
 
         // The invariant holds when the loop is reached.
@@ -389,7 +385,7 @@ public final class PathEnumerator {
         entry.setKind(VerificationCondition.Kind.LOOP_ENTRY);
         entry.setConclusion(outer.onEntry());
         entry.setFinalState(builder.current);
-        entry.setNote("loop invariant on entry, line " + cut.getInvariant().getLine());
+        entry.setNote("loop invariant on entry, " + describe(cut));
         builder.derived.add(entry);
 
         // One iteration preserves it.
@@ -427,11 +423,11 @@ public final class PathEnumerator {
             su.nsk.iae.reflex.term.Term bodyEnd =
                     new su.nsk.iae.reflex.term.Term.Var(lastStateOf(bodyPath));
             AnnTranslator.LoopInvariant parts =
-                    annotations.instantiateLoopInvariant(template, bodyStart, bodyEnd, bodyEnd);
+                    translator().instantiateLoopInvariant(template, bodyStart, bodyEnd, bodyEnd);
 
             VerificationCondition preserved = new VerificationCondition();
             preserved.setKind(VerificationCondition.Kind.LOOP_PRESERVED);
-            preserved.setNote("loop invariant preserved, line " + cut.getInvariant().getLine());
+            preserved.setNote("loop invariant preserved, " + describe(cut));
 
             preserved.add(new VcStatement.Assumption("loop_invariant", parts.assumedBeforeBody()));
             if (cut.getCondition() != null) {
@@ -446,6 +442,39 @@ public final class PathEnumerator {
             conditions.add(preserved);
         });
         return conditions;
+    }
+
+    /**
+     * The invariant a loop is cut by: the one written on it, or the placeholder standing
+     * in when none was.
+     */
+    private AnnTranslator.Template templateFor(CfgNode.LoopCut cut,
+                                               su.nsk.iae.reflex.term.Term preLoop) {
+        return cut.getInvariant() != null && annotations != null
+                ? annotations.translateLoopInvariant(cut.getInvariant(), preLoop)
+                : translator().placeholderLoopInvariant(cut.getPlaceholder());
+    }
+
+    /** Which loop a derived condition came from, for the note it carries. */
+    private static String describe(CfgNode.LoopCut cut) {
+        return cut.getInvariant() != null
+                ? "line " + cut.getInvariant().getLine()
+                : "no invariant written, standing in as " + cut.getPlaceholder();
+    }
+
+    /**
+     * The translator to build terms with. A loop with no invariant needs one even when the
+     * caller supplied none, since the placeholder is still a term; nothing of the program's
+     * own annotations is read to build it.
+     */
+    private AnnTranslator translator() {
+        if (annotations != null) {
+            return annotations;
+        }
+        if (fallbackTranslator == null) {
+            fallbackTranslator = new AnnTranslator(1);
+        }
+        return fallbackTranslator;
     }
 
     /** The last state a path actually reached, which its Final statement binds. */

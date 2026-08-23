@@ -295,17 +295,31 @@ public abstract class CfgNode {
      */
     public static final class LoopCut extends CfgNode {
         private final Annotation invariant;
+        private final String placeholder;
         private final IrExpr condition;
         private final CfgNode bodyEntry;
 
-        public LoopCut(Annotation invariant, IrExpr condition, CfgNode bodyEntry) {
+        /**
+         * @param invariant   the {@code [invariant: ...]} written on the loop, or null
+         * @param placeholder the name standing in for an invariant that was not written -
+         *                    unique to this loop, and uninterpreted in the theory
+         */
+        public LoopCut(Annotation invariant, String placeholder, IrExpr condition,
+                       CfgNode bodyEntry) {
             this.invariant = invariant;
+            this.placeholder = placeholder;
             this.condition = condition;
             this.bodyEntry = bodyEntry;
         }
 
+        /** The invariant written on the loop, or null when none was. */
         public Annotation getInvariant() {
             return invariant;
+        }
+
+        /** The name of this loop's invariant when none was written. */
+        public String getPlaceholder() {
+            return placeholder;
         }
 
         /** The loop's condition: true while the body runs, false once it stops. */
@@ -320,7 +334,7 @@ public abstract class CfgNode {
 
         @Override
         public String describe() {
-            return "loop with invariant";
+            return invariant != null ? "loop with invariant" : "loop with " + placeholder;
         }
     }
 

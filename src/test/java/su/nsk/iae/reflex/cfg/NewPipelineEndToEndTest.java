@@ -36,13 +36,6 @@ class NewPipelineEndToEndTest {
 
     private static final Path PROGRAMS = Path.of("src/test/resources/programs-new");
 
-    /**
-     * Programs that only generate with annotations enabled. This test loads without an
-     * annotation binder, so a loop here has no invariant to be cut by; the annotated
-     * pipeline is covered by {@link su.nsk.iae.reflex.ann.AnnotatedGenerationTest}.
-     */
-    private static final List<String> NEEDS_ANNOTATIONS = List.of("annotatedTank.rx");
-
     private static IrProgram load(Path file) throws IOException {
         NewReflexLexer lexer = new NewReflexLexer(CharStreams.fromPath(file));
         BufferedTokenStream tokens = new CommonTokenStream(lexer);
@@ -71,12 +64,6 @@ class NewPipelineEndToEndTest {
             IrProgram program = load(file);
             Cfg cfg = new CfgBuilder(program).build();
 
-            if (NEEDS_ANNOTATIONS.contains(file.getFileName().toString())) {
-                assertFalse(cfg.unsupportedNodes().isEmpty(),
-                        file.getFileName() + " should report its loop when annotations are off");
-                continue;
-            }
-
             List<VerificationCondition> conditions = new PathEnumerator(cfg).enumerate();
             assertFalse(conditions.isEmpty(), file.getFileName() + " produced no conditions");
             System.out.printf("pipeline %-20s %5d conditions%n", file.getFileName(), conditions.size());
@@ -84,8 +71,14 @@ class NewPipelineEndToEndTest {
             for (VerificationCondition condition : conditions) {
                 String lemma = renderer.renderLemma(condition);
                 assertNotNull(lemma);
-                assertTrue(lemma.startsWith("lemma\nassumes "), file + ": " + lemma);
-                assertTrue(lemma.endsWith("shows \"inv(st_final)\""), file + ": " + lemma);
+                // A derived condition carries a note saying where it came from, ahead of
+                // the lemma itself.
+                assertTrue(lemma.contains("lemma\nassumes "), file + ": " + lemma);
+                // Only a condition covering a whole cycle concludes the invariant; a loop's
+                // own conditions conclude the loop invariant instead.
+                if (condition.getKind() == VerificationCondition.Kind.MAIN) {
+                    assertTrue(lemma.endsWith("shows \"inv(st_final)\""), file + ": " + lemma);
+                }
             }
         }
     }
@@ -150,20 +143,55 @@ class NewPipelineEndToEndTest {
                 + "  node N { clock 100; }\n"
                 + "  int32 a;\n"
                 + "  process Proc :: node N {\n"
-                + "    state s { for (int32 i = 0; i < 3; i++) { a = i; } }\n"
+                // The C code token runs to the end of the line, so the brace goes below it.
+                + "    state s {\n      $ a = compute()\n    }\n"
                 + "  }\n"
                 + "}");
 
         IrProgram program = load(file);
         Cfg cfg = new CfgBuilder(program).build();
 
-        assertEquals(1, cfg.unsupportedNodes().size(), "the for loop should appear as unsupported");
-        assertEquals("for", cfg.unsupportedNodes().get(0).getConstruct());
+        assertEquals(1, cfg.unsupportedNodes().size(), "inline C should appear as unsupported");
+        assertEquals("inline C", cfg.unsupportedNodes().get(0).getConstruct());
 
         PathEnumerator.UnsupportedConstructException raised = org.junit.jupiter.api.Assertions
                 .assertThrows(PathEnumerator.UnsupportedConstructException.class,
                         () -> new PathEnumerator(cfg).enumerate());
         assertTrue(raised.getMessage().contains("not supported"), raised.getMessage());
+    }
+
+    /**
+     * A loop with no {@code [invariant: ...]} is cut all the same, against an invariant
+     * named for it. The graph records the name so the theory can declare it.
+     */
+    @Test
+    void cutsALoopWithNoInvariantAgainstAPlaceholder() throws IOException {
+        Path file = Files.createTempFile("placeholder", ".rx");
+        Files.writeString(file, "program P {\n"
+                + "  clock 100;\n"
+                + "  node N { clock 100; }\n"
+                + "  int32 a;\n"
+                + "  process Proc :: node N {\n"
+                + "    state s { for (int32 i = 0; i < 3; i++) { a = i; } }\n"
+                + "  }\n"
+                + "}");
+
+        Cfg cfg = new CfgBuilder(load(file)).build();
+        assertTrue(cfg.unsupportedNodes().isEmpty(),
+                "a loop without an invariant is generated, not reported");
+        assertEquals(1, cfg.getPlaceholderInvariants().size());
+        assertEquals("loopInv0", cfg.getPlaceholderInvariants().get(0).name());
+
+        IsabelleRenderer renderer = new IsabelleRenderer();
+        List<String> lemmas = new ArrayList<>();
+        new PathEnumerator(cfg).enumerate().forEach(c -> lemmas.add(renderer.renderLemma(c)));
+
+        assertTrue(lemmas.stream().anyMatch(l -> l.contains("shows \"(loopInv0 ")),
+                "the invariant should hold on entry:\n" + String.join("\n---\n", lemmas));
+        assertTrue(lemmas.stream().anyMatch(l -> l.contains("loop_invariant:")),
+                "an iteration should be shown to preserve it");
+        assertTrue(lemmas.stream().anyMatch(l -> l.contains("_invariant:\"(loopInv0 ")),
+                "the path past the loop should assume it");
     }
 
     /**

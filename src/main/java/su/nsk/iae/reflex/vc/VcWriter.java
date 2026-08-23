@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.vc;
 
+import su.nsk.iae.reflex.cfg.Cfg;
 import su.nsk.iae.reflex.ir.IrProgram;
 import su.nsk.iae.reflex.ir.TimeRef;
 
@@ -51,11 +52,16 @@ public final class VcWriter {
 
     /** Copies ReflexBase and writes the program and requirements theories. */
     public void writeSupportingTheories(IrProgram program) {
-        writeSupportingTheories(program, List.of(), List.of());
+        writeSupportingTheories(program, List.of(), List.of(), List.of());
     }
 
     public void writeSupportingTheories(IrProgram program, List<String> extraDefinitions) {
-        writeSupportingTheories(program, extraDefinitions, List.of());
+        writeSupportingTheories(program, extraDefinitions, List.of(), List.of());
+    }
+
+    public void writeSupportingTheories(IrProgram program, List<String> extraDefinitions,
+                                        List<String> globalInvariants) {
+        writeSupportingTheories(program, extraDefinitions, globalInvariants, List.of());
     }
 
     /**
@@ -65,14 +71,16 @@ public final class VcWriter {
      *                         states, conjoined into the invariant itself
      */
     public void writeSupportingTheories(IrProgram program, List<String> extraDefinitions,
-                                        List<String> globalInvariants) {
+                                        List<String> globalInvariants,
+                                        List<Cfg.PlaceholderInvariant> loopInvariants) {
         // ReflexBase defines the state and its values, ReflexLemmas the facts about them,
         // ReflexPatterns the reusable proof patterns built on those.
         copyResource("ReflexTheory/ReflexBase.thy", "ReflexBase.thy");
         copyResource("ReflexTheory/ReflexLemmas.thy", "ReflexLemmas.thy");
         copyResource("ReflexTheory/ReflexPatterns.thy", "ReflexPatterns.thy");
         write(baseTheoryName() + ".thy", renderer.renderTheory(
-                baseTheoryName(), List.of("ReflexPatterns"), programTheoryBody(program)));
+                baseTheoryName(), List.of("ReflexPatterns"),
+                programTheoryBody(program) + placeholderInvariants(loopInvariants)));
         write("Requirements.thy", renderer.renderTheory(
                 "Requirements", List.of("ReflexPatterns"),
                 requirementsBody(globalInvariants) + String.join("\n", extraDefinitions)));
@@ -156,6 +164,31 @@ public final class VcWriter {
                 + "lemma ltime_mult:\n"
                 + "\"ltime s p mod " + clock + " = 0\"\n"
                 + "  by (induction s) (auto)\n";
+    }
+
+    /**
+     * Declares an invariant for each loop that was written without one.
+     *
+     * <p>Left uninterpreted on purpose. The loop's conditions say what such an invariant
+     * would have to satisfy - it holds on entry, an iteration keeps it, and it is all the
+     * path past the loop may assume - and giving it a definition here is what makes them
+     * provable. Defining it as True would make the first two trivial and say nothing about
+     * the state the loop leaves behind, which is a weaker claim than it looks.
+     */
+    private String placeholderInvariants(List<Cfg.PlaceholderInvariant> loopInvariants) {
+        if (loopInvariants.isEmpty()) {
+            return "";
+        }
+        StringBuilder declarations = new StringBuilder(
+                "\n(* No [invariant: ...] was written on these loops, so generation named one\n"
+                        + "   per loop and stated the conditions about it. Give each a definition\n"
+                        + "   saying what the loop preserves; until then they cannot be proved. *)\n");
+        for (Cfg.PlaceholderInvariant invariant : loopInvariants) {
+            declarations.append("(* the loop at line ").append(invariant.line()).append(" *)\n")
+                    .append("consts ").append(invariant.name())
+                    .append(" :: \"state \\<Rightarrow> bool\"\n");
+        }
+        return declarations.toString();
     }
 
     /**

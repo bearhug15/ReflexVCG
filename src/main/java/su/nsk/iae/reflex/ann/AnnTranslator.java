@@ -125,6 +125,20 @@ public final class AnnTranslator {
     }
 
     /**
+     * The template of a loop nobody wrote an invariant for: an uninterpreted predicate
+     * applied to the state, standing in for whatever the loop preserves.
+     *
+     * <p>The three conditions a loop produces have the same shape either way, so a loop
+     * without an invariant still says what one would have to satisfy - it holds on entry,
+     * survives an iteration, and is all the path past the loop may rely on. What they are
+     * worth depends on the definition {@code name} is eventually given.
+     */
+    public Template placeholderLoopInvariant(String name) {
+        Term hole = freshState();
+        return new Template(new Term.App(name, List.of(hole)), hole);
+    }
+
+    /**
      * The invariant stated at each of the states a loop's conditions need it.
      *
      * <p>Deliberately reads no context: the loop body has been translated by the time this

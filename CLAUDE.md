@@ -67,8 +67,8 @@ exactly one place, at the very end.
    of symbolic `VcStatement`s. `analysis/StaticAnalysis` (spec: `StaticalAnalysis.tex`) discards a path
    at the node that makes it impossible, so the subtree below is never explored. A path may produce more
    than one condition: an annotation on it contributes the obligation discharging it, and a loop
-   contributes its entry and preservation conditions. Inline C, and a `for` with no invariant, become
-   `Unsupported` nodes and stop generation.
+   contributes its entry and preservation conditions. Inline C becomes an `Unsupported` node and
+   stops generation.
 6. **Render** — `vc/IsabelleRenderer` is the *only* class that knows Isabelle; `vc/VcWriter` writes the
    files. Values live in ReflexBase's `val` datatype: read with `getVarVal` then a projection
    (`theInt`/`theNat`/`theBool`/`theReal`), written through the matching constructor.
@@ -129,6 +129,13 @@ exactly one place, at the very end.
   Mangling and typing run over annotations along with the code, so an unqualified name resolves in the
   scope the annotation sits in. `AnnotatedGenerationTest` covers all of this against
   `programs-new/annotatedTank.rx`, which carries one of every kind.
+- **A `for` with no invariant is still generated.** `CfgBuilder` names one for it — `loopInv0`,
+  `loopInv1`, in the order the loops are met — and the same three conditions are stated about that
+  name. `VcWriter` declares each as an uninterpreted `consts <name> :: "state ⇒ bool"` in the program
+  theory, with the loop's line in a comment. Deliberately uninterpreted: the conditions then say what
+  an invariant there would have to satisfy, and a human supplies the definition. Defining it as `True`
+  instead would make the entry and preservation conditions trivial while telling the main path nothing
+  about the state the loop leaves behind — a weaker claim than it looks.
 - **An obligation is written once, not once per path.** It depends only on the path up to where it is
   stated, so every path continuing past it restates it word for word. `VcWriter` drops the repeats,
   comparing lemmas with their bound state names renumbered, since those come from a program-wide
