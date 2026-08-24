@@ -20,7 +20,7 @@ class ReflexVcgTest {
 
     @Test
     void generatesTheoriesForAProgram(@TempDir Path output) throws IOException {
-        ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rx"));
+        ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rcs"));
         int written = generator.generate(output);
 
         // Two of the four cycle paths survive static analysis, plus the base case.
@@ -49,7 +49,7 @@ class ReflexVcgTest {
 
     @Test
     void staticAnalysisCanBeSwitchedOff(@TempDir Path output) throws IOException {
-        ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rx"));
+        ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rcs"));
         generator.setStaticAnalysis(false);
 
         assertEquals(5, generator.generate(output), "every path, plus the base case");
@@ -57,7 +57,7 @@ class ReflexVcgTest {
 
     @Test
     void programTheoryFixesTheClock(@TempDir Path output) throws IOException {
-        ReflexVcg.load(PROGRAMS.resolve("ifTest1.rx")).generate(output);
+        ReflexVcg.load(PROGRAMS.resolve("ifTest1.rcs")).generate(output);
 
         String theory = Files.readString(output.resolve("ifTestTheory.thy"));
         assertTrue(theory.contains("imports ReflexPatterns"), theory);
@@ -68,7 +68,7 @@ class ReflexVcgTest {
 
     @Test
     void exportsTheProgramGraph(@TempDir Path output) throws IOException {
-        ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rx"));
+        ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rcs"));
         generator.exportGraph(output);
 
         Path graph = output.resolve("ifTest_program_graph.gv");
@@ -78,7 +78,7 @@ class ReflexVcgTest {
 
     @Test
     void rejectsAProgramThatDoesNotParse(@TempDir Path output) throws IOException {
-        Path bad = output.resolve("bad.rx");
+        Path bad = output.resolve("bad.rcs");
         Files.writeString(bad, "program P { clock ; }");
 
         IllegalArgumentException raised =
@@ -88,7 +88,7 @@ class ReflexVcgTest {
 
     @Test
     void refusesToGenerateForUnsupportedConstructs(@TempDir Path output) throws IOException {
-        Path source = output.resolve("ccode.rx");
+        Path source = output.resolve("ccode.rcs");
         Files.writeString(source, "program P {\n"
                 + "  clock 100;\n"
                 + "  node N { clock 100; }\n"
@@ -112,7 +112,7 @@ class ReflexVcgTest {
      */
     @Test
     void generatesALoopWithNoInvariantAgainstAPlaceholder(@TempDir Path output) throws IOException {
-        Path source = output.resolve("loop.rx");
+        Path source = output.resolve("loop.rcs");
         Files.writeString(source, "program P {\n"
                 + "  clock 100;\n"
                 + "  node N { clock 100; }\n"
@@ -139,7 +139,7 @@ class ReflexVcgTest {
     /** A loop that was written with an invariant gets it defined, not left open. */
     @Test
     void definesALoopInvariantThatWasWritten(@TempDir Path output) throws IOException {
-        ReflexVcg.load(PROGRAMS.resolve("loopSum.rx")).generate(output);
+        ReflexVcg.load(PROGRAMS.resolve("loopSum.rcs")).generate(output);
 
         String loops = Files.readString(output.resolve("LoopInvariants.thy"));
         assertTrue(loops.contains("definition loopInv0 :: \"state \\<Rightarrow> bool\" where"), loops);
@@ -162,7 +162,7 @@ class ReflexVcgTest {
 
     @Test
     void bindsAnnotationsWhileLoading() throws IOException {
-        Path source = Files.createTempFile("annotated", ".rx");
+        Path source = Files.createTempFile("annotated", ".rcs");
         Files.writeString(source, "//[invariant: a > 0]\n"
                 + "program P {\n"
                 + "  clock 100;\n"

@@ -29,7 +29,10 @@ java -jar target/ReflexVCG-1.0-jar-with-dependencies.jar -s program.rcs [-o outD
 
 - `-s` source `.rcs` path (required)
 - `-o` output directory (defaults to the source's directory)
-- `-g` also export the control-flow graph as Graphviz
+- `-g` also export the control-flow graph as Graphviz. `Cfg.toDot` writes it for a person to
+  read: nodes are labelled and shaped by what they are — a process, a state, an `if`, a guard, an
+  assignment — and a loop is drawn as one, its body a dashed cluster with `iterate` in and `repeat`
+  back, though the graph itself holds no cycle. `GraphExportTest` pins this.
 - `-a` discard conditions for impossible paths (default true)
 
 ## Pipeline architecture
@@ -129,7 +132,7 @@ exactly one place, at the very end.
 
   Mangling and typing run over annotations along with the code, so an unqualified name resolves in the
   scope the annotation sits in. `AnnotatedGenerationTest` covers all of this against
-  `programs-new/annotatedTank.rx`, which carries one of every kind.
+  `programs-new/annotatedTank.rcs`, which carries one of every kind.
 - **Loop invariants live in `LoopInvariants.thy`, one per loop.** Every loop gets a name —
   `loopInv0`, `loopInv1`, in the order the loops are met — and a condition states the invariant by
   that name (`shows "(loopInv0 st2)"`) rather than carrying the formula, the same separation the

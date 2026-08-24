@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AnnotatedGenerationTest {
 
-    private static final Path SOURCE = Path.of("src/test/resources/programs-new/annotatedTank.rx");
+    private static final Path SOURCE = Path.of("src/test/resources/programs-new/annotatedTank.rcs");
     private static final Path OUTPUT = Path.of("target/annotated-generation");
 
     /** File name to contents, for everything generation wrote. */

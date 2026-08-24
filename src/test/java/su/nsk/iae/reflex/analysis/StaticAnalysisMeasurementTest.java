@@ -47,7 +47,7 @@ class StaticAnalysisMeasurementTest {
             "newTurnstile", 134));
 
     private static IrProgram load(String name) throws IOException {
-        NewReflexLexer lexer = new NewReflexLexer(CharStreams.fromPath(PROGRAMS.resolve(name + ".rx")));
+        NewReflexLexer lexer = new NewReflexLexer(CharStreams.fromPath(PROGRAMS.resolve(name + ".rcs")));
         BufferedTokenStream tokens = new CommonTokenStream(lexer);
         NewReflexParser parser = new NewReflexParser(tokens);
         NewReflexParser.ProgramContext ctx = parser.program();

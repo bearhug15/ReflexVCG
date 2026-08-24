@@ -87,8 +87,8 @@ public final class CfgBuilder {
      * them - a stopped process still takes part in the cycle, doing nothing.
      */
     private Fragment buildProcess(IrProcess process) {
-        CfgNode.Join entry = new CfgNode.Join();
-        CfgNode.Join exit = new CfgNode.Join();
+        CfgNode.Join entry = new CfgNode.Join("process " + process.getName());
+        CfgNode.Join exit = new CfgNode.Join("process " + process.getName() + " end");
 
         for (IrState state : process.getStates()) {
             CfgNode.InState inState = new CfgNode.InState(process.getName(), state.getName());
@@ -109,7 +109,7 @@ public final class CfgBuilder {
     }
 
     private Fragment buildState(IrProcess process, IrState state) {
-        CfgNode.Join entry = new CfgNode.Join();
+        CfgNode.Join entry = new CfgNode.Join("state " + state.getName());
         CfgNode current = entry;
 
         for (IrStmt statement : state.getStatements()) {
@@ -129,7 +129,7 @@ public final class CfgBuilder {
      * bound, and the timeout body runs, or it has not and the cycle continues.
      */
     private CfgNode buildTimeout(IrProcess process, IrState state, CfgNode current) {
-        CfgNode.Join join = new CfgNode.Join();
+        CfgNode.Join join = new CfgNode.Join("timeout end");
 
         CfgNode.TimeoutGuard reached =
                 new CfgNode.TimeoutGuard(process.getName(), state.getTimeout().getDuration(), true);
@@ -177,11 +177,11 @@ public final class CfgBuilder {
 
     private Fragment buildStatementKind(IrProcess process, IrStmt statement) {
         if (statement == null || statement instanceof IrStmt.Empty) {
-            CfgNode.Join node = new CfgNode.Join();
+            CfgNode.Join node = new CfgNode.Join("empty statement");
             return new Fragment(node, node);
         }
         if (statement instanceof IrStmt.Block block) {
-            CfgNode.Join entry = new CfgNode.Join();
+            CfgNode.Join entry = new CfgNode.Join("block");
             CfgNode current = entry;
             for (IrStmt inner : block.getStatements()) {
                 Fragment fragment = buildStatement(process, inner);
@@ -253,7 +253,7 @@ public final class CfgBuilder {
                             + "condition is stated both inside and past the loop"));
         }
 
-        CfgNode.Join entry = new CfgNode.Join();
+        CfgNode.Join entry = new CfgNode.Join("for");
         CfgNode current = entry;
         for (IrDecl.Variable declaration : forStmt.getInitDeclarations()) {
             Fragment fragment = buildLocalDeclaration(declaration);
@@ -325,7 +325,7 @@ public final class CfgBuilder {
      * but the join it starts with.
      */
     private Fragment stepsOf(ExprLowering.Outcome outcome) {
-        CfgNode.Join entry = new CfgNode.Join();
+        CfgNode.Join entry = new CfgNode.Join("expression");
         CfgNode current = entry;
         for (CfgNode step : outcome.steps()) {
             current.addSuccessor(step);
@@ -349,8 +349,8 @@ public final class CfgBuilder {
             return stepsOf(outcomes.get(0));
         }
 
-        CfgNode.Join entry = new CfgNode.Join();
-        CfgNode.Join exit = new CfgNode.Join();
+        CfgNode.Join entry = new CfgNode.Join("expression");
+        CfgNode.Join exit = new CfgNode.Join("expression end");
         for (ExprLowering.Outcome outcome : outcomes) {
             Fragment fragment = stepsOf(outcome);
             entry.addSuccessor(fragment.entry());
@@ -361,12 +361,12 @@ public final class CfgBuilder {
 
     private Fragment buildLocalDeclaration(IrDecl.Variable variable) {
         if (variable.getInitializer() == null) {
-            CfgNode.Join node = new CfgNode.Join();
+            CfgNode.Join node = new CfgNode.Join("declaration");
             return new Fragment(node, node);
         }
 
-        CfgNode.Join entry = new CfgNode.Join();
-        CfgNode.Join exit = new CfgNode.Join();
+        CfgNode.Join entry = new CfgNode.Join("declaration");
+        CfgNode.Join exit = new CfgNode.Join("declaration end");
         for (ExprLowering.Outcome outcome : ExprLowering.lower(variable.getInitializer())) {
             IrExpr.VarRef target = new IrExpr.VarRef(variable.getName());
             target.setResultType(variable.getType());
@@ -387,8 +387,8 @@ public final class CfgBuilder {
      * constant contributes only the branch it can actually take.
      */
     private Fragment buildIf(IrProcess process, IrStmt.If ifStmt) {
-        CfgNode.Join entry = new CfgNode.Join();
-        CfgNode.Join exit = new CfgNode.Join();
+        CfgNode.Join entry = new CfgNode.Join("if");
+        CfgNode.Join exit = new CfgNode.Join("if end");
 
         for (ExprLowering.Outcome outcome : ExprLowering.lower(ifStmt.getCondition())) {
             // What evaluating the condition does happens once, before either branch.
@@ -422,8 +422,8 @@ public final class CfgBuilder {
      * none of them.
      */
     private Fragment buildSwitch(IrProcess process, IrStmt.Switch switchStmt) {
-        CfgNode.Join entry = new CfgNode.Join();
-        CfgNode.Join exit = new CfgNode.Join();
+        CfgNode.Join entry = new CfgNode.Join("switch");
+        CfgNode.Join exit = new CfgNode.Join("switch end");
 
         // The selector is evaluated once, before any case is chosen, so its writes happen
         // once however many cases there are.

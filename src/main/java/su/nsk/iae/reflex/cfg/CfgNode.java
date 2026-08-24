@@ -86,11 +86,28 @@ public abstract class CfgNode {
         }
     }
 
-    /** Carries no effect; used to join branches back together. */
+    /**
+     * Carries no effect: the start of a construct, or where its branches come back
+     * together.
+     *
+     * <p>The label says which construct, so an exported graph reads as the program rather
+     * than as a mesh of anonymous joins. It has no bearing on generation - every join is
+     * skipped when a path is turned into a condition.
+     */
     public static final class Join extends CfgNode {
+        private final String label;
+
+        public Join(String label) {
+            this.label = label;
+        }
+
+        public String getLabel() {
+            return label;
+        }
+
         @Override
         public String describe() {
-            return "join";
+            return label;
         }
     }
 

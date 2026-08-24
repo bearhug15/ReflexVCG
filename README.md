@@ -14,7 +14,7 @@ To launch the generator use: ``java -jar ReflexVCG.jar [key value]``.
 
 | key | value      | meaning                                                          |
 |-----|------------|------------------------------------------------------------------|
-| -s  | path       | path to the source .rx file (required)                            |
+| -s  | path       | path to the source .rcs file (required)                            |
 | -o  | path       | output directory; defaults to the source's folder                 |
 | -g  |            | also export the program graph in Graphviz format                  |
 | -a  | true/false | discard conditions for impossible paths; true by default          |

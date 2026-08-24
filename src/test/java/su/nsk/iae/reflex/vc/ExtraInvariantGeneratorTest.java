@@ -29,7 +29,7 @@ class ExtraInvariantGeneratorTest {
 
     @Test
     void defaultGeneratorChangesNothing(@TempDir Path output) throws IOException {
-        int written = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rx")).generate(output);
+        int written = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rcs")).generate(output);
 
         assertEquals(3, written);
         String requirements = Files.readString(output.resolve("Requirements.thy"));
@@ -38,7 +38,7 @@ class ExtraInvariantGeneratorTest {
 
     @Test
     void everyHookIsReached(@TempDir Path output) throws IOException {
-        ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rx"));
+        ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rcs"));
 
         List<String> calls = new ArrayList<>();
         generator.setExtraInvariantGenerator(new ExtraInvariantGenerator(
@@ -76,7 +76,7 @@ class ExtraInvariantGeneratorTest {
     /** Returning null from process drops a condition, so the hook can filter. */
     @Test
     void processCanDropConditions(@TempDir Path output) throws IOException {
-        ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rx"));
+        ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("ifTest1.rcs"));
         generator.setExtraInvariantGenerator(new ExtraInvariantGenerator(
                 generator.getProgram(), generator.getCfg(), generator.getAnnotations()) {
             private int seen;
@@ -92,7 +92,7 @@ class ExtraInvariantGeneratorTest {
 
     @Test
     void annotationsAreAvailableToTheStage() throws IOException {
-        Path source = Files.createTempFile("annotated", ".rx");
+        Path source = Files.createTempFile("annotated", ".rcs");
         Files.writeString(source, "//[invariant: a > 0]\n"
                 + "program P {\n"
                 + "  clock 100;\n"

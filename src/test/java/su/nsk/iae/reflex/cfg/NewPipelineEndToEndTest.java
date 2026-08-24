@@ -50,7 +50,7 @@ class NewPipelineEndToEndTest {
 
     private static List<Path> programs() throws IOException {
         try (Stream<Path> files = Files.list(PROGRAMS)) {
-            return files.filter(p -> p.toString().endsWith(".rx")).sorted().toList();
+            return files.filter(p -> p.toString().endsWith(".rcs")).sorted().toList();
         }
     }
 
@@ -118,7 +118,7 @@ class NewPipelineEndToEndTest {
         StringBuilder report = new StringBuilder();
         boolean mismatch = false;
         for (Expected expected : expectations) {
-            IrProgram program = load(PROGRAMS.resolve(expected.program() + ".rx"));
+            IrProgram program = load(PROGRAMS.resolve(expected.program() + ".rcs"));
             Cfg cfg = new CfgBuilder(program).build();
             int paths = new PathEnumerator(cfg).enumerate().size();
             // The old pipeline emitted one further condition for program start-up, which
@@ -137,7 +137,7 @@ class NewPipelineEndToEndTest {
 
     @Test
     void reportsUnsupportedConstructsRatherThanIgnoringThem() throws IOException {
-        Path file = Files.createTempFile("unsupported", ".rx");
+        Path file = Files.createTempFile("unsupported", ".rcs");
         Files.writeString(file, "program P {\n"
                 + "  clock 100;\n"
                 + "  node N { clock 100; }\n"
@@ -166,7 +166,7 @@ class NewPipelineEndToEndTest {
      */
     @Test
     void cutsALoopWithNoInvariantAgainstAPlaceholder() throws IOException {
-        Path file = Files.createTempFile("placeholder", ".rx");
+        Path file = Files.createTempFile("placeholder", ".rcs");
         Files.writeString(file, "program P {\n"
                 + "  clock 100;\n"
                 + "  node N { clock 100; }\n"
@@ -201,7 +201,7 @@ class NewPipelineEndToEndTest {
      */
     @Test
     void modelsWritesNestedInsideExpressions() throws IOException {
-        Path file = Files.createTempFile("nested", ".rx");
+        Path file = Files.createTempFile("nested", ".rcs");
         Files.writeString(file, "program P {\n"
                 + "  clock 100;\n"
                 + "  node N { clock 100; }\n"
@@ -232,7 +232,7 @@ class NewPipelineEndToEndTest {
     /** A prefix increment reads the value its own write produced; a postfix one does not. */
     @Test
     void prefixAndPostfixDifferInWhichValueTheyRead() throws IOException {
-        Path file = Files.createTempFile("prefix", ".rx");
+        Path file = Files.createTempFile("prefix", ".rcs");
         Files.writeString(file, "program P {\n"
                 + "  clock 100;\n"
                 + "  node N { clock 100; }\n"
@@ -257,7 +257,7 @@ class NewPipelineEndToEndTest {
      */
     @Test
     void aWriteBehindAShortCircuitHappensOnlyWhereItRuns() throws IOException {
-        Path file = Files.createTempFile("shortcircuit", ".rx");
+        Path file = Files.createTempFile("shortcircuit", ".rcs");
         Files.writeString(file, "program P {\n"
                 + "  clock 100;\n"
                 + "  node N { clock 100; }\n"
@@ -283,7 +283,7 @@ class NewPipelineEndToEndTest {
     /** A write at the top of a statement is the ordinary case and stays supported. */
     @Test
     void allowsWritesAtTheTopOfAStatement() throws IOException {
-        Path file = Files.createTempFile("plain", ".rx");
+        Path file = Files.createTempFile("plain", ".rcs");
         Files.writeString(file, "program P {\n"
                 + "  clock 100;\n"
                 + "  node N { clock 100; }\n"
@@ -297,7 +297,7 @@ class NewPipelineEndToEndTest {
 
     @Test
     void exportsAGraphvizGraph() throws IOException {
-        IrProgram program = load(PROGRAMS.resolve("ifTest1.rx"));
+        IrProgram program = load(PROGRAMS.resolve("ifTest1.rcs"));
         String dot = new CfgBuilder(program).build().toDot();
 
         assertTrue(dot.startsWith("digraph program {"), dot);
