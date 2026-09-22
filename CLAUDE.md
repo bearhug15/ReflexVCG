@@ -214,12 +214,18 @@ exactly one place, at the very end.
   - `Requirements.thy` and `LoopInvariants.thy` import the program theory, where `ltime` lives, and
     the conjunction defining `inv` is parenthesised - `=` binds tighter than `\<and>`.
 
-  To check a generated directory: write a `ROOT` with one session over `HOL` listing the three
-  `Reflex*` theories, the program theory, `LoopInvariants`, `Requirements`, then the conditions;
-  append a proof to each `lemma` (`sorry` under `quick_and_dirty` to type-check); build with
-  `isabelle build -d <dir> <session>` from the Cygwin shell. Two proofs close most loop conditions:
-  `using assms by (simp add: setVarVal_def constants_def)` for bounds and decreases, and the same
-  with `auto`, `substate_refl` and the `loopInv<n>_def`s for entries and steps.
+  To check a generated directory: build one session over `HOL` holding the three `Reflex*` theories,
+  the program theory, `LoopInvariants` and `Requirements`, then one session per condition on top of
+  it (a session each, so one hard goal cannot stall the rest, with `timeout` to bound it); append a
+  proof to each `lemma` - `sorry` under `quick_and_dirty` just type-checks. Two proofs close most of
+  them: `using assms by (simp add: setVarVal_def constants_def inv_def)` for the bounds, decreases
+  and simple annotations, and the same with `auto`, `substate_refl` and the `loopInv<n>_def`s for the
+  entries and steps. Of `palletStation`'s 62 conditions, 36 close this way — every entry, bound and
+  decrease, and six of the seven steps. The rest need either whole-program induction (the `VC`s,
+  which carry every temporal invariant) or a property the program does not implement: `palletStation`
+  is written to exercise every operator, not to satisfy what it claims, so several of its annotations
+  are simply false of it. A cycle condition restricted to the conjuncts the program does establish
+  does go through automatically, induction across the cycle boundary included.
 
 ## Not done yet
 
@@ -237,13 +243,19 @@ exactly one place, at the very end.
   `stable` and `cooldown` counting boundaries through `toEnvNum` — but no generated lemma has been
   put to a prover, so the shapes are only as good as `reflex-al-vc-generation-spec.md` and
   `ReflexBase.thy`.
-- **A loop has no boundary constructor of its own.** The specification gives each `for` a fresh
-  `toLoop`/`toLoopP` pair, whose axiom makes the entry state a boundary of that scale. `ReflexBase.thy`
-  has no such pair, so the loop scale is expressed with what is there: an iteration ends in a `toEnv`,
-  and the entry state is named explicitly, `(s = t0 \<or> toEnvP s)`. That is sound and needs no change
-  to the semantics, but it does mean a loop's iteration boundaries are `toEnv` states, which any lemma
-  about cycles could also be applied to. Adding the pair properly means a constructor on the `state`
-  datatype and a case in every `primrec` over it.
+- **A loop has no boundary constructor of its own, and nested loops need one.** The specification
+  gives each `for` a fresh `toLoop`/`toLoopP` pair, whose axiom makes the entry state a boundary of
+  that scale. `ReflexBase.thy` has no such pair, so the loop scale is expressed with what is there:
+  an iteration ends in a `toEnv`, and the entry state is named explicitly, `(s = t0 \<or> toEnvP s)`.
+
+  For a single loop that is sound. For a loop inside a loop it is not, and `palletStation`'s
+  `LOOPSTEP47` is the witness: the inner loop's exit state is opaque and declared `toEnvP`, which
+  makes it a boundary of the *outer* loop's run as well, so the outer invariant is demanded there -
+  half-way through an outer iteration, where `placed = r*COLS + COLS` and the invariant says
+  `placed = r*COLS`. Proved against Isabelle: with the conclusion restricted to the iteration's end
+  the step goes through automatically, and restricted to the inner loop's exit state it is not
+  provable. One `toEnvP` cannot tell an inner loop's boundary from an outer one's. Adding the pair
+  properly means a constructor on the `state` datatype and a case in every `primrec` over it.
 - **An `assert` is stated before its statement; the specification (§5.3) states it after.** The
   pipeline puts both `assume` and `assert` in front of the statement they annotate and passes that
   state to `AnnTranslator.translateAt` as both the point and the pre-state, so `scope(pre)` reads

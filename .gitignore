@@ -44,3 +44,5 @@ src/test/testResult/
 
 Reflex-AL.pdf
 *.tex
+# Isabelle sessions built by tools/check-with-isabelle.sh
+isabelle-check/
