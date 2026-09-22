@@ -116,7 +116,7 @@ exactly one place, at the very end.
   access path, rather than four typed getters. Reflex types map onto HOL as: signed ints → `int`,
   unsigned and `time` → `nat`, `bool` → `bool`, float/double → `real`. Changing codegen means keeping
   step with this file.
-- **Annotations reach the output four ways** (spec: `reflex-al-vc-generation-spec.md`, language:
+- **Annotations reach the output five ways** (spec: `reflex-al-vc-generation-spec.md`, language:
   `Reflex-AL.pdf`). `ann/AnnTranslator` turns a bound annotation into a `term/Term`; nothing else
   renders one.
   - `assume` — an obligation proving it (`ASSUME<n>.thy`), *and* an intermediate assumption in every
@@ -130,10 +130,21 @@ exactly one place, at the very end.
     entry), `LOOPSTEP<n>` (one iteration preserves it), and an opaque state on the main path knowing
     only the invariant and the negated loop condition. The formula itself goes into
     `LoopInvariants.thy`, not into the conditions — see below.
+  - `variant` on a `for` — a measure. `LOOPBOUND<n>` says it is at or above zero wherever an
+    iteration may start (once per loop, reading nothing of the body), `LOOPDECREASE<n>` that an
+    iteration leaves it strictly smaller (once per path through the body). With the entry and step
+    conditions these are what a termination argument rests on (spec §5.4).
+
+  Every path through a loop body is seeded with what the iteration may assume — that `st0` is a
+  boundary of the run, the invariant up to it, and the loop condition — so a condition derived inside
+  the body (an `assert`, or a loop nested in it) knows what the iteration knew. A nested loop's own
+  body is enumerated in its own frame with its own seed, so the two never mix.
 
   Mangling and typing run over annotations along with the code, so an unqualified name resolves in the
   scope the annotation sits in. `AnnotatedGenerationTest` covers all of this against
-  `programs-new/annotatedTank.rcs`, which carries one of every kind.
+  `programs-new/annotatedTank.rcs`, which carries one of every kind; `PalletStationGenerationTest`
+  against `programs-new/palletStation.rcs`, which carries every kind *and* every operator across a
+  state with no loop, one loop, two loops in a row, and a loop inside a loop.
 - **Loop invariants live in `LoopInvariants.thy`, one per loop.** Every loop gets a name —
   `loopInv0`, `loopInv1`, in the order the loops are met — and a condition states the invariant by
   that name (`shows "(loopInv0 st2 st2)"`) rather than carrying the formula, the same separation the
@@ -207,12 +218,15 @@ exactly one place, at the very end.
   to the semantics, but it does mean a loop's iteration boundaries are `toEnv` states, which any lemma
   about cycles could also be applied to. Adding the pair properly means a constructor on the `state`
   datatype and a case in every `primrec` over it.
-- **`scope(pre)` deviates from the specification**, which has it read the current state. It still reads
-  the state before the annotated statement, which is what makes `x > x.scope(pre)` on an `assert` mean
-  anything; the specification's reading would make the operator a no-op there.
-- **Only `once` is exercised end to end.** `programs-new/annotatedTank.rcs` carries one annotation of
-  every *kind*, but of the temporal operators only `once`. The rest are covered in `AnnTranslatorTest`
-  alone, so nothing pins how they interact with path enumeration and deduplication.
+- **An `assert` is stated before its statement; the specification (§5.3) states it after.** The
+  pipeline puts both `assume` and `assert` in front of the statement they annotate and passes that
+  state to `AnnTranslator.translateAt` as both the point and the pre-state, so `scope(pre)` reads
+  the check's own state - consistent with §3.10, but it means `x > x.scope(pre)` on an `assert`
+  can never hold. The translator keeps the two apart (`AnnTranslatorTest` exercises it); moving
+  asserts after their statement is a `CfgBuilder.withChecks` change.
+- **Spec §5's `Exits`/`Lemma-Exit` is not generated.** The path past a loop assumes the invariant and
+  the negated condition of an opaque state; that such a state exists is what the variant conditions
+  are for, but nothing yet states the lemma tying them together.
 - Division domain conditions, which the old generator emitted as *assumptions*, are not reproduced.
   The old `ExprGenRes` carried a `domain` field alongside the value, accumulating `divisor ≠ 0` per
   `/` and `%`; `ExprLowering.Outcome` has the same shape to hang it on if it comes back, but as an

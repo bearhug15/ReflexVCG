@@ -1,0 +1,172 @@
+// A palletising station, written to carry every annotation Reflex-AL offers: every kind
+// of annotation and every operator, across four states that differ in how they loop.
+//
+//   idle     - no loop at all
+//   scanning - one loop
+//   sorting  - two loops, one after the other
+//   packing  - a loop inside a loop
+//
+// Each loop carries all four of the annotations a loop can take: an assume in front of it,
+// an invariant and a variant on it, and an assert on what follows it. Names are written
+// unqualified and resolved in the scope the annotation sits in.
+//
+//[define: bool moving = beltLeft || beltRight, int32 remaining(int32 done) = FULL - done]
+//[invariant: !(beltLeft && beltRight)]
+program PalletStation {
+	clock 100;
+
+	import IO {
+		register sensors
+		register drives
+	}
+
+	node Station { clock 100; }
+
+	const int32 BAY_COUNT = 4;
+	const int32 ROWS = 3;
+	const int32 COLS = 2;
+	const int32 FULL = 6;
+
+	int32 bay[4] = {0, 0, 0, 0};
+	int32 cell[6] = {0, 0, 0, 0, 0, 0};
+	int32 scanned;
+	int32 toLeft;
+	int32 toRight;
+	int32 placed;
+	int32 i;
+	int32 j;
+	int32 r;
+	int32 c;
+
+	bool startBtn as (read = sensors, bit = 0);
+	bool jam as (read = sensors, bit = 1);
+	bool beltLeft as (read = drives, write = drives, bit = 0);
+	bool beltRight as (read = drives, write = drives, bit = 1);
+	bool idleLamp as (read = drives, write = drives, bit = 2);
+
+	// A jam stops the belts and keeps them stopped while it is recent; pressing start gets
+	// them going before the second is out; and nothing reaches packing without a scan.
+	//[invariant: stable(jam, T#2s, !moving)]
+	//[invariant: within(startBtn, T#1s, moving)]
+	//[invariant: in(Palletiser, packing) ==> once(in(Palletiser, scanning))]
+	//[invariant: in(Palletiser, packing) ==> time(Palletiser) < T#30s]
+	process Palletiser :: node Station {
+
+		// ------------------------------------------------ no loop
+		//[invariant: idleLamp ==> !moving]
+		state idle {
+			idleLamp = true;
+			beltLeft = false;
+			beltRight = false;
+
+			// What held at the boundary before this cycle, and what the count was then.
+			//[assert: previously(idleLamp) ==> idleLamp]
+			//[assert: scanned.scope(prev) >= 0]
+			//[assume: !jam]
+			if (startBtn) {
+				scanned = 0;
+				// scope(pre) names the state before the statement this is written on. An
+				// assert is stated there too, so here both sides read the same state.
+				//[assert: scanned <= scanned.scope(pre) + BAY_COUNT]
+				//[assert: next(in(Palletiser, scanning))]
+				set state scanning;
+			}
+		}
+
+		// ------------------------------------------------ one loop
+		//[invariant: scanned >= 0]
+		state scanning {
+			idleLamp = false;
+			scanned = 0;
+
+			//[assume: forall(k in 0..BAY_COUNT: bay[k] >= 0)]
+			//[invariant: scanned >= i]
+			//[variant: BAY_COUNT - i]
+			for (i = 0; i < BAY_COUNT; i = i + 1) {
+				scanned = scanned + bay[i];
+			}
+
+			//[assert: exists(k in 0..BAY_COUNT: bay[k] > 0) ==> scanned >= 0]
+			if (scanned > 0) {
+				set state sorting;
+			}
+		}
+
+		// ------------------------------------------------ two loops, one after the other
+		//[invariant: toLeft + toRight <= BAY_COUNT + BAY_COUNT]
+		state sorting {
+			beltLeft = true;
+			beltRight = false;
+			toLeft = 0;
+			toRight = 0;
+
+			//[assume: forall(k in 0..BAY_COUNT: bay[k] >= 0)]
+			//[invariant: toLeft <= i]
+			//[variant: BAY_COUNT - i]
+			for (i = 0; i < BAY_COUNT; i = i + 1) {
+				if (bay[i] > 0) {
+					toLeft = toLeft + 1;
+				}
+			}
+
+			//[assert: toLeft <= BAY_COUNT]
+			//[assume: toRight == 0]
+			//[invariant: toRight <= j]
+			//[variant: BAY_COUNT - j]
+			for (j = 0; j < BAY_COUNT; j = j + 1) {
+				if (bay[j] == 0) {
+					toRight = toRight + 1;
+				}
+			}
+
+			//[assert: toLeft + toRight <= BAY_COUNT]
+			set state packing;
+		}
+
+		// ------------------------------------------------ a loop inside a loop
+		//[invariant: placed <= ROWS * COLS]
+		state packing {
+			beltLeft = false;
+			beltRight = true;
+			placed = 0;
+
+			//[assume: remaining(placed) > 0]
+			//[invariant: placed <= r * COLS]
+			//[variant: ROWS - r]
+			for (r = 0; r < ROWS; r = r + 1) {
+
+				//[assume: placed >= r * COLS]
+				//[invariant: placed <= r * COLS + c]
+				//[variant: COLS - c]
+				for (c = 0; c < COLS; c = c + 1) {
+					cell[r * COLS + c] = 1;
+					placed = placed + 1;
+				}
+
+				//[assert: placed <= (r + 1) * COLS]
+				;
+			}
+
+			// What the count was the last time the station stood idle.
+			//[assert: placed.scope(past(in(Palletiser, idle))) >= 0]
+			//[assert: remaining(placed) >= 0]
+			if (placed >= FULL) {
+				set state idle;
+			}
+		}
+	}
+
+	// A second process watching the first: it is what the operators reading history have
+	// something to say about, since it never moves and so is in one state throughout.
+	//[invariant: on(jam, !moving)]
+	//[invariant: during(startBtn, jam, timer(T#1s) ==> in(Palletiser, packing))]
+	//[invariant: on(startBtn, within(500, moving))]
+	//[invariant: on(jam, stable(300, !moving))]
+	//[invariant: cooldown(jam, T#2s) ==> !moving]
+	process Watchdog :: node Station {
+		state watching {
+			//[assert: jam ==> !moving]
+			;
+		}
+	}
+}

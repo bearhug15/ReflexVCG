@@ -148,6 +148,10 @@ public final class VcWriter {
                 return "LOOPENTRY";
             case LOOP_PRESERVED:
                 return "LOOPSTEP";
+            case LOOP_VARIANT_BOUND:
+                return "LOOPBOUND";
+            case LOOP_VARIANT_DECREASE:
+                return "LOOPDECREASE";
             default:
                 return "VC";
         }

@@ -43,10 +43,14 @@ blockAnnotation: '/*' annotation* '*/';
 
 annotation: '[' annotationKind languageSpec? ':' annotationBody ']';
 
+// variant is not in the source EBNF. The translation specification gives it - a measure
+// on a loop, decreasing and bounded below, which is what makes the loop terminate - so it
+// is added here rather than being unwritable.
 annotationKind
     : 'assume'
     | 'assert'
     | 'invariant'
+    | 'variant'
     | 'define'
     ;
 

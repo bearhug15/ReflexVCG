@@ -173,6 +173,17 @@ public final class AnnTranslator {
                 loopInvariantAt(name, entry, bound)));
     }
 
+    /**
+     * That a state is a boundary of a loop's run: reached from the entry, and either the
+     * entry itself or the end of an iteration - the {@code toLoopP} hypothesis of the
+     * specification. A condition about an iteration states this of the state the body
+     * starts from; without it the invariant, quantified over the run's boundaries, could
+     * not be applied to that state at all.
+     */
+    public Term loopBoundary(Term entry, Term at) {
+        return Terms.conjunction(List.of(Terms.substate(entry, at), boundaryOf(at, entry)));
+    }
+
     /** A formula built against a placeholder state, ready to be stated at any state. */
     private record Template(Term body, Term hole) {
     }

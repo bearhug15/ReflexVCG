@@ -275,8 +275,8 @@ public final class CfgBuilder {
         }
         bodyExit.addSuccessor(new CfgNode.Exit());
 
-        CfgNode.LoopCut cut = new CfgNode.LoopCut(
-                invariant, invariantName, forStmt.getCondition(), body.entry());
+        CfgNode.LoopCut cut = new CfgNode.LoopCut(invariant, annotationOf(forStmt,
+                Annotation.Kind.VARIANT), invariantName, forStmt.getCondition(), body.entry());
         current.addSuccessor(cut);
         return new Fragment(entry, cut);
     }
@@ -311,8 +311,13 @@ public final class CfgBuilder {
 
     /** The invariant annotation attached to a loop, if it carries one. */
     private static Annotation loopInvariantOf(IrStmt.For loop) {
-        for (Annotation annotation : loop.getAnnotations()) {
-            if (annotation.getKind() == Annotation.Kind.INVARIANT) {
+        return annotationOf(loop, Annotation.Kind.INVARIANT);
+    }
+
+    /** The annotation of one kind attached to a statement, if it carries one. */
+    private static Annotation annotationOf(IrStmt statement, Annotation.Kind kind) {
+        for (Annotation annotation : statement.getAnnotations()) {
+            if (annotation.getKind() == kind) {
                 return annotation;
             }
         }

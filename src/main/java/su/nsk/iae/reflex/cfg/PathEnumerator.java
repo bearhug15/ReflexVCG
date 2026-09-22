@@ -43,6 +43,7 @@ public final class PathEnumerator {
     private final Cfg cfg;
     private final StaticAnalysis analysis;
     private final AnnTranslator annotations;
+    private final List<VcStatement> preamble;
     private int emitted;
     private int pruned;
     private AnnTranslator fallbackTranslator;
@@ -60,9 +61,20 @@ public final class PathEnumerator {
      * @param annotations translates the annotations met along a path; null ignores them
      */
     public PathEnumerator(Cfg cfg, StaticAnalysis analysis, AnnTranslator annotations) {
+        this(cfg, analysis, annotations, List.of());
+    }
+
+    /**
+     * @param preamble what every path may assume before its first step - for a loop body,
+     *                 the invariant and the condition, so that a condition derived inside
+     *                 the body knows what the iteration knew
+     */
+    private PathEnumerator(Cfg cfg, StaticAnalysis analysis, AnnTranslator annotations,
+                           List<VcStatement> preamble) {
         this.cfg = cfg;
         this.analysis = analysis;
         this.annotations = annotations;
+        this.preamble = List.copyOf(preamble);
     }
 
     /** How many times a subtree was abandoned because the path became impossible. */
@@ -272,6 +284,7 @@ public final class PathEnumerator {
     private List<VerificationCondition> build(List<CfgNode> path) {
         Builder builder = new Builder();
         builder.main.add(new VcStatement.Invariant(builder.current));
+        preamble.forEach(builder.main::add);
 
         for (CfgNode node : path) {
             step(builder, node);
@@ -413,34 +426,37 @@ public final class PathEnumerator {
      * <p>Which iteration this is, and so which state the run began at, is not known here:
      * {@value #LOOP_ENTRY_STATE} stands for it, free in the condition and therefore
      * universally quantified, and the same state bounds the invariant on both sides.
+     *
+     * <p>The invariant and the condition seed every path through the body, so a condition
+     * derived inside it - an annotation, or a loop nested in it - is stated knowing what
+     * the iteration knew. A nested loop's own body is enumerated in its own frame and seeded
+     * with its own invariant, so the two never mix.
      */
     private List<VerificationCondition> preservationConditions(
             CfgNode.LoopCut cut, String name) {
 
         List<VerificationCondition> conditions = new ArrayList<>();
+        if (cut.getVariant() != null && annotations != null) {
+            conditions.add(variantBound(cut, name));
+        }
+        su.nsk.iae.reflex.term.Term entry = new su.nsk.iae.reflex.term.Term.Var(LOOP_ENTRY_STATE);
+        su.nsk.iae.reflex.term.Term bodyStart = new su.nsk.iae.reflex.term.Term.Var("st0");
+
         Cfg bodyGraph = new Cfg(cut.getBodyEntry(), null, cfg.getProgram());
         // No pruning inside the body: the analysis reasons about whole cycles.
-        new PathEnumerator(bodyGraph, null, annotations).forEach(bodyPath -> {
+        new PathEnumerator(bodyGraph, null, annotations, loopHypotheses(cut, name))
+                .forEach(bodyPath -> {
             if (bodyPath.getKind() != VerificationCondition.Kind.MAIN) {
-                // An annotation inside the body keeps its own obligation.
+                // An annotation or a nested loop inside the body keeps its own obligation.
                 conditions.add(bodyPath);
                 return;
             }
-            su.nsk.iae.reflex.term.Term entry =
-                    new su.nsk.iae.reflex.term.Term.Var(LOOP_ENTRY_STATE);
-            su.nsk.iae.reflex.term.Term bodyStart = new su.nsk.iae.reflex.term.Term.Var("st0");
             su.nsk.iae.reflex.term.Term afterIteration = su.nsk.iae.reflex.term.Terms.toEnv(
                     new su.nsk.iae.reflex.term.Term.Var(lastStateOf(bodyPath)));
 
             VerificationCondition preserved = new VerificationCondition();
             preserved.setKind(VerificationCondition.Kind.LOOP_PRESERVED);
             preserved.setNote("loop invariant preserved, " + describe(cut));
-
-            preserved.add(new VcStatement.Assumption("loop_invariant",
-                    translator().loopInvariantUpTo(name, entry, bodyStart)));
-            if (cut.getCondition() != null) {
-                preserved.add(new VcStatement.Condition("st0", cut.getCondition()));
-            }
             // The body's statements, less the invariant assumption a main path starts with.
             bodyPath.getStatements().stream()
                     .filter(statement -> !(statement instanceof VcStatement.Invariant))
@@ -448,8 +464,72 @@ public final class PathEnumerator {
             preserved.setConclusion(translator().loopInvariantUpTo(name, entry, afterIteration));
             preserved.setFinalState(bodyPath.getFinalState());
             conditions.add(preserved);
+
+            if (cut.getVariant() != null && annotations != null) {
+                conditions.add(variantDecrease(cut, preserved, bodyStart, afterIteration));
+            }
         });
         return conditions;
+    }
+
+    /**
+     * Half of what a {@code [variant: ...]} claims: wherever an iteration may start, the
+     * measure is at or above zero. Nothing of the body is read, so there is one of these
+     * per loop rather than one per path through it.
+     *
+     * <p>Together with {@link #variantDecrease} and the loop's entry and preservation
+     * conditions, this is what an argument that the loop terminates rests on - and so what
+     * lets a path past the loop rely on there being a state to continue from at all.
+     */
+    private VerificationCondition variantBound(CfgNode.LoopCut cut, String name) {
+        su.nsk.iae.reflex.term.Term bodyStart = new su.nsk.iae.reflex.term.Term.Var("st0");
+
+        VerificationCondition bounded = new VerificationCondition();
+        bounded.setKind(VerificationCondition.Kind.LOOP_VARIANT_BOUND);
+        bounded.setNote("loop variant stays at or above zero, " + describe(cut));
+        loopHypotheses(cut, name).forEach(bounded::add);
+        bounded.setConclusion(new su.nsk.iae.reflex.term.Term.Infix("\\<ge>",
+                annotations.translateAt(cut.getVariant(), bodyStart, bodyStart),
+                new su.nsk.iae.reflex.term.Term.Var("0")));
+        bounded.setFinalState("st0");
+        return bounded;
+    }
+
+    /**
+     * What an iteration may assume where it starts: the invariant, up to the state the
+     * body is numbered from, and the loop's condition, since an iteration only runs while
+     * it holds.
+     */
+    private List<VcStatement> loopHypotheses(CfgNode.LoopCut cut, String name) {
+        su.nsk.iae.reflex.term.Term entry = new su.nsk.iae.reflex.term.Term.Var(LOOP_ENTRY_STATE);
+        su.nsk.iae.reflex.term.Term bodyStart = new su.nsk.iae.reflex.term.Term.Var("st0");
+        List<VcStatement> hypotheses = new ArrayList<>();
+        hypotheses.add(new VcStatement.Assumption("st0_boundary",
+                translator().loopBoundary(entry, bodyStart)));
+        hypotheses.add(new VcStatement.Assumption("loop_invariant",
+                translator().loopInvariantUpTo(name, entry, bodyStart)));
+        if (cut.getCondition() != null) {
+            hypotheses.add(new VcStatement.Condition("st0", cut.getCondition()));
+        }
+        return hypotheses;
+    }
+
+    /**
+     * The other half: every iteration leaves the measure strictly smaller. It shares the
+     * preservation condition's hypotheses, the body included, and compares the measure
+     * where the iteration started with where it ended.
+     */
+    private VerificationCondition variantDecrease(
+            CfgNode.LoopCut cut, VerificationCondition step,
+            su.nsk.iae.reflex.term.Term bodyStart, su.nsk.iae.reflex.term.Term afterIteration) {
+
+        VerificationCondition decreases = step.copy();
+        decreases.setKind(VerificationCondition.Kind.LOOP_VARIANT_DECREASE);
+        decreases.setNote("loop variant decreases, " + describe(cut));
+        decreases.setConclusion(new su.nsk.iae.reflex.term.Term.Infix(">",
+                annotations.translateAt(cut.getVariant(), bodyStart, bodyStart),
+                annotations.translateAt(cut.getVariant(), afterIteration, afterIteration)));
+        return decreases;
     }
 
     /**

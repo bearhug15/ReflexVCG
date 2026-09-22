@@ -312,19 +312,22 @@ public abstract class CfgNode {
      */
     public static final class LoopCut extends CfgNode {
         private final Annotation invariant;
+        private final Annotation variant;
         private final String invariantName;
         private final IrExpr condition;
         private final CfgNode bodyEntry;
 
         /**
          * @param invariant     the {@code [invariant: ...]} written on the loop, or null
+         * @param variant       the {@code [variant: ...]} written on the loop, or null
          * @param invariantName the name the conditions state the invariant under, unique to
          *                      this loop. The theory holding it either defines it from
          *                      {@code invariant} or leaves it uninterpreted.
          */
-        public LoopCut(Annotation invariant, String invariantName, IrExpr condition,
-                       CfgNode bodyEntry) {
+        public LoopCut(Annotation invariant, Annotation variant, String invariantName,
+                       IrExpr condition, CfgNode bodyEntry) {
             this.invariant = invariant;
+            this.variant = variant;
             this.invariantName = invariantName;
             this.condition = condition;
             this.bodyEntry = bodyEntry;
@@ -333,6 +336,15 @@ public abstract class CfgNode {
         /** The invariant written on the loop, or null when none was. */
         public Annotation getInvariant() {
             return invariant;
+        }
+
+        /**
+         * The measure written on the loop, or null when none was. It is what an argument
+         * that the loop terminates would rest on: the conditions say it stays at or above
+         * zero and drops with every iteration.
+         */
+        public Annotation getVariant() {
+            return variant;
         }
 
         /** The name this loop's invariant is stated under. */

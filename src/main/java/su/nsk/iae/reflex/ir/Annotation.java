@@ -17,7 +17,7 @@ import java.util.List;
  */
 public final class Annotation {
 
-    public enum Kind { ASSUME, ASSERT, INVARIANT, DEFINE }
+    public enum Kind { ASSUME, ASSERT, INVARIANT, VARIANT, DEFINE }
 
     private final Kind kind;
     private final String languageSpec;
@@ -91,6 +91,7 @@ public final class Annotation {
             case "assume" -> Kind.ASSUME;
             case "assert" -> Kind.ASSERT;
             case "invariant" -> Kind.INVARIANT;
+            case "variant" -> Kind.VARIANT;
             case "define" -> Kind.DEFINE;
             default -> throw new IllegalArgumentException("Unknown annotation kind: " + keyword);
         };

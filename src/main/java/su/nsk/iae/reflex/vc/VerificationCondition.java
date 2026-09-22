@@ -26,7 +26,11 @@ public final class VerificationCondition {
         /** A loop invariant holds on entry. */
         LOOP_ENTRY,
         /** A loop invariant survives one iteration. */
-        LOOP_PRESERVED
+        LOOP_PRESERVED,
+        /** A loop's measure never goes below zero. */
+        LOOP_VARIANT_BOUND,
+        /** A loop's measure drops with every iteration. */
+        LOOP_VARIANT_DECREASE
     }
 
     private final List<VcStatement> statements = new ArrayList<>();
