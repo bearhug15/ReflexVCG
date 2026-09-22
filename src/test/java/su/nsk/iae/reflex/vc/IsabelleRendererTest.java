@@ -198,7 +198,8 @@ class IsabelleRendererTest {
 
     @Test
     void rendersEachStatementKind() {
-        assertEquals("base_inv:\"inv(st0)\"",
+        // A cycle starts where the last one yielded, so its first state is a boundary.
+        assertEquals("base_inv:\"inv(st0)\"\n\tand st0_boundary:\"toEnvP st0\"",
                 renderer.renderStatement(new VcStatement.Invariant("st0")));
         assertEquals("st0:\"st0=emptyState\"",
                 renderer.renderStatement(new VcStatement.EmptyState("st0")));

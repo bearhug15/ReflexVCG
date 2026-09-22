@@ -84,16 +84,24 @@ public final class InitialCondition {
      */
     private static List<Assignment> initialAssignments(IrProgram program) {
         List<Assignment> assignments = new ArrayList<>();
+        // A constant is a variable that is written once, here, and never again.
+        program.getConstants().forEach(constant -> collect(constant, program, assignments));
         for (IrDecl declaration : program.getGlobalVariables()) {
             collect(declaration, program, assignments);
         }
         for (IrDecl.Node node : program.getNodes()) {
+            node.getConstants().forEach(constant -> collect(constant, program, assignments));
             node.getVariables().forEach(declaration -> collect(declaration, program, assignments));
         }
         return assignments;
     }
 
     private static void collect(IrDecl declaration, IrProgram program, List<Assignment> assignments) {
+        if (declaration instanceof IrDecl.Constant constant) {
+            expand(constant.getName(), constant.getType(), List.of(),
+                    constant.getValue(), program, assignments);
+            return;
+        }
         if (!(declaration instanceof IrDecl.Variable variable) || variable.getInitializer() == null) {
             // Physical variables take their value from hardware, and a variable with no
             // initialiser starts at the default its type gives it in emptyState.

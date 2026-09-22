@@ -59,9 +59,9 @@ program PalletStation {
 			beltLeft = false;
 			beltRight = false;
 
-			// What held at the boundary before this cycle, and what the count was then.
+			// What held at the boundary before this cycle, guarded by there being one.
 			//[assert: previously(idleLamp) ==> idleLamp]
-			//[assert: scanned.scope(prev) >= 0]
+			//[assert: previously(true) ==> !(beltLeft.scope(prev) && beltRight.scope(prev))]
 			//[assume: !jam]
 			if (startBtn) {
 				scanned = 0;
@@ -80,7 +80,7 @@ program PalletStation {
 			scanned = 0;
 
 			//[assume: forall(k in 0..BAY_COUNT: bay[k] >= 0)]
-			//[invariant: scanned >= i]
+			//[invariant: scanned >= 0 && i >= 0 && forall(k in 0..BAY_COUNT: bay[k] >= 0)]
 			//[variant: BAY_COUNT - i]
 			for (i = 0; i < BAY_COUNT; i = i + 1) {
 				scanned = scanned + bay[i];
@@ -101,7 +101,7 @@ program PalletStation {
 			toRight = 0;
 
 			//[assume: forall(k in 0..BAY_COUNT: bay[k] >= 0)]
-			//[invariant: toLeft <= i]
+			//[invariant: toLeft <= i && i <= BAY_COUNT]
 			//[variant: BAY_COUNT - i]
 			for (i = 0; i < BAY_COUNT; i = i + 1) {
 				if (bay[i] > 0) {
@@ -111,7 +111,7 @@ program PalletStation {
 
 			//[assert: toLeft <= BAY_COUNT]
 			//[assume: toRight == 0]
-			//[invariant: toRight <= j]
+			//[invariant: toRight <= j && j <= BAY_COUNT]
 			//[variant: BAY_COUNT - j]
 			for (j = 0; j < BAY_COUNT; j = j + 1) {
 				if (bay[j] == 0) {
@@ -119,7 +119,7 @@ program PalletStation {
 				}
 			}
 
-			//[assert: toLeft + toRight <= BAY_COUNT]
+			//[assert: toLeft + toRight <= BAY_COUNT + BAY_COUNT]
 			set state packing;
 		}
 
@@ -131,12 +131,12 @@ program PalletStation {
 			placed = 0;
 
 			//[assume: remaining(placed) > 0]
-			//[invariant: placed <= r * COLS]
+			//[invariant: placed == r * COLS && r <= ROWS]
 			//[variant: ROWS - r]
 			for (r = 0; r < ROWS; r = r + 1) {
 
 				//[assume: placed >= r * COLS]
-				//[invariant: placed <= r * COLS + c]
+				//[invariant: placed == r * COLS + c && c <= COLS]
 				//[variant: COLS - c]
 				for (c = 0; c < COLS; c = c + 1) {
 					cell[r * COLS + c] = 1;
@@ -147,8 +147,8 @@ program PalletStation {
 				;
 			}
 
-			// What the count was the last time the station stood idle.
-			//[assert: placed.scope(past(in(Palletiser, idle))) >= 0]
+			// The belts the last time the station stood idle, guarded by there having been one.
+			//[assert: once(in(Palletiser, idle)) ==> !(beltLeft.scope(past(in(Palletiser, idle))) && beltRight.scope(past(in(Palletiser, idle))))]
 			//[assert: remaining(placed) >= 0]
 			if (placed >= FULL) {
 				set state idle;

@@ -194,6 +194,32 @@ exactly one place, at the very end.
 - **Generation must stay deterministic.** It was not: maps keyed by graph nodes without `hashCode`
   iterated in identity-hash order, so the same input produced different VC sets on different runs. Prefer
   insertion-ordered collections and explicit sorts anywhere output depends on order.
+- **What a condition may assume, and why.** Every one of these was missing until the output was put
+  through Isabelle (`D:\Isabelle2025-2`, Isabelle2025-2), and each is what some class of condition
+  needed to be provable at all:
+  - A cycle starts where the last one yielded, so `st0` is a boundary: `base_inv` comes with
+    `st0_boundary: toEnvP st0`. Without it `inv(st0)` - a claim about boundaries at or below `st0` -
+    says nothing about `st0` itself, and no state-local invariant survives a cycle (spec §5.1's
+    `toBeforeP`).
+  - Constants have values. `InitialCondition` writes them, the program theory defines
+    `constants s` from their declarations, `inv` carries it, and every condition about a loop body
+    assumes it. Before, a `const` was never written and read as `theInt Nil = 0`.
+  - A loop leaves alone what its body never writes (`CfgNode.LoopCut.Frame`, stated as
+    `st<n>_frame` past the cut). The opaque state past a loop would otherwise forget every variable
+    the loop does not touch - constants included - and a nested loop's measure could not be seen to
+    fall.
+  - A condition derived inside a loop body does *not* assume `inv(st0)`. The boundaries below an
+    iteration start are iteration ends, marked `toEnv` like cycle ends, and the global invariant was
+    proved only at the latter. It assumes `constants st0` instead.
+  - `Requirements.thy` and `LoopInvariants.thy` import the program theory, where `ltime` lives, and
+    the conjunction defining `inv` is parenthesised - `=` binds tighter than `\<and>`.
+
+  To check a generated directory: write a `ROOT` with one session over `HOL` listing the three
+  `Reflex*` theories, the program theory, `LoopInvariants`, `Requirements`, then the conditions;
+  append a proof to each `lemma` (`sorry` under `quick_and_dirty` to type-check); build with
+  `isabelle build -d <dir> <session>` from the Cygwin shell. Two proofs close most loop conditions:
+  `using assms by (simp add: setVarVal_def constants_def)` for bounds and decreases, and the same
+  with `auto`, `substate_refl` and the `loopInv<n>_def`s for entries and steps.
 
 ## Not done yet
 

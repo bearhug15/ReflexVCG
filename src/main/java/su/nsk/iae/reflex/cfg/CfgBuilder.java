@@ -10,9 +10,14 @@ import su.nsk.iae.reflex.ir.IrProgram;
 import su.nsk.iae.reflex.ir.IrState;
 import su.nsk.iae.reflex.ir.IrStmt;
 import su.nsk.iae.reflex.ir.IrType;
+import su.nsk.iae.reflex.preprocess.TypeEnvironment;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Builds the control-flow graph of one execution cycle.
@@ -276,9 +281,52 @@ public final class CfgBuilder {
         bodyExit.addSuccessor(new CfgNode.Exit());
 
         CfgNode.LoopCut cut = new CfgNode.LoopCut(invariant, annotationOf(forStmt,
-                Annotation.Kind.VARIANT), invariantName, forStmt.getCondition(), body.entry());
+                Annotation.Kind.VARIANT), invariantName, forStmt.getCondition(), body.entry(),
+                frameOf(body.entry()));
         current.addSuccessor(cut);
         return new Fragment(entry, cut);
+    }
+
+    /**
+     * What a loop body leaves alone: every variable it never assigns and every process it
+     * never moves. Writes are read off the body's own graph, nested loops included, so a
+     * write anywhere in the body - inside a branch, in an expression, in an inner loop -
+     * counts. A write to one element of an array counts as a write to the array.
+     */
+    private CfgNode.LoopCut.Frame frameOf(CfgNode bodyEntry) {
+        Set<String> written = new LinkedHashSet<>();
+        Set<String> moved = new LinkedHashSet<>();
+        Set<CfgNode> seen = new LinkedHashSet<>();
+        Deque<CfgNode> pending = new ArrayDeque<>();
+        pending.add(bodyEntry);
+        while (!pending.isEmpty()) {
+            CfgNode node = pending.pop();
+            if (!seen.add(node)) {
+                continue;
+            }
+            if (node instanceof CfgNode.Assign assign) {
+                written.add(assign.getTarget().getName());
+            } else if (node instanceof CfgNode.SetState setState) {
+                moved.add(setState.getProcess());
+            } else if (node instanceof CfgNode.LoopCut inner) {
+                pending.add(inner.getBodyEntry());
+            }
+            pending.addAll(node.getSuccessors());
+        }
+
+        List<String> variables = new ArrayList<>();
+        for (String name : new TypeEnvironment(program).variableNames()) {
+            if (!written.contains(name)) {
+                variables.add(name);
+            }
+        }
+        List<String> processes = new ArrayList<>();
+        for (IrProcess process : program.getProcesses()) {
+            if (!moved.contains(process.getName())) {
+                processes.add(process.getName());
+            }
+        }
+        return new CfgNode.LoopCut.Frame(variables, processes);
     }
 
     /**

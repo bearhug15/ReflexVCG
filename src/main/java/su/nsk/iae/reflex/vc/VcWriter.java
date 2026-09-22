@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.vc;
 
+import su.nsk.iae.reflex.ir.IrDecl;
 import su.nsk.iae.reflex.ir.IrProgram;
 import su.nsk.iae.reflex.ir.TimeRef;
 
@@ -10,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -83,10 +85,12 @@ public final class VcWriter {
         copyResource("ReflexTheory/ReflexPatterns.thy", "ReflexPatterns.thy");
         write(baseTheoryName() + ".thy", renderer.renderTheory(
                 baseTheoryName(), List.of("ReflexPatterns"), programTheoryBody(program)));
+        // Both build on the program's theory: an invariant may ask how long a process has
+        // been in its state, and ltime is defined there, against the program's clock.
         write(LOOP_THEORY + ".thy", renderer.renderTheory(
-                LOOP_THEORY, List.of("ReflexPatterns"), loopInvariantBody(loopInvariants)));
+                LOOP_THEORY, List.of(baseTheoryName()), loopInvariantBody(loopInvariants)));
         write("Requirements.thy", renderer.renderTheory(
-                "Requirements", List.of("ReflexPatterns"),
+                "Requirements", List.of(baseTheoryName()),
                 requirementsBody(globalInvariants) + String.join("\n", extraDefinitions)));
     }
 
@@ -178,7 +182,31 @@ public final class VcWriter {
                 + "\n"
                 + "lemma ltime_mult:\n"
                 + "\"ltime s p mod " + clock + " = 0\"\n"
-                + "  by (induction s) (auto)\n";
+                + "  by (induction s) (auto)\n"
+                + "\n"
+                + constantsDefinition(program);
+    }
+
+    /**
+     * {@code constants s}: every constant the program declares has its declared value in
+     * {@code s}.
+     *
+     * <p>A constant is a variable that is written once, at the start, and never again, so
+     * this holds at every reachable state - but a condition that starts from an arbitrary
+     * state has to be told. The global invariant carries it, and so does every condition
+     * about a loop body.
+     */
+    private String constantsDefinition(IrProgram program) {
+        List<String> facts = new ArrayList<>();
+        List<IrDecl.Constant> constants = new ArrayList<>(program.getConstants());
+        program.getNodes().forEach(node -> constants.addAll(node.getConstants()));
+        for (IrDecl.Constant constant : constants) {
+            facts.add("((getVarVal s " + IsabelleRenderer.quote(constant.getName()) + " []) = "
+                    + renderer.renderValue(constant.getValue(), constant.getType(), "s") + ")");
+        }
+        String body = facts.isEmpty() ? "True" : "(" + String.join("\n\\<and> ", facts) + ")";
+        return "definition constants :: \"state \\<Rightarrow> bool\" where\n"
+                + "\"constants s =\n" + body + "\"\n";
     }
 
     /**
@@ -223,8 +251,12 @@ public final class VcWriter {
      * condition then carries them without restating them.
      */
     private String requirementsBody(List<String> invariants) {
-        String body = invariants.isEmpty() ? "True" : String.join("\n\\<and> ", invariants);
-        return "definition inv where\n\"inv s =\n" + body + "\n\"\n";
+        List<String> conjuncts = new ArrayList<>();
+        conjuncts.add("(constants s)");
+        conjuncts.addAll(invariants);
+        // Parenthesised: = binds tighter than \<and>, so without them a conjunction would
+        // read as (inv s = A) \<and> B and not be a definition at all.
+        return "definition inv where\n\"inv s =\n(" + String.join("\n\\<and> ", conjuncts) + ")\n\"\n";
     }
 
     private static long clockTicks(TimeRef clock) {

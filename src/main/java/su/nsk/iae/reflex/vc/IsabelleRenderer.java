@@ -79,7 +79,11 @@ public final class IsabelleRenderer {
     /** Renders one assumption, label included. */
     public String renderStatement(VcStatement statement) {
         if (statement instanceof VcStatement.Invariant s) {
-            return "base_inv:\"" + invariant(s.state()) + "\"";
+            // A cycle begins where the last one yielded, so its first state is a boundary.
+            // Without that, an invariant known at every boundary at or below the state
+            // would say nothing about the state itself, and could not be carried across.
+            return "base_inv:\"" + invariant(s.state()) + "\"\n\tand "
+                    + s.state() + "_boundary:\"toEnvP " + s.state() + "\"";
         }
         if (statement instanceof VcStatement.Assumption s) {
             return s.label() + ":\"" + terms.render(s.formula()) + "\"";
@@ -143,6 +147,11 @@ public final class IsabelleRenderer {
     // ------------------------------------------------------------------ expressions
 
     /** Renders an expression as an Isabelle term evaluated in {@code state}. */
+    /** An expression's value as a {@code val}, in the constructor its Reflex type maps onto. */
+    public String renderValue(IrExpr expr, IrType type, String state) {
+        return wrap(renderExpression(expr, state), type);
+    }
+
     public String renderExpression(IrExpr expr, String state) {
         if (expr instanceof IrExpr.Literal literal) {
             return renderLiteral(literal);

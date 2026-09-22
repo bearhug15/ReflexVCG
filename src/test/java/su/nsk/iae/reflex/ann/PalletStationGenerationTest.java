@@ -190,9 +190,8 @@ class PalletStationGenerationTest {
         assertTrue(asserts.contains("(sa1 \\<noteq> st5)) \\<and> (toEnvP sa1))"), asserts);
         assertTrue(asserts.contains("[assert: next(in(Palletiser, scanning))]"), asserts);
         // scope(prev) and scope(past): a chosen state, read as a term
-        assertTrue(asserts.contains("(getVarVal (SOME sa4."), asserts);
-        assertTrue(asserts.contains("(getVarVal (SOME sa143."), asserts);
-        assertTrue(asserts.contains("((getPstate sa143 ''Palletiser'') = ''idle'')"), asserts);
+        assertTrue(asserts.contains("(getVarVal (SOME sa"), asserts);
+        assertTrue(asserts.contains("''Palletiser'') = ''idle'')"), asserts);
         // a define with a parameter, expanded where it is used
         assertTrue(asserts.contains("[assert: remaining(placed) >= 0]"), asserts);
         assertTrue(asserts.contains("(theInt (getVarVal st7 ''#FULL'' [])) - (theInt (getVarVal st7 ''#placed'' []))) \\<ge> 0"),

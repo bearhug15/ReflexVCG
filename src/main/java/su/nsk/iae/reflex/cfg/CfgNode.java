@@ -311,11 +311,32 @@ public abstract class CfgNode {
      * body is proved separately, and here the invariant is all that is known.
      */
     public static final class LoopCut extends CfgNode {
+
+        /**
+         * What the loop leaves as it found it: the variables its body never writes and
+         * the processes it never moves.
+         *
+         * <p>The path past a loop continues from a state it knows only through the
+         * invariant. That is deliberate - how many iterations ran is not known - but it
+         * would also forget every variable the loop does not touch, and a condition after
+         * the loop could not read a constant, nor a nested loop's measure be seen to fall.
+         * The frame is what the invariant need not say because the body cannot change it.
+         */
+        public record Frame(List<String> variables, List<String> processes) {
+            public Frame {
+                variables = List.copyOf(variables);
+                processes = List.copyOf(processes);
+            }
+
+            public static final Frame NONE = new Frame(List.of(), List.of());
+        }
+
         private final Annotation invariant;
         private final Annotation variant;
         private final String invariantName;
         private final IrExpr condition;
         private final CfgNode bodyEntry;
+        private final Frame frame;
 
         /**
          * @param invariant     the {@code [invariant: ...]} written on the loop, or null
@@ -323,14 +344,20 @@ public abstract class CfgNode {
          * @param invariantName the name the conditions state the invariant under, unique to
          *                      this loop. The theory holding it either defines it from
          *                      {@code invariant} or leaves it uninterpreted.
+         * @param frame         what the loop cannot change
          */
         public LoopCut(Annotation invariant, Annotation variant, String invariantName,
-                       IrExpr condition, CfgNode bodyEntry) {
+                       IrExpr condition, CfgNode bodyEntry, Frame frame) {
             this.invariant = invariant;
             this.variant = variant;
             this.invariantName = invariantName;
             this.condition = condition;
             this.bodyEntry = bodyEntry;
+            this.frame = frame;
+        }
+
+        public Frame getFrame() {
+            return frame;
         }
 
         /** The invariant written on the loop, or null when none was. */

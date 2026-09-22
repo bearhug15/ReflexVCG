@@ -406,14 +406,47 @@ public final class PathEnumerator {
         builder.derived.addAll(preservationConditions(cut, name));
 
         // Past the loop.
+        su.nsk.iae.reflex.term.Term after = new su.nsk.iae.reflex.term.Term.Var(afterLoop);
         builder.main.add(new VcStatement.OpaqueState(afterLoop, builder.current));
         builder.main.add(new VcStatement.Assumption(afterLoop + "_invariant",
-                translator.loopInvariantUpTo(name, preLoop,
-                        new su.nsk.iae.reflex.term.Term.Var(afterLoop))));
+                translator.loopInvariantUpTo(name, preLoop, after)));
+        su.nsk.iae.reflex.term.Term frame = frameOf(cut.getFrame(), preLoop, after);
+        if (frame != null) {
+            builder.main.add(new VcStatement.Assumption(afterLoop + "_frame", frame));
+        }
         builder.current = afterLoop;
         if (cut.getCondition() != null) {
             builder.main.add(new VcStatement.Condition(builder.current, negated(cut.getCondition())));
         }
+    }
+
+    /**
+     * What the state past a loop shares with the state before it: every variable the body
+     * never writes reads the same, and every process the body never moves is in the same
+     * state. Null when there is nothing to say.
+     */
+    private static su.nsk.iae.reflex.term.Term frameOf(
+            CfgNode.LoopCut.Frame frame, su.nsk.iae.reflex.term.Term before,
+            su.nsk.iae.reflex.term.Term after) {
+        List<su.nsk.iae.reflex.term.Term> unchanged = new ArrayList<>();
+        for (String variable : frame.variables()) {
+            unchanged.add(new su.nsk.iae.reflex.term.Term.Infix("=",
+                    rawValue(after, variable), rawValue(before, variable)));
+        }
+        for (String process : frame.processes()) {
+            unchanged.add(new su.nsk.iae.reflex.term.Term.Infix("=",
+                    su.nsk.iae.reflex.term.Terms.pstateOf(after, process),
+                    su.nsk.iae.reflex.term.Terms.pstateOf(before, process)));
+        }
+        return unchanged.isEmpty() ? null : su.nsk.iae.reflex.term.Terms.conjunction(unchanged);
+    }
+
+    /** {@code getVarVal s ''v'' []}: the whole value, whatever its type or shape. */
+    private static su.nsk.iae.reflex.term.Term rawValue(su.nsk.iae.reflex.term.Term state,
+                                                        String variable) {
+        return new su.nsk.iae.reflex.term.Term.App("getVarVal", List.of(state,
+                new su.nsk.iae.reflex.term.Term.Quoted(variable),
+                new su.nsk.iae.reflex.term.Term.ListTerm(List.of())));
     }
 
     /**
@@ -447,20 +480,17 @@ public final class PathEnumerator {
         new PathEnumerator(bodyGraph, null, annotations, loopHypotheses(cut, name))
                 .forEach(bodyPath -> {
             if (bodyPath.getKind() != VerificationCondition.Kind.MAIN) {
-                // An annotation or a nested loop inside the body keeps its own obligation.
-                conditions.add(bodyPath);
+                // An annotation or a nested loop inside the body keeps its own obligation,
+                // less the global invariant every path starts with - see loopHypotheses.
+                conditions.add(withoutGlobalInvariant(bodyPath));
                 return;
             }
             su.nsk.iae.reflex.term.Term afterIteration = su.nsk.iae.reflex.term.Terms.toEnv(
                     new su.nsk.iae.reflex.term.Term.Var(lastStateOf(bodyPath)));
 
-            VerificationCondition preserved = new VerificationCondition();
+            VerificationCondition preserved = withoutGlobalInvariant(bodyPath);
             preserved.setKind(VerificationCondition.Kind.LOOP_PRESERVED);
             preserved.setNote("loop invariant preserved, " + describe(cut));
-            // The body's statements, less the invariant assumption a main path starts with.
-            bodyPath.getStatements().stream()
-                    .filter(statement -> !(statement instanceof VcStatement.Invariant))
-                    .forEach(preserved::add);
             preserved.setConclusion(translator().loopInvariantUpTo(name, entry, afterIteration));
             preserved.setFinalState(bodyPath.getFinalState());
             conditions.add(preserved);
@@ -470,6 +500,24 @@ public final class PathEnumerator {
             }
         });
         return conditions;
+    }
+
+    /**
+     * A copy of a condition from inside a loop body without the global invariant its path
+     * began with. Inside a body the boundaries below a state are the ends of iterations,
+     * and the invariant was proved only at the ends of cycles, so it may not be assumed
+     * there; its kind, note and conclusion are the caller's to set.
+     */
+    private static VerificationCondition withoutGlobalInvariant(VerificationCondition condition) {
+        VerificationCondition copy = new VerificationCondition();
+        copy.setKind(condition.getKind());
+        copy.setNote(condition.getNote());
+        copy.setConclusion(condition.getConclusion());
+        copy.setFinalState(condition.getFinalState());
+        condition.getStatements().stream()
+                .filter(statement -> !(statement instanceof VcStatement.Invariant))
+                .forEach(copy::add);
+        return copy;
     }
 
     /**
@@ -504,6 +552,11 @@ public final class PathEnumerator {
         su.nsk.iae.reflex.term.Term entry = new su.nsk.iae.reflex.term.Term.Var(LOOP_ENTRY_STATE);
         su.nsk.iae.reflex.term.Term bodyStart = new su.nsk.iae.reflex.term.Term.Var("st0");
         List<VcStatement> hypotheses = new ArrayList<>();
+        // The global invariant is not assumed here: it was proved at the ends of cycles,
+        // and the boundaries this chain marks are the ends of iterations. What a body may
+        // take from the program as a whole is the values of its constants.
+        hypotheses.add(new VcStatement.Assumption("st0_constants",
+                new su.nsk.iae.reflex.term.Term.App("constants", List.of(bodyStart))));
         hypotheses.add(new VcStatement.Assumption("st0_boundary",
                 translator().loopBoundary(entry, bodyStart)));
         hypotheses.add(new VcStatement.Assumption("loop_invariant",

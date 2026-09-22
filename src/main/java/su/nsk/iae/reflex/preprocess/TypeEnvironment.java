@@ -61,6 +61,11 @@ public final class TypeEnvironment {
         return variableTypes.containsKey(name);
     }
 
+    /** Every declared variable, constants and physical bindings included, in declaration order. */
+    public List<String> variableNames() {
+        return List.copyOf(variableTypes.keySet());
+    }
+
     /** Field types of a struct, or null when no such struct is declared. */
     public Map<String, IrType> fieldsOf(String structName) {
         return structFields.get(structName);
