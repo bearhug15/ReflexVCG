@@ -51,6 +51,19 @@ public sealed interface Term {
         }
     }
 
+    /**
+     * {@code SOME v. body}: the state some condition picks out.
+     *
+     * <p>A scope operator reads an expression at another state, so it needs that state as a
+     * term rather than as a quantifier: {@code prev} and {@code past} say which state they
+     * mean by a condition on it, and Hilbert choice turns that condition back into a term.
+     * Where nothing satisfies the condition it denotes an arbitrary state, which is the
+     * right reading at the start of a scale - the value is unconstrained rather than the
+     * surrounding formula being vacuously true.
+     */
+    record Choice(String variable, Term body) implements Term {
+    }
+
     /** A list, as the access path argument of getVarVal and setVarVal. */
     record ListTerm(List<Term> elements) implements Term {
         public ListTerm {
@@ -96,6 +109,9 @@ public sealed interface Term {
         }
         if (term instanceof Exists exists) {
             return new Exists(exists.variables(), substitute(exists.body(), hole, replacement));
+        }
+        if (term instanceof Choice choice) {
+            return new Choice(choice.variable(), substitute(choice.body(), hole, replacement));
         }
         if (term instanceof ListTerm list) {
             return new ListTerm(

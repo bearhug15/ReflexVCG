@@ -219,16 +219,15 @@ public final class ReflexVcg {
     private List<VcWriter.RenderedLoopInvariant> loopInvariants(Cfg graph,
                                                                AnnTranslator translator) {
         TermRenderer renderer = new TermRenderer();
+        Term entry = new Term.Var("t0");
         Term state = new Term.Var("s");
         List<VcWriter.RenderedLoopInvariant> rendered = new ArrayList<>();
 
         for (Cfg.LoopInvariant invariant : graph.getLoopInvariants()) {
             String formula = null;
             if (invariant.isDefined()) {
-                AnnTranslator.Template template =
-                        translator.translateLoopInvariant(invariant.annotation(), state);
-                formula = renderer.render(
-                        Term.substitute(template.body(), template.hole(), state));
+                formula = renderer.render(translator.translateLoopInvariant(
+                        invariant.annotation(), entry, state));
             }
             rendered.add(new VcWriter.RenderedLoopInvariant(
                     invariant.name(), invariant.line(), formula));

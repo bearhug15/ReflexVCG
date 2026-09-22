@@ -16,14 +16,18 @@ import java.util.Map;
  *
  * <p>The context the specification threads through the recursion is held here:
  * <ul>
- *   <li>{@code state} - the state variables are read in. Temporal operators shift it and
- *       restore it afterwards.</li>
- *   <li>{@code windowStart} - where {@code timer} counts from. {@code during} moves it to
- *       the start of its window.</li>
+ *   <li>{@code state} - the point the formula speaks about, the {@code ref} of the
+ *       specification. Temporal operators move it and restore it afterwards.</li>
+ *   <li>{@code windowStart} - the {@code win} of the specification, where {@code timer}
+ *       counts from. Null until {@code during} or {@code on} opens a window, which is why
+ *       the operators needing one can say so rather than silently measuring nothing.</li>
+ *   <li>{@code floor} - how far back history reaches. Null for the program, whose history
+ *       has no lower bound; the entry state for a loop invariant, so that the operators
+ *       reading history see this run of the loop and not what preceded it.</li>
  *   <li>{@code preOpState} - the state before the annotated statement, used only by
- *       {@code .scope(pre)}, and deliberately unaffected by the shifts above.</li>
+ *       {@code .scope(pre)}, and deliberately unaffected by the moves above.</li>
  *   <li>{@code scale} - which invariant wrapper applies, and whether {@code timer} is
- *       measured in cycles or in ticks.</li>
+ *       measured in cycles or in iterations.</li>
  * </ul>
  *
  * <p>Names and types are expected to be settled already: {@link AnnMangling} and
@@ -50,6 +54,7 @@ public final class AnnTranslator {
 
     private Term state;
     private Term windowStart;
+    private Term floor;
     private Term preOpState;
     private Scale scale = Scale.NONE;
     private String process;
@@ -90,8 +95,9 @@ public final class AnnTranslator {
             return new Term.Raw(annotation.getText());
         }
         scale = Scale.NONE;
+        floor = null;
         preOpState = preOp;
-        Template template = buildTemplate(annotation.getBody(), at);
+        Template template = buildTemplate(annotation.getBody());
         return Term.substitute(template.body(), template.hole(), at);
     }
 
@@ -105,72 +111,70 @@ public final class AnnTranslator {
             return new Term.Raw(annotation.getText());
         }
         scale = invariantScale;
+        floor = null;
         process = owningProcess;
         pstate = owningState;
         preOpState = at;
+        rejectBareNext(annotation);
 
-        Template template = buildTemplate(annotation.getBody(), at);
+        Template template = buildTemplate(annotation.getBody());
         return wrapInvariant(template, at);
     }
 
     /**
-     * Builds the template of a loop invariant. The states it has to be stated at are only
-     * known once the loop body has been translated, so this stops at the template and
-     * {@link #instantiateLoopInvariant} finishes the job.
+     * The body of a loop invariant's definition: what {@code loopInv0 t0 t} means.
+     *
+     * <p>Two states, not one. {@code t} is where the invariant is stated; {@code t0} is the
+     * state the loop was entered at, which bounds how far back the operators reading
+     * history may look. A loop that runs again in a later cycle is a different run, and
+     * {@code t0} is what tells the two apart - without it, {@code once} inside the
+     * invariant could be satisfied by an iteration of a previous run.
      */
-    public Template translateLoopInvariant(Annotation annotation, Term at) {
+    public Term translateLoopInvariant(Annotation annotation, Term entry, Term at) {
+        if (annotation.isForeignLanguage()) {
+            return new Term.Raw(annotation.getText());
+        }
         scale = Scale.FOR;
+        floor = entry;
         preOpState = at;
-        return buildTemplate(annotation.getBody(), at);
+        rejectBareNext(annotation);
+
+        Template template = buildTemplate(annotation.getBody());
+        floor = null;
+        return Term.substitute(template.body(), template.hole(), at);
     }
 
     /**
-     * The template of a loop invariant referred to by name: the predicate {@code name}
-     * applied to the state.
+     * A loop invariant referred to by name, stated at one state: {@code loopInv0 t0 t}.
      *
      * <p>Every loop is cut this way, whether or not an invariant was written for it, so a
-     * condition mentions {@code loopInv0 st3} rather than carrying the formula. What the
-     * name means is settled once, in the theory declaring it - either by the annotation the
-     * loop carries or, when it carries none, not at all.
+     * condition mentions the name rather than carrying the formula. What the name means is
+     * settled once, in the theory declaring it - either by the annotation the loop carries
+     * or, when it carries none, not at all.
      */
-    public Template loopInvariantReference(String name) {
-        Term hole = freshState();
-        return new Template(new Term.App(name, List.of(hole)), hole);
+    public Term loopInvariantAt(String name, Term entry, Term at) {
+        return new Term.App(name, List.of(entry, at));
     }
 
     /**
-     * The invariant stated at each of the states a loop's conditions need it.
+     * A loop invariant stated at every iteration boundary this run has reached:
+     * {@code \<forall> t1. t0 \<le> t1 \<and> t1 \<le> t \<and> toEnvP t1 \<longrightarrow>
+     * loopInv0 t0 t1} - the {@code Inv_loop} of the specification.
      *
-     * <p>Deliberately reads no context: the loop body has been translated by the time this
-     * is called, so the context now describes some other construct.
+     * <p>The lower bound is what makes an iteration of an earlier run of the same loop
+     * inadmissible, so assuming the invariant before a body and showing it afterwards speak
+     * about the same run.
      */
-    public LoopInvariant instantiateLoopInvariant(Template template, Term preLoop,
-                                                  Term afterBody, Term afterLoop) {
-        Term afterIteration = Terms.toEnv(afterBody);
-
-        Term entry = Term.substitute(template.body(), template.hole(), preLoop);
-
-        Term before = freshState();
-        Term assumption = Terms.forall(before, Terms.implication(
-                Terms.conjunction(List.of(Terms.toEnvP(before), Terms.substate(before, preLoop))),
-                Term.substitute(template.body(), template.hole(), before)));
-
-        Term after = freshState();
-        Term conclusion = Terms.forall(after, Terms.implication(
-                Terms.conjunction(List.of(Terms.toEnvP(after), Terms.substate(after, afterIteration))),
-                Term.substitute(template.body(), template.hole(), after)));
-
-        Term exit = Term.substitute(template.body(), template.hole(), afterLoop);
-        return new LoopInvariant(entry, assumption, conclusion, exit);
+    public Term loopInvariantUpTo(String name, Term entry, Term upTo) {
+        Term bound = freshState();
+        return Terms.forall(bound, Terms.implication(
+                Terms.conjunction(List.of(Terms.substate(entry, bound),
+                        Terms.substate(bound, upTo), boundaryOf(bound, entry))),
+                loopInvariantAt(name, entry, bound)));
     }
 
     /** A formula built against a placeholder state, ready to be stated at any state. */
-    public record Template(Term body, Term hole) {
-    }
-
-    /** The three shapes a loop invariant contributes to the loop's conditions. */
-    public record LoopInvariant(Term onEntry, Term assumedBeforeBody, Term shownAfterBody,
-                                Term onExit) {
+    private record Template(Term body, Term hole) {
     }
 
     // ------------------------------------------------------------------ wrappers
@@ -195,19 +199,95 @@ public final class AnnTranslator {
         return Terms.forall(bound, Terms.implication(Terms.conjunction(conditions), body));
     }
 
-    /** Translates a body against a placeholder, so it can be stated at several states. */
-    private Template buildTemplate(AnnExpr body, Term at) {
+    /**
+     * Translates a body against a placeholder, so it can be stated at several states.
+     *
+     * <p>The window starts undefined: an annotation is not inside one until {@code during}
+     * or {@code on} opens it, which is what makes a bare {@code timer} an error rather than
+     * a measurement from wherever the formula happens to be stated.
+     */
+    private Template buildTemplate(AnnExpr body) {
+        Term hole = freshState();
+        Term translated = body == null ? Terms.TRUE : at(hole, null, body);
+        return new Template(translated, hole);
+    }
+
+    /** Translates a body at another point, with another window, and restores both. */
+    private Term at(Term reference, Term window, AnnExpr body) {
         Term savedState = state;
         Term savedWindow = windowStart;
-        Term hole = freshState();
-
-        state = hole;
-        windowStart = hole;
-        Term translated = body == null ? Terms.TRUE : translate(body);
-
+        state = reference;
+        windowStart = window;
+        Term result = translate(body);
         state = savedState;
         windowStart = savedWindow;
-        return new Template(translated, hole);
+        return result;
+    }
+
+    /**
+     * {@code floor \<le> r \<and> r \<le> upTo \<and> boundary r}: where a bound state may
+     * range over the history this scale reaches.
+     *
+     * @param lower the earliest admissible state, or null when history has no lower bound
+     */
+    private List<Term> historyBounds(Term bound, Term upTo, Term lower) {
+        List<Term> conditions = new ArrayList<>();
+        if (lower != null) {
+            conditions.add(Terms.substate(lower, bound));
+        }
+        conditions.add(Terms.substate(bound, upTo));
+        conditions.add(boundary(bound));
+        return conditions;
+    }
+
+    /** Whether a state is a boundary of the scale being compiled against. */
+    private Term boundary(Term state) {
+        return boundaryOf(state, scale == Scale.FOR ? floor : null);
+    }
+
+    /**
+     * The boundaries of a loop's run are the state it was entered at and the end of each
+     * iteration; everywhere else they are the boundaries between cycles.
+     *
+     * <p>An iteration ends in a {@code toEnv}, so within a run those are what
+     * {@code toEnvP} picks out - but the state the loop was entered at is mid-cycle and
+     * carries no marker, and a run has to count from somewhere. Naming it is what makes
+     * {@code once} at the entry of a loop mean "here", rather than a claim about an
+     * iteration that has not happened.
+     *
+     * @param entry the state a loop run began at, or null outside a loop
+     */
+    private static Term boundaryOf(Term state, Term entry) {
+        if (entry == null) {
+            return Terms.toEnvP(state);
+        }
+        return Terms.disjunction(List.of(new Term.Infix("=", state, entry), Terms.toEnvP(state)));
+    }
+
+    /**
+     * {@code Adj(a,b)}: a is the nearest boundary strictly before b - nothing between them
+     * is one.
+     *
+     * <p>The operators reading one step of history are written against this rather than
+     * against a function returning the previous boundary, because it says nothing when
+     * there is none: at the start of a scale the quantifier it sits under is simply
+     * unsatisfiable, where such a function would hand back a state from before the scale
+     * began.
+     */
+    private Term adjacent(Term earlier, Term later) {
+        Term between = freshState();
+        return Terms.conjunction(List.of(
+                Terms.strictlyBefore(earlier, later),
+                boundary(earlier),
+                Terms.forall(between, Terms.implication(
+                        Terms.conjunction(List.of(Terms.strictlyBefore(earlier, between),
+                                Terms.strictlyBefore(between, later))),
+                        Terms.not(boundary(between))))));
+    }
+
+    /** Where the operators opening no window of their own start looking. */
+    private Term windowOrFloor() {
+        return windowStart != null ? windowStart : floor;
     }
 
     private Term freshState() {
@@ -428,178 +508,242 @@ public final class AnnTranslator {
 
     private Term translateTemporal(AnnExpr.Temporal temporal) {
         return switch (temporal.getKind()) {
-            case PREVIOUSLY -> atState(Terms.predEnv(state), temporal.getFirst());
-            case NEXT -> translateNext(temporal);
+            case PREVIOUSLY -> previouslyTerm(temporal.getFirst());
+            case NEXT -> nextTerm(temporal.getFirst());
             case ONCE -> onceTerm(temporal.getFirst());
             case DURING -> duringTerm(temporal.getFirst(), temporal.getSecond(), temporal.getThird());
             case TIMER -> timerTerm(temporal.getFirst());
-            case WITHIN -> windowTerm(temporal, true);
-            case STABLE -> windowTerm(temporal, false);
-            case COOLDOWN -> cooldownTerm(temporal);
-            case ON -> onTerm(temporal);
+            case WITHIN -> withinTerm(temporal.getFirst(), temporal.getSecond());
+            case STABLE -> stableTerm(temporal.getFirst(), temporal.getSecond());
+            case COOLDOWN -> cooldownTerm(temporal.getFirst(), temporal.getSecond());
+            case ON -> onTerm(temporal.getFirst(), temporal.getSecond());
+            case WITHIN_SINCE -> withinSinceTerm(
+                    temporal.getFirst(), temporal.getSecond(), temporal.getThird());
+            case STABLE_SINCE -> stableSinceTerm(
+                    temporal.getFirst(), temporal.getSecond(), temporal.getThird());
         };
     }
 
-    /** Translates {@code body} with the reference state temporarily moved. */
-    private Term atState(Term newState, AnnExpr body) {
-        Term saved = state;
-        state = newState;
-        Term result = translate(body);
-        state = saved;
-        return result;
-    }
-
     /**
-     * The successor state, expressed by searching for the state whose predecessor is the
-     * current one - there is no forward constructor. False when none exists.
+     * At the nearest boundary before this one. False where there is none: the quantifier
+     * simply has no witness, which is what makes the operator safe at the start of a scale.
      */
-    private Term translateNext(AnnExpr.Temporal temporal) {
-        Term saved = state;
-        Term successor = freshState();
-        state = successor;
-        Term body = translate(temporal.getFirst());
-        state = saved;
-
-        Term condition = Terms.conjunction(List.of(Terms.toEnvP(saved),
-                new Term.Infix("=", saved, Terms.predEnv(successor))));
-        return Terms.exists(successor, Terms.conjunction(List.of(condition, body)));
+    private Term previouslyTerm(AnnExpr phi) {
+        Term earlier = freshState();
+        List<Term> condition = new ArrayList<>();
+        if (floor != null) {
+            condition.add(Terms.substate(floor, earlier));
+        }
+        condition.add(adjacent(earlier, state));
+        condition.add(at(earlier, windowStart, phi));
+        return Terms.exists(earlier, Terms.conjunction(condition));
     }
 
-    private Term onceTerm(AnnExpr phi) {
-        Term saved = state;
-        Term earlier = freshState();
-        state = earlier;
-        Term body = translate(phi);
-        state = saved;
+    /** At the next boundary: the same question the other way round the order. */
+    private Term nextTerm(AnnExpr phi) {
+        Term later = freshState();
+        Term condition = adjacent(state, later);
+        return Terms.exists(later,
+                Terms.conjunction(List.of(condition, at(later, windowStart, phi))));
+    }
 
-        return Terms.exists(earlier, Terms.conjunction(List.of(
-                Terms.toEnvP(earlier), Terms.substate(earlier, saved), body)));
+    /** At some boundary this scale has reached, this one included. */
+    private Term onceTerm(AnnExpr phi) {
+        Term earlier = freshState();
+        List<Term> condition = new ArrayList<>(historyBounds(earlier, state, floor));
+        condition.add(at(earlier, windowStart, phi));
+        return Terms.exists(earlier, Terms.conjunction(condition));
     }
 
     /**
-     * From the last state where the trigger held and nothing has interrupted since, the
-     * body has held at every state through to now.
+     * From every boundary where the trigger held, if nothing has interrupted since, the
+     * body has held at every boundary through to now.
+     *
+     * <p>The interrupt and the body are both asked under the window the trigger opens, so
+     * {@code timer} inside either counts from that trigger rather than from an enclosing
+     * one. The trigger itself keeps the window it was written under: it defines a window
+     * rather than sitting inside one.
      */
     private Term duringTerm(AnnExpr trigger, AnnExpr interrupt, AnnExpr body) {
-        Term saved = state;
-        Term savedWindow = windowStart;
+        Term reference = state;
         Term triggered = freshState();
+        List<Term> condition =
+                new ArrayList<>(historyBounds(triggered, reference, windowOrFloor()));
+        condition.add(at(triggered, windowStart, trigger));
 
-        Term triggerTerm = atState(triggered, trigger);
-
-        Term middle = freshState();
-        state = middle;
-        windowStart = triggered;
-        Term notInterrupted = Terms.forall(middle, Terms.implication(
-                Terms.conjunction(List.of(Terms.toEnvP(middle), Terms.substate(triggered, middle),
-                        Terms.substate(middle, saved))),
-                Terms.not(translate(interrupt))));
+        Term interrupted = freshState();
+        Term uninterrupted = Terms.forall(interrupted, Terms.implication(
+                Terms.conjunction(List.of(Terms.strictlyBefore(triggered, interrupted),
+                        Terms.substate(interrupted, reference), boundary(interrupted))),
+                Terms.not(at(interrupted, triggered, interrupt))));
 
         Term through = freshState();
-        state = through;
-        windowStart = triggered;
-        Term holds = Terms.forall(through, Terms.implication(
-                Terms.conjunction(List.of(Terms.toEnvP(through), Terms.substate(triggered, through),
-                        Terms.substate(through, saved))),
-                translate(body)));
+        Term maintained = Terms.forall(through, Terms.implication(
+                Terms.conjunction(historyBounds(through, reference, triggered)),
+                at(through, triggered, body)));
 
-        state = saved;
-        windowStart = savedWindow;
-        Term condition = Terms.conjunction(List.of(Terms.toEnvP(triggered),
-                Terms.substate(triggered, saved), triggerTerm, notInterrupted));
-        return Terms.forall(triggered, Terms.implication(condition, holds));
+        return Terms.forall(triggered, Terms.implication(Terms.conjunction(condition),
+                Terms.implication(uninterrupted, maintained)));
     }
 
     /**
-     * How long the window has lasted. Outside a loop that is a number of cycles, so it is
-     * multiplied by the cycle duration; inside one it counts iterations.
+     * Wherever the trigger has held, the property holds now.
+     *
+     * <p>The property is asked at the state the annotation speaks about, not at the
+     * trigger; what the trigger contributes is the window, so that a {@code timer} inside
+     * the property measures from it.
      */
+    private Term onTerm(AnnExpr trigger, AnnExpr property) {
+        Term reference = state;
+        Term triggered = freshState();
+        List<Term> condition =
+                new ArrayList<>(historyBounds(triggered, reference, windowOrFloor()));
+        condition.add(at(triggered, windowStart, trigger));
+        return Terms.forall(triggered, Terms.implication(Terms.conjunction(condition),
+                at(reference, triggered, property)));
+    }
+
+    /** The condition held recently enough: at some boundary less than t ago. */
+    private Term cooldownTerm(AnnExpr phi, AnnExpr threshold) {
+        Term reference = state;
+        Term when = freshState();
+        List<Term> condition = new ArrayList<>(historyBounds(when, reference, windowOrFloor()));
+        condition.add(at(when, windowStart, phi));
+        condition.add(elapsedBelow(when, reference, threshold));
+        return Terms.exists(when, Terms.conjunction(condition));
+    }
+
+    /** The window has lasted at least this long. */
     private Term timerTerm(AnnExpr threshold) {
-        Term bound = translate(threshold);
-        Term elapsed = Terms.toEnvNum(windowStart, state);
-        if (scale == Scale.FOR) {
-            return new Term.Infix(">", elapsed, bound);
-        }
-        return new Term.Infix(">", new Term.Infix("*", elapsed, clock), bound);
+        return elapsedAtLeast(requireWindow("timer"), state, threshold);
     }
 
-    /** within: somewhere in the window. stable: everywhere in it. */
-    private Term windowTerm(AnnExpr.Temporal temporal, boolean existential) {
-        Term saved = state;
-        Term savedWindow = windowStart;
+    /** Either the condition has held somewhere in the window, or there is still time. */
+    private Term withinTerm(AnnExpr threshold, AnnExpr phi) {
+        Term window = requireWindow("within");
         Term later = freshState();
-
-        state = later;
-        windowStart = saved;
-        Term condition = Terms.conjunction(List.of(Terms.toEnvP(later),
-                Terms.substate(saved, later), Terms.not(timerTerm(temporal.getSecond()))));
-        Term body = translate(temporal.getFirst());
-
-        state = saved;
-        windowStart = savedWindow;
-        return existential
-                ? Terms.exists(later, Terms.conjunction(List.of(condition, body)))
-                : Terms.forall(later, Terms.implication(condition, body));
+        List<Term> condition = new ArrayList<>(historyBounds(later, state, window));
+        condition.add(at(later, window, phi));
+        return Terms.disjunction(List.of(Terms.exists(later, Terms.conjunction(condition)),
+                elapsedBelow(window, state, threshold)));
     }
 
-    /** cooldown(phi, t) is once(phi) and during(phi, false, !timer(t)). */
-    private Term cooldownTerm(AnnExpr.Temporal temporal) {
-        AnnExpr phi = temporal.getFirst();
-        AnnExpr never = new AnnExpr.Literal(AnnExpr.Literal.Kind.BOOL, "false");
+    /** While the window is still young, the condition holds. */
+    private Term stableTerm(AnnExpr threshold, AnnExpr phi) {
+        Term window = requireWindow("stable");
+        return Terms.implication(elapsedBelow(window, state, threshold), translate(phi));
+    }
+
+    /**
+     * {@code within(psi, t, phi)}: since psi, phi arrives before t is up. The window is its
+     * own, so unlike {@code within(t, phi)} it needs no enclosing one - it is
+     * {@code during(psi, phi, !timer(t))}, phi being what ends the wait.
+     */
+    private Term withinSinceTerm(AnnExpr trigger, AnnExpr threshold, AnnExpr phi) {
         AnnExpr notElapsed = new AnnExpr.Unary(AnnExpr.UnaryOp.NOT,
-                new AnnExpr.Temporal(AnnExpr.Temporal.Kind.TIMER, temporal.getSecond(), null, null));
-        return Terms.conjunction(List.of(onceTerm(phi), duringTerm(phi, never, notElapsed)));
+                new AnnExpr.Temporal(AnnExpr.Temporal.Kind.TIMER, threshold, null, null));
+        return duringTerm(trigger, phi, notElapsed);
     }
 
-    /** Wherever the trigger holds at a reachable state, so does the property. */
-    private Term onTerm(AnnExpr.Temporal temporal) {
-        Term saved = state;
-        Term reachable = freshState();
-        state = reachable;
-        Term trigger = translate(temporal.getFirst());
-        Term property = translate(temporal.getSecond());
-        state = saved;
+    /**
+     * {@code stable(psi, t, phi)}: while psi is less than t old, phi holds.
+     *
+     * <p>Through {@code cooldown} rather than through {@code during}: the question is what
+     * holds now, not what has held throughout, and those differ once psi has held more than
+     * once.
+     */
+    private Term stableSinceTerm(AnnExpr trigger, AnnExpr threshold, AnnExpr phi) {
+        return Terms.implication(cooldownTerm(trigger, threshold), translate(phi));
+    }
 
-        Term condition = Terms.conjunction(List.of(Terms.toEnvP(reachable),
-                Terms.substate(reachable, saved), trigger));
-        return Terms.forall(reachable, Terms.implication(condition, property));
+    /**
+     * How far the window has run. Outside a loop a boundary is a cycle, so the count is
+     * scaled to a duration; inside one it is an iteration, which the threshold is written
+     * in directly.
+     */
+    private Term elapsed(Term from, Term to) {
+        Term count = Terms.toEnvNum(from, to);
+        return scale == Scale.FOR ? count : new Term.Infix("*", count, clock);
+    }
+
+    private Term elapsedAtLeast(Term from, Term to, AnnExpr threshold) {
+        return new Term.Infix("\\<ge>", elapsed(from, to), translate(threshold));
+    }
+
+    private Term elapsedBelow(Term from, Term to, AnnExpr threshold) {
+        return new Term.Infix("<", elapsed(from, to), translate(threshold));
+    }
+
+    /**
+     * The window the measuring operators need. They measure from where a window was opened,
+     * so outside {@code during} and {@code on} there is nothing for them to measure from
+     * and the annotation is rejected rather than quietly measured from its own state.
+     */
+    private Term requireWindow(String operator) {
+        if (windowStart == null) {
+            throw new IllegalStateException(operator + " has no window to measure from:"
+                    + " it is only meaningful inside during or on");
+        }
+        return windowStart;
+    }
+
+    /**
+     * {@code next} of a constant as the whole of an invariant asks for a boundary beyond
+     * the last one, which nothing supplies. Rejected here rather than left to fail at the
+     * prover, where it would look like a property that merely did not go through.
+     */
+    private static void rejectBareNext(Annotation annotation) {
+        if (annotation.getBody() instanceof AnnExpr.Temporal temporal
+                && temporal.getKind() == AnnExpr.Temporal.Kind.NEXT
+                && temporal.getFirst() instanceof AnnExpr.Literal literal
+                && literal.getKind() == AnnExpr.Literal.Kind.BOOL) {
+            throw new IllegalStateException("invariant at line " + annotation.getLine()
+                    + " is next(" + literal.getText() + "), which claims a boundary after the"
+                    + " last one and so can never hold");
+        }
     }
 
     // ------------------------------------------------------------------ scope
 
     private Term translateScope(AnnExpr.Scope scope) {
         return switch (scope.getKind()) {
-            // The state before the annotated statement, unaffected by temporal shifts.
-            case PRE -> atState(preOpState == null ? state : preOpState, scope.getBase());
-            case PREV -> atState(Terms.predEnv(state), scope.getBase());
-            case PAST -> pastTerm(scope);
+            // The state before the annotated statement, unaffected by temporal moves.
+            case PRE -> at(preOpState == null ? state : preOpState, windowStart, scope.getBase());
+            case PREV -> at(previousState(), windowStart, scope.getBase());
+            case PAST -> at(pastState(scope.getPhi()), windowStart, scope.getBase());
         };
     }
 
+    /**
+     * The nearest earlier boundary, as a term rather than as a bound variable: a scope
+     * reads an expression there, and an expression needs a state to read from.
+     *
+     * <p>Where there is no such boundary the choice is unconstrained, so the expression
+     * reads an arbitrary state. That is the reading wanted at the start of a scale - the
+     * value is unknown, rather than the formula around it being vacuously true.
+     */
+    private Term previousState() {
+        Term earlier = freshState();
+        List<Term> condition = new ArrayList<>();
+        if (floor != null) {
+            condition.add(Terms.substate(floor, earlier));
+        }
+        condition.add(adjacent(earlier, state));
+        return Terms.choice(earlier, Terms.conjunction(condition));
+    }
+
     /** The most recent earlier state where the condition held. */
-    private Term pastTerm(AnnExpr.Scope scope) {
-        Term saved = state;
+    private Term pastState(AnnExpr phi) {
         Term when = freshState();
+        List<Term> condition = new ArrayList<>(historyBounds(when, state, floor));
+        condition.add(at(when, windowStart, phi));
 
-        Term held = atState(when, scope.getPhi());
-
-        Term between = freshState();
-        state = between;
-        Term notHeld = Terms.not(translate(scope.getPhi()));
-        state = saved;
-
-        Term maximal = Terms.forall(between, Terms.implication(
-                Terms.conjunction(List.of(Terms.toEnvP(between), Terms.substate(when, between),
-                        Terms.substate(between, saved),
-                        Terms.not(new Term.Infix("=", between, when)),
-                        Terms.not(new Term.Infix("=", between, saved)))),
-                notHeld));
-
-        Term condition = Terms.conjunction(List.of(Terms.toEnvP(when), Terms.substate(when, saved),
-                Terms.not(new Term.Infix("=", when, saved)), held, maximal));
-
-        Term body = atState(when, scope.getBase());
-        return Terms.forall(when, Terms.implication(condition, body));
+        Term later = freshState();
+        condition.add(Terms.forall(later, Terms.implication(
+                Terms.conjunction(List.of(Terms.strictlyBefore(when, later),
+                        Terms.substate(later, state), boundary(later))),
+                Terms.not(at(later, windowStart, phi)))));
+        return Terms.choice(when, Terms.conjunction(condition));
     }
 
     // ------------------------------------------------------------------ helpers

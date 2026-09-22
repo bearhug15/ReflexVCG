@@ -311,10 +311,12 @@ public final class AnnLowering {
                     lower(args.get(0)), lower(args.get(1)), lower(args.get(2)));
         }
         if (ctx.withinExpr() != null) {
-            return binaryTemporal(AnnExpr.Temporal.Kind.WITHIN, ctx.withinExpr().specificationExpr());
+            return windowTemporal(AnnExpr.Temporal.Kind.WITHIN, AnnExpr.Temporal.Kind.WITHIN_SINCE,
+                    ctx.withinExpr().specificationExpr());
         }
         if (ctx.stableExpr() != null) {
-            return binaryTemporal(AnnExpr.Temporal.Kind.STABLE, ctx.stableExpr().specificationExpr());
+            return windowTemporal(AnnExpr.Temporal.Kind.STABLE, AnnExpr.Temporal.Kind.STABLE_SINCE,
+                    ctx.stableExpr().specificationExpr());
         }
         if (ctx.cooldownExpr() != null) {
             return binaryTemporal(AnnExpr.Temporal.Kind.COOLDOWN,
@@ -333,6 +335,19 @@ public final class AnnLowering {
     private AnnExpr binaryTemporal(AnnExpr.Temporal.Kind kind,
                                    List<ReflexALParser.SpecificationExprContext> args) {
         return new AnnExpr.Temporal(kind, lower(args.get(0)), lower(args.get(1)), null);
+    }
+
+    /**
+     * within and stable, whose third argument - a trigger of their own, written first -
+     * decides which of the two forms was meant.
+     */
+    private AnnExpr windowTemporal(AnnExpr.Temporal.Kind inWindow, AnnExpr.Temporal.Kind triggered,
+                                   List<ReflexALParser.SpecificationExprContext> args) {
+        if (args.size() == 2) {
+            return binaryTemporal(inWindow, args);
+        }
+        return new AnnExpr.Temporal(triggered,
+                lower(args.get(0)), lower(args.get(1)), lower(args.get(2)));
     }
 
     private AnnExpr lowerProcess(ReflexALParser.ProcessExprContext ctx) {

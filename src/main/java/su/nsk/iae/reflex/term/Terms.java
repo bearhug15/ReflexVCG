@@ -42,9 +42,15 @@ public final class Terms {
         return new Term.App("substate", List.of(earlier, later));
     }
 
-    /** {@code predEnv s}: the previous boundary. */
-    public static Term predEnv(Term state) {
-        return new Term.App("predEnv", List.of(state));
+    /** {@code a} is reachable strictly before {@code b}. */
+    public static Term strictlyBefore(Term earlier, Term later) {
+        return conjunction(List.of(substate(earlier, later),
+                new Term.Infix("\\<noteq>", earlier, later)));
+    }
+
+    /** {@code SOME v. condition}: the state a condition picks out, as a term. */
+    public static Term choice(Term variable, Term condition) {
+        return new Term.Choice(nameOf(variable), condition);
     }
 
     /** {@code toEnv s}: the state after yielding to the environment. */

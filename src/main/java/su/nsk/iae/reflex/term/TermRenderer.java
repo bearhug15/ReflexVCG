@@ -38,6 +38,9 @@ public final class TermRenderer {
             return "(\\<exists> " + String.join(" ", exists.variables()) + ". "
                     + render(exists.body()) + ")";
         }
+        if (term instanceof Term.Choice choice) {
+            return "(SOME " + choice.variable() + ". " + render(choice.body()) + ")";
+        }
         return renderList((Term.ListTerm) term);
     }
 

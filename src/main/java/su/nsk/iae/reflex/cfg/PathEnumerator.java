@@ -37,6 +37,9 @@ public final class PathEnumerator {
     /** Guards against runaway enumeration if the graph ever contains a cycle. */
     private static final int MAX_PATHS = 500_000;
 
+    /** Stands for the state a loop was entered at, in the conditions about its body. */
+    private static final String LOOP_ENTRY_STATE = "t0";
+
     private final Cfg cfg;
     private final StaticAnalysis analysis;
     private final AnnTranslator annotations;
@@ -374,27 +377,26 @@ public final class PathEnumerator {
     private void loopCut(Builder builder, CfgNode.LoopCut cut) {
         AnnTranslator translator = translator();
         su.nsk.iae.reflex.term.Term preLoop = new su.nsk.iae.reflex.term.Term.Var(builder.current);
-        AnnTranslator.Template template =
-                translator.loopInvariantReference(cut.getInvariantName());
+        String name = cut.getInvariantName();
 
         String afterLoop = builder.next();
-        AnnTranslator.LoopInvariant outer = translator.instantiateLoopInvariant(
-                template, preLoop, preLoop, new su.nsk.iae.reflex.term.Term.Var(afterLoop));
 
-        // The invariant holds when the loop is reached.
+        // The invariant holds when the loop is reached, the run starting there.
         VerificationCondition entry = builder.main.copy();
         entry.setKind(VerificationCondition.Kind.LOOP_ENTRY);
-        entry.setConclusion(outer.onEntry());
+        entry.setConclusion(translator.loopInvariantAt(name, preLoop, preLoop));
         entry.setFinalState(builder.current);
         entry.setNote("loop invariant on entry, " + describe(cut));
         builder.derived.add(entry);
 
         // One iteration preserves it.
-        builder.derived.addAll(preservationConditions(cut, template));
+        builder.derived.addAll(preservationConditions(cut, name));
 
         // Past the loop.
         builder.main.add(new VcStatement.OpaqueState(afterLoop, builder.current));
-        builder.main.add(new VcStatement.Assumption(afterLoop + "_invariant", outer.onExit()));
+        builder.main.add(new VcStatement.Assumption(afterLoop + "_invariant",
+                translator.loopInvariantUpTo(name, preLoop,
+                        new su.nsk.iae.reflex.term.Term.Var(afterLoop))));
         builder.current = afterLoop;
         if (cut.getCondition() != null) {
             builder.main.add(new VcStatement.Condition(builder.current, negated(cut.getCondition())));
@@ -407,9 +409,13 @@ public final class PathEnumerator {
      * <p>The body is numbered from its own {@code st0}, so the invariant is instantiated
      * against those states rather than the enclosing path's - it is assumed up to where the
      * body starts and shown up to the environment step that ends the iteration.
+     *
+     * <p>Which iteration this is, and so which state the run began at, is not known here:
+     * {@value #LOOP_ENTRY_STATE} stands for it, free in the condition and therefore
+     * universally quantified, and the same state bounds the invariant on both sides.
      */
     private List<VerificationCondition> preservationConditions(
-            CfgNode.LoopCut cut, AnnTranslator.Template template) {
+            CfgNode.LoopCut cut, String name) {
 
         List<VerificationCondition> conditions = new ArrayList<>();
         Cfg bodyGraph = new Cfg(cut.getBodyEntry(), null, cfg.getProgram());
@@ -420,17 +426,18 @@ public final class PathEnumerator {
                 conditions.add(bodyPath);
                 return;
             }
+            su.nsk.iae.reflex.term.Term entry =
+                    new su.nsk.iae.reflex.term.Term.Var(LOOP_ENTRY_STATE);
             su.nsk.iae.reflex.term.Term bodyStart = new su.nsk.iae.reflex.term.Term.Var("st0");
-            su.nsk.iae.reflex.term.Term bodyEnd =
-                    new su.nsk.iae.reflex.term.Term.Var(lastStateOf(bodyPath));
-            AnnTranslator.LoopInvariant parts =
-                    translator().instantiateLoopInvariant(template, bodyStart, bodyEnd, bodyEnd);
+            su.nsk.iae.reflex.term.Term afterIteration = su.nsk.iae.reflex.term.Terms.toEnv(
+                    new su.nsk.iae.reflex.term.Term.Var(lastStateOf(bodyPath)));
 
             VerificationCondition preserved = new VerificationCondition();
             preserved.setKind(VerificationCondition.Kind.LOOP_PRESERVED);
             preserved.setNote("loop invariant preserved, " + describe(cut));
 
-            preserved.add(new VcStatement.Assumption("loop_invariant", parts.assumedBeforeBody()));
+            preserved.add(new VcStatement.Assumption("loop_invariant",
+                    translator().loopInvariantUpTo(name, entry, bodyStart)));
             if (cut.getCondition() != null) {
                 preserved.add(new VcStatement.Condition("st0", cut.getCondition()));
             }
@@ -438,7 +445,7 @@ public final class PathEnumerator {
             bodyPath.getStatements().stream()
                     .filter(statement -> !(statement instanceof VcStatement.Invariant))
                     .forEach(preserved::add);
-            preserved.setConclusion(parts.shownAfterBody());
+            preserved.setConclusion(translator().loopInvariantUpTo(name, entry, afterIteration));
             preserved.setFinalState(bodyPath.getFinalState());
             conditions.add(preserved);
         });

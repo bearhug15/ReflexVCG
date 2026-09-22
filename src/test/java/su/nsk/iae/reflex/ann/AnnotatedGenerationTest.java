@@ -180,20 +180,23 @@ class AnnotatedGenerationTest {
     void aLoopIsCutIntoEntryPreservationAndExit() {
         // The invariant is stated by name; LoopInvariants.thy says what the name means.
         String loops = files.get("LoopInvariants.thy");
-        assertTrue(loops.contains("definition loopInv0 :: \"state \\<Rightarrow> bool\" where"), loops);
+        assertTrue(loops.contains(
+                "definition loopInv0 :: \"state \\<Rightarrow> state \\<Rightarrow> bool\" where"),
+                loops);
         assertTrue(loops.contains("(theInt (getVarVal s ''#total'' [])) "
                 + "\\<le> (theInt (getVarVal s ''#i'' []))"), loops);
 
         String entry = from("loop invariant on entry, loopInv0");
-        assertTrue(entry.contains("shows \"(loopInv0 st6)\""), entry);
+        assertTrue(entry.contains("shows \"(loopInv0 st6 st6)\""), entry);
 
         String step = from("loop invariant preserved, loopInv0");
         // Assumed up to where the body starts, shown up to where the iteration ends. The
-        // body is numbered from its own st0, not the enclosing path's.
+        // body is numbered from its own st0, not the enclosing path's, and t0 stands for
+        // the state this run of the loop began at - free, so the condition covers any.
         assertTrue(step.contains("loop_invariant:\"(\\<forall> sa"), step);
-        assertTrue(step.contains("(substate sa3 st0))"), step);
-        assertTrue(step.contains("shows \"(\\<forall> sa4. (((toEnvP sa4) "
-                + "\\<and> (substate sa4 (toEnv st2)))"), step);
+        assertTrue(step.contains("(substate t0 sa0) \\<and> (substate sa0 st0))"), step);
+        assertTrue(step.contains("shows \"(\\<forall> sa1. ((((substate t0 sa1) "
+                + "\\<and> (substate sa1 (toEnv st2)))"), step);
         // The condition is assumed: an iteration only runs while it holds.
         assertTrue(step.contains("st0_condition_0:\"((theInt (getVarVal st0 ''#i'' [])) < "), step);
         // Both the body and the loop's update belong to the iteration.

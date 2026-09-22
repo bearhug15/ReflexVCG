@@ -126,7 +126,8 @@ class ReflexVcgTest {
         assertTrue(generator.generate(output) > 0);
 
         String loops = Files.readString(output.resolve("LoopInvariants.thy"));
-        assertTrue(loops.contains("consts loopInv0 :: \"state \\<Rightarrow> bool\""), loops);
+        assertTrue(loops.contains(
+                "consts loopInv0 :: \"state \\<Rightarrow> state \\<Rightarrow> bool\""), loops);
         assertFalse(loops.contains("definition loopInv0"),
                 "nothing said what this loop preserves, so nothing should define it");
 
@@ -142,13 +143,16 @@ class ReflexVcgTest {
         ReflexVcg.load(PROGRAMS.resolve("loopSum.rcs")).generate(output);
 
         String loops = Files.readString(output.resolve("LoopInvariants.thy"));
-        assertTrue(loops.contains("definition loopInv0 :: \"state \\<Rightarrow> bool\" where"), loops);
+        assertTrue(loops.contains(
+                "definition loopInv0 :: \"state \\<Rightarrow> state \\<Rightarrow> bool\" where"),
+                loops);
         assertTrue(loops.contains("(theInt (getVarVal s ''#total'' []))"), loops);
         assertFalse(loops.contains("consts"), loops);
 
-        // The conditions name it rather than repeating the formula.
+        // The conditions name it rather than repeating the formula. Both states are the
+        // one the loop is entered at: the run has reached no further.
         String entry = Files.readString(output.resolve("LoopSum_LOOPENTRY2.thy"));
-        assertTrue(entry.contains("shows \"(loopInv0 st2)\""), entry);
+        assertTrue(entry.contains("shows \"(loopInv0 st2 st2)\""), entry);
         // `total >= i` is what the invariant says; only the loop theory should spell it.
         assertFalse(entry.contains("\\<ge>"),
                 "the formula belongs in the loop theory, not in the condition:\n" + entry);

@@ -180,6 +180,10 @@ public final class VcWriter {
     /**
      * Declares an invariant for each loop that was written without one.
      *
+     * <p>Two states, not one: the first is where the loop was entered, which is what tells
+     * one run of the loop from the next time the same loop runs, and how far back the
+     * operators reading history may look.
+     *
      * <p>Left uninterpreted on purpose. The loop's conditions say what such an invariant
      * would have to satisfy - it holds on entry, an iteration keeps it, and it is all the
      * path past the loop may assume - and giving it a definition here is what makes them
@@ -198,11 +202,11 @@ public final class VcWriter {
                         .append("   uninterpreted. Give it a definition saying what the loop\n")
                         .append("   preserves; until then the loop's conditions cannot be proved. *)\n")
                         .append("consts ").append(invariant.name())
-                        .append(" :: \"state \\<Rightarrow> bool\"\n\n");
+                        .append(" :: \"state \\<Rightarrow> state \\<Rightarrow> bool\"\n\n");
             } else {
                 body.append("definition ").append(invariant.name())
-                        .append(" :: \"state \\<Rightarrow> bool\" where\n")
-                        .append("\"").append(invariant.name()).append(" s =\n")
+                        .append(" :: \"state \\<Rightarrow> state \\<Rightarrow> bool\" where\n")
+                        .append("\"").append(invariant.name()).append(" t0 s =\n")
                         .append(invariant.formula()).append("\"\n\n");
             }
         }

@@ -190,8 +190,9 @@ class NewPipelineEndToEndTest {
                 "the invariant should hold on entry:\n" + String.join("\n---\n", lemmas));
         assertTrue(lemmas.stream().anyMatch(l -> l.contains("loop_invariant:")),
                 "an iteration should be shown to preserve it");
-        assertTrue(lemmas.stream().anyMatch(l -> l.contains("_invariant:\"(loopInv0 ")),
-                "the path past the loop should assume it");
+        assertTrue(lemmas.stream().anyMatch(l -> l.contains("_invariant:\"(\\<forall>")
+                        && l.contains("(loopInv0 ")),
+                "the path past the loop should assume it at every boundary of the run");
     }
 
     /**

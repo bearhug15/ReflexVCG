@@ -579,16 +579,20 @@ public abstract class AnnExpr {
             ONCE,
             /** during(trigger, interrupt, body). */
             DURING,
-            /** timer(t): the window has lasted longer than t. */
+            /** timer(t): the window has lasted at least t. */
             TIMER,
-            /** within(phi, t): phi somewhere in the next t. */
+            /** within(t, phi): phi somewhere in the window, or the window is younger than t. */
             WITHIN,
-            /** stable(phi, t): phi throughout the next t. */
+            /** stable(t, phi): while the window is younger than t, phi. */
             STABLE,
-            /** cooldown(phi, t): phi happened, and not again within t. */
+            /** cooldown(phi, t): phi held less than t ago. */
             COOLDOWN,
             /** on(trigger, property): wherever the trigger holds, so does the property. */
-            ON
+            ON,
+            /** within(trigger, t, phi): since the trigger, phi arrives before t is up. */
+            WITHIN_SINCE,
+            /** stable(trigger, t, phi): while the trigger is less than t old, phi. */
+            STABLE_SINCE
         }
 
         private final Kind kind;
@@ -607,20 +611,23 @@ public abstract class AnnExpr {
             return kind;
         }
 
-        /** phi, or the trigger for during and on. */
+        /**
+         * phi for previously/next/once/cooldown, the duration for timer/within/stable, the
+         * trigger for during/on and the three-argument within/stable.
+         */
         public AnnExpr getFirst() {
             return first;
         }
 
         /**
-         * The duration for timer/within/stable/cooldown, during's interrupt, or on's
-         * property.
+         * The condition for within/stable, the duration for cooldown and the
+         * three-argument within/stable, during's interrupt, or on's property.
          */
         public AnnExpr getSecond() {
             return second;
         }
 
-        /** during's body only. */
+        /** during's body, or the condition of the three-argument within/stable. */
         public AnnExpr getThird() {
             return third;
         }

@@ -189,9 +189,14 @@ onceExpr: 'once' '(' specificationExpr ')';
 
 duringExpr: 'during' '(' specificationExpr ',' specificationExpr ',' specificationExpr ')';
 
-withinExpr: 'within' '(' specificationExpr ',' specificationExpr ')';
+// within and stable come in two forms. The two-argument one speaks about the window an
+// enclosing during or on opened; the three-argument one names its own trigger and so needs
+// no enclosing window. The condition is the last argument either way.
+withinExpr
+    : 'within' '(' specificationExpr ',' specificationExpr (',' specificationExpr)? ')';
 
-stableExpr: 'stable' '(' specificationExpr ',' specificationExpr ')';
+stableExpr
+    : 'stable' '(' specificationExpr ',' specificationExpr (',' specificationExpr)? ')';
 
 cooldownExpr: 'cooldown' '(' specificationExpr ',' specificationExpr ')';
 

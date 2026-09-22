@@ -15,6 +15,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Translation of annotations into Isabelle formulas - the parseA of Annotations.tex. */
@@ -105,10 +106,21 @@ class AnnTranslatorTest {
 
     // ------------------------------------------------------------------ temporal
 
+    /**
+     * The nearest earlier boundary, asked for rather than constructed: where there is none
+     * the existential has no witness, and the operator is false rather than reading a state
+     * from before the scale began.
+     */
     @Test
-    void previouslyShiftsToThePrecedingBoundary() {
-        assertEquals("(theBool (getVarVal (predEnv s) ''#a'' []))",
-                translate("  bool a;\n", "previously(a)"));
+    void previouslyAsksForTheAdjacentEarlierBoundary() {
+        String rendered = translate("  bool a;\n", "previously(a)");
+        assertTrue(rendered.startsWith("(\\<exists> sa1."), rendered);
+        // Strictly earlier, a boundary, and nothing between it and here is one.
+        assertTrue(rendered.contains("(substate sa1 s) \\<and> (sa1 \\<noteq> s)"), rendered);
+        assertTrue(rendered.contains("(toEnvP sa1)"), rendered);
+        assertTrue(rendered.contains("(\\<not> (toEnvP sa2))"), rendered);
+        assertTrue(rendered.contains("(getVarVal sa1 ''#a'' [])"), rendered);
+        assertFalse(rendered.contains("predEnv"), rendered);
     }
 
     @Test
@@ -119,51 +131,120 @@ class AnnTranslatorTest {
         assertTrue(rendered.contains("(substate "), rendered);
     }
 
+    /** next is the same question as previously, the other way round the order. */
     @Test
-    void nextSearchesForTheSuccessorState() {
+    void nextAsksForTheAdjacentLaterBoundary() {
         String rendered = translate("  bool a;\n", "next(a)");
-        assertTrue(rendered.startsWith("(\\<exists> "), rendered);
-        // The successor is expressed through predEnv, there being no forward step.
-        assertTrue(rendered.contains("(predEnv "), rendered);
+        assertTrue(rendered.startsWith("(\\<exists> sa1."), rendered);
+        assertTrue(rendered.contains("(substate s sa1) \\<and> (s \\<noteq> sa1)"), rendered);
+        assertTrue(rendered.contains("(getVarVal sa1 ''#a'' [])"), rendered);
+    }
+
+    /** The property is asked about now; the trigger only says where to measure from. */
+    @Test
+    void onAsksThePropertyAtTheStateTheAnnotationSpeaksAbout() {
+        String rendered = translate("  bool alarm;\n  bool siren;\n", "on(alarm, siren)");
+        assertTrue(rendered.startsWith("(\\<forall> sa1."), rendered);
+        assertTrue(rendered.contains("(theBool (getVarVal sa1 ''#alarm'' []))"), rendered);
+        assertTrue(rendered.contains("(theBool (getVarVal s ''#siren'' []))"), rendered);
     }
 
     /** Outside a loop the timer counts cycles, so it is scaled by the clock. */
     @Test
-    void timerMultipliesByTheClockOutsideALoop() {
-        String rendered = translate("", "timer(500)");
-        assertTrue(rendered.contains("(toEnvNum "), rendered);
+    void timerMeasuresFromTheWindowTheTriggerOpens() {
+        String rendered = translate("  bool alarm;\n", "on(alarm, timer(500))");
+        assertTrue(rendered.contains("(toEnvNum sa1 s)"), rendered);
         assertTrue(rendered.contains("* 100"), rendered);
-        assertTrue(rendered.contains("> 500"), rendered);
+        assertTrue(rendered.contains("\\<ge> 500"), rendered);
     }
 
+    /** within: the condition arrived, or there is still time for it. */
     @Test
-    void onQuantifiesOverReachableStates() {
-        String rendered = translate("  bool alarm;\n  bool siren;\n", "on(alarm, siren)");
-        assertTrue(rendered.startsWith("(\\<forall> "), rendered);
-        assertTrue(rendered.contains("\\<longrightarrow>"), rendered);
-        assertTrue(rendered.contains("#alarm"), rendered);
-        assertTrue(rendered.contains("#siren"), rendered);
+    void withinIsSatisfiedByTheConditionOrByTimeRemaining() {
+        String rendered = translate("  bool alarm;\n  bool siren;\n",
+                "on(alarm, within(500, siren))");
+        assertTrue(rendered.contains("\\<or>"), rendered);
+        assertTrue(rendered.contains("(\\<exists> sa2."), rendered);
+        assertTrue(rendered.contains("(substate sa1 sa2)"), rendered);
+        assertTrue(rendered.contains("< 500"), rendered);
     }
 
+    /** stable: while the window is young, the condition holds here. */
     @Test
-    void withinIsExistentialAndStableIsUniversal() {
-        assertTrue(translate("  bool a;\n", "within(a, 500)").startsWith("(\\<exists> "));
-        assertTrue(translate("  bool a;\n", "stable(a, 500)").startsWith("(\\<forall> "));
+    void stableConstrainsOnlyWhileTheWindowIsYoung() {
+        String rendered = translate("  bool alarm;\n  bool siren;\n",
+                "on(alarm, stable(500, siren))");
+        assertTrue(rendered.contains("< 500) \\<longrightarrow>"), rendered);
+        assertTrue(rendered.contains("(theBool (getVarVal s ''#siren'' []))"), rendered);
+        assertFalse(rendered.contains("(\\<forall> sa2"), rendered);
     }
 
+    /** The measuring operators need a window, and say so rather than measuring nothing. */
     @Test
-    void cooldownCombinesOnceAndDuring() {
+    void timerWithinAndStableAreRejectedOutsideAWindow() {
+        for (String body : List.of("timer(500)", "within(500, a)", "stable(500, a)")) {
+            IllegalStateException failure = assertThrows(IllegalStateException.class,
+                    () -> translate("  bool a;\n", body), body);
+            assertTrue(failure.getMessage().contains("window"), failure.getMessage());
+        }
+    }
+
+    /** cooldown: one boundary less than t ago where the condition held. */
+    @Test
+    void cooldownIsOneRecentEnoughWitness() {
         String rendered = translate("  bool a;\n", "cooldown(a, 500)");
-        assertTrue(rendered.contains("\\<exists>"), rendered);
-        assertTrue(rendered.contains("\\<forall>"), rendered);
+        assertTrue(rendered.startsWith("(\\<exists> sa1."), rendered);
+        assertTrue(rendered.contains("(theBool (getVarVal sa1 ''#a'' []))"), rendered);
+        assertTrue(rendered.contains("((toEnvNum sa1 s) * 100) < 500"), rendered);
+        // One witness is enough: nothing is claimed of the other times it held.
+        assertFalse(rendered.contains("\\<forall>"), rendered);
+    }
+
+    // ------------------------------------------- window-carrying within and stable
+
+    /** within(psi, t, phi) carries its own window, so it needs no enclosing one. */
+    @Test
+    void withinWithATriggerNeedsNoEnclosingWindow() {
+        String rendered = translate("  bool alarm;\n  bool siren;\n",
+                "within(alarm, 500, siren)");
+        assertTrue(rendered.startsWith("(\\<forall> sa1."), rendered);
+        assertTrue(rendered.contains("(theBool (getVarVal sa1 ''#alarm'' []))"), rendered);
+        // The condition ends the wait, and until it does the time may not run out.
+        assertTrue(rendered.contains("''#siren''"), rendered);
+        assertTrue(rendered.contains("\\<ge> 500"), rendered);
+    }
+
+    /** stable(psi, t, phi) asks what holds now, not what has held throughout. */
+    @Test
+    void stableWithATriggerGoesThroughCooldown() {
+        String rendered = translate("  bool alarm;\n  bool siren;\n",
+                "stable(alarm, 500, siren)");
+        assertTrue(rendered.startsWith("((\\<exists> sa1."), rendered);
+        assertTrue(rendered.contains("\\<longrightarrow> (theBool (getVarVal s ''#siren'' []))"),
+                rendered);
     }
 
     // ------------------------------------------------------------------ scope
 
+    /**
+     * A scope reads an expression at another state, so it needs that state as a term:
+     * the same condition {@code previously} quantifies over, resolved by choice instead.
+     */
     @Test
-    void scopePrevReadsThePrecedingBoundary() {
-        assertEquals("((theInt (getVarVal (predEnv s) ''#x'' [])) > 0)",
-                translate("  int32 x;\n", "x.scope(prev) > 0"));
+    void scopePrevReadsTheStateTheChoicePicksOut() {
+        String rendered = translate("  int32 x;\n", "x.scope(prev) > 0");
+        assertTrue(rendered.startsWith("((theInt (getVarVal (SOME sa1."), rendered);
+        assertTrue(rendered.contains("(toEnvP sa1)"), rendered);
+        assertTrue(rendered.endsWith("''#x'' [])) > 0)"), rendered);
+    }
+
+    @Test
+    void scopePastPicksTheMostRecentStateWhereTheConditionHeld() {
+        String rendered = translate("  int32 x;\n  bool a;\n", "x.scope(past(a)) > 0");
+        assertTrue(rendered.contains("(SOME sa1."), rendered);
+        assertTrue(rendered.contains("(theBool (getVarVal sa1 ''#a'' []))"), rendered);
+        // Nothing later satisfies it, which is what makes the choice the most recent one.
+        assertTrue(rendered.contains("(\\<not> (theBool (getVarVal sa2 ''#a'' [])))"), rendered);
     }
 
     /** The classic use: compare a value against what it was before the statement. */
@@ -268,6 +349,52 @@ class AnnTranslatorTest {
 
         assertTrue(rendered.contains("(getPstate"), rendered);
         assertTrue(rendered.contains("''s''"), rendered);
+    }
+
+    /**
+     * A loop invariant reads history from the state the loop was entered at, so what
+     * happened before the loop began cannot satisfy an operator inside it - nor can an
+     * iteration of an earlier run of the same loop.
+     */
+    @Test
+    void aLoopInvariantReadsHistoryOnlyFromWhereTheRunBegan() {
+        Annotation annotation = annotationOn("  bool a;\n", "//[invariant: once(a)]");
+        AnnTranslator translator = new AnnTranslator(100);
+        String rendered = renderer.render(translator.translateLoopInvariant(
+                annotation, new Term.Var("t0"), STATE));
+
+        assertTrue(rendered.contains("(substate t0 sa"), rendered);
+        assertTrue(rendered.contains("''#a''"), rendered);
+        // The state the loop was entered at counts as a boundary of the run: an iteration
+        // ends in a toEnv, but the entry is mid-cycle and carries no marker of its own.
+        assertTrue(rendered.contains("(sa1 = t0) \\<or> (toEnvP sa1)"), rendered);
+    }
+
+    /** Outside a loop history has no lower bound, so nothing bounds the search below. */
+    @Test
+    void aProgramInvariantSearchesHistoryWithoutALowerBound() {
+        Annotation annotation = annotationOn("  bool a;\n", "//[invariant: once(a)]");
+        AnnTranslator translator = new AnnTranslator(100);
+        String rendered = renderer.render(translator.translateInvariant(
+                annotation, STATE, AnnTranslator.Scale.PROGRAM, null, null));
+
+        assertFalse(rendered.contains("substate t0"), rendered);
+    }
+
+    /**
+     * An invariant of next(true) asks for a boundary beyond the last one. It is caught
+     * here rather than left to fail at the prover, where it would look like a property
+     * that merely did not go through.
+     */
+    @Test
+    void anInvariantOfBareNextIsRejected() {
+        Annotation annotation = annotationOn("", "//[invariant: next(true)]");
+        AnnTranslator translator = new AnnTranslator(100);
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> translator.translateInvariant(
+                        annotation, STATE, AnnTranslator.Scale.PROGRAM, null, null));
+        assertTrue(failure.getMessage().contains("next(true)"), failure.getMessage());
     }
 
     // ------------------------------------------------------------------ foreign

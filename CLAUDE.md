@@ -116,8 +116,9 @@ exactly one place, at the very end.
   access path, rather than four typed getters. Reflex types map onto HOL as: signed ints → `int`,
   unsigned and `time` → `nat`, `bool` → `bool`, float/double → `real`. Changing codegen means keeping
   step with this file.
-- **Annotations reach the output four ways** (spec: `Annotations.tex`, language: `Reflex-AL.pdf`).
-  `ann/AnnTranslator` turns a bound annotation into a `term/Term`; nothing else renders one.
+- **Annotations reach the output four ways** (spec: `reflex-al-vc-generation-spec.md`, language:
+  `Reflex-AL.pdf`). `ann/AnnTranslator` turns a bound annotation into a `term/Term`; nothing else
+  renders one.
   - `assume` — an obligation proving it (`ASSUME<n>.thy`), *and* an intermediate assumption in every
     main condition that passes it.
   - `assert` — the same obligation (`ASSERT<n>.thy`), and nothing else. Both kinds are stated where
@@ -135,17 +136,39 @@ exactly one place, at the very end.
   `programs-new/annotatedTank.rcs`, which carries one of every kind.
 - **Loop invariants live in `LoopInvariants.thy`, one per loop.** Every loop gets a name —
   `loopInv0`, `loopInv1`, in the order the loops are met — and a condition states the invariant by
-  that name (`shows "(loopInv0 st2)"`) rather than carrying the formula, the same separation the
-  global invariant gets in `Requirements.thy`. Every condition imports it. What the name means is
-  settled once, in that file:
+  that name (`shows "(loopInv0 st2 st2)"`) rather than carrying the formula, the same separation the
+  global invariant gets in `Requirements.thy`. Every condition imports it. Two states, not one: the
+  first is where the loop was entered, which tells one run of the loop from the next time the same
+  loop runs and bounds how far back an operator inside the invariant may read — see **Scale** below.
+  What the name means is settled once, in that file:
   - the loop was written with an `[invariant: ...]` → a `definition`, the annotation translated
-    against the definition's own `s`;
-  - it was not → an uninterpreted `consts <name> :: "state ⇒ bool"`, so the loop is still generated
+    against the definition's own `t0` and `s`;
+  - it was not → an uninterpreted `consts <name> :: "state ⇒ state ⇒ bool"`, so the loop is still generated
     and its conditions still say what an invariant there would have to satisfy. Deliberately not
     `= True`, which would make the entry and preservation conditions trivial while telling the main
     path nothing about the state the loop leaves behind — a weaker claim than it looks.
 
   `Cfg.getLoopInvariants()` carries them; `ReflexVcg.loopInvariants` renders the formulas.
+- **Temporal operators compile to quantifiers over history — no ghost state.** `AnnTranslator` threads
+  three things through the recursion, and every operator is a rule about them: `state` (the point the
+  formula speaks about), `windowStart` (where `timer` measures from) and `floor` (how far back history
+  reaches). The ones worth knowing:
+  - **Window.** `timer(t)`, `within(t, φ)` and `stable(t, φ)` measure from a window, and only `during`
+    and `on` open one. Written anywhere else they are rejected, rather than quietly measuring from
+    wherever the formula happens to be stated. `within(ψ, t, φ)` and `stable(ψ, t, φ)` name their own
+    trigger and so need no enclosing window; they desugar to `during` and to `cooldown` respectively.
+    The condition is the last argument in every form.
+  - **Adjacency.** `previously`/`next`/`scope(prev)` ask for the *nearest* boundary rather than
+    applying a function that returns one, so at the start of a scale they have no witness instead of
+    reaching back past it. `scope(prev)` and `scope(past)` need a state as a *term*, not a bound
+    variable, so they use Hilbert choice (`SOME`) — where nothing satisfies the condition the value is
+    unconstrained, rather than the formula around it being vacuously true.
+  - **Scale.** An operator reading history is bounded below by `floor`: null for the program, whose
+    history has no lower bound, and the loop entry state inside a loop invariant. That is what stops
+    `once` inside a loop invariant from being satisfied by what happened before the loop, or by an
+    iteration of an earlier run of the same loop. The boundaries of a run are its entry state and the
+    end of each iteration (`AnnTranslator.boundaryOf`): an iteration ends in a `toEnv`, but the entry
+    is mid-cycle and carries no marker, so it is named explicitly — see **Not done yet**.
 - **An obligation is written once, not once per path.** It depends only on the path up to where it is
   stated, so every path continuing past it restates it word for word. `VcWriter` drops the repeats,
   comparing lemmas with their bound state names renumbered, since those come from a program-wide
@@ -174,8 +197,22 @@ exactly one place, at the very end.
   what the test programs use.
 - **No annotation output has been proved in Isabelle.** Every temporal operator translates and is
   covered by `AnnTranslatorTest` — they become quantifiers over substates, with `timer`, `within`,
-  `stable` and `cooldown` leaning on `ltime` — but no generated lemma has been put to a prover, so
-  the shapes are only as good as `Annotations.tex` and `ReflexBase.thy`.
+  `stable` and `cooldown` counting boundaries through `toEnvNum` — but no generated lemma has been
+  put to a prover, so the shapes are only as good as `reflex-al-vc-generation-spec.md` and
+  `ReflexBase.thy`.
+- **A loop has no boundary constructor of its own.** The specification gives each `for` a fresh
+  `toLoop`/`toLoopP` pair, whose axiom makes the entry state a boundary of that scale. `ReflexBase.thy`
+  has no such pair, so the loop scale is expressed with what is there: an iteration ends in a `toEnv`,
+  and the entry state is named explicitly, `(s = t0 \<or> toEnvP s)`. That is sound and needs no change
+  to the semantics, but it does mean a loop's iteration boundaries are `toEnv` states, which any lemma
+  about cycles could also be applied to. Adding the pair properly means a constructor on the `state`
+  datatype and a case in every `primrec` over it.
+- **`scope(pre)` deviates from the specification**, which has it read the current state. It still reads
+  the state before the annotated statement, which is what makes `x > x.scope(pre)` on an `assert` mean
+  anything; the specification's reading would make the operator a no-op there.
+- **Only `once` is exercised end to end.** `programs-new/annotatedTank.rcs` carries one annotation of
+  every *kind*, but of the temporal operators only `once`. The rest are covered in `AnnTranslatorTest`
+  alone, so nothing pins how they interact with path enumeration and deduplication.
 - Division domain conditions, which the old generator emitted as *assumptions*, are not reproduced.
   The old `ExprGenRes` carried a `domain` field alongside the value, accumulating `divisor ≠ 0` per
   `/` and `%`; `ExprLowering.Outcome` has the same shape to hang it on if it comes back, but as an
