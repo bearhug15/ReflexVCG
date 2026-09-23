@@ -230,6 +230,15 @@ exactly one place, at the very end.
   were written under, which shifts whenever the program does, so regenerate that file rather than
   renumbering it.
 
+  `tools/export-case-study.sh` assembles a folder holding the program, everything generation writes
+  for it, a proof on every condition — the recorded one, or `sorry` and a comment where none is
+  recorded — and a `ROOT` that builds the lot as one session. `D:\Reflex-case-studies\palletStation`
+  is that folder for this program; its README says the program is a fixture rather than a controller,
+  which is why so many of its conditions are open.
+
+  The generation tests write under `target/generated-vcs/<program>`, one directory each, which is
+  where to look at what a change did to the output.
+
 ## Not done yet
 
 - **The pruned counts for the four multi-process programs are unconfirmed.** They differ from the old

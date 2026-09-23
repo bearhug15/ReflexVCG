@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PalletStationGenerationTest {
 
     private static final Path SOURCE = Path.of("src/test/resources/programs-new/palletStation.rcs");
-    private static final Path OUTPUT = Path.of("target/pallet-station-generation");
+    private static final Path OUTPUT = Path.of("target/generated-vcs/palletStation");
 
     private static Map<String, String> files;
 
