@@ -41,6 +41,10 @@ public final class TermRenderer {
         if (term instanceof Term.Choice choice) {
             return "(SOME " + choice.variable() + ". " + render(choice.body()) + ")";
         }
+        if (term instanceof Term.Let let) {
+            return "(let " + let.variable() + " = " + render(let.value()) + " in "
+                    + render(let.body()) + ")";
+        }
         return renderList((Term.ListTerm) term);
     }
 

@@ -215,5 +215,17 @@ primrec shiftEnv:: "state \<Rightarrow> nat \<Rightarrow> state" where
 "shiftEnv s 0 = s" |
 "shiftEnv s (Suc n) = predEnv (shiftEnv s n)"
 
+(* The state just before a process last changed state: walking back from s, the first
+   setPstate that moved the process to a state it was not already in, and the state it was
+   applied to. emptyState when nothing ever moved it. The transition conditions among the
+   extra invariants say what held there. *)
+primrec prevProcState:: "state \<Rightarrow> process \<Rightarrow> state" where
+"prevProcState emptyState _ = emptyState"
+| "prevProcState (toEnv s) p = prevProcState s p"
+| "prevProcState (setVar s _ _) p = prevProcState s p"
+| "prevProcState (setPstate s p1 q) p =
+  (if p = p1 \<and> getPstate s p \<noteq> q then s else prevProcState s p)"
+| "prevProcState (reset s _) p = prevProcState s p"
+
 
 end

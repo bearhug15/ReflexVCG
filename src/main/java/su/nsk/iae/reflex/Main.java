@@ -28,6 +28,10 @@ public final class Main {
         options.addOption("g", "graph", false, "Also export the program graph in Graphviz format.");
         options.addOption("a", "analysis", true,
                 "Discard conditions for impossible paths: true/false (default true).");
+        options.addOption("x", "extra", true,
+                "Extra invariants derived from the program structure: none, advanced (process "
+                        + "states and variable values) or all (transition conditions too). "
+                        + "Default none.");
         options.addOption("h", "help", false, "Show this help.");
 
         CommandLineParser commandLineParser = new DefaultParser();
@@ -78,6 +82,17 @@ public final class Main {
                 System.out.println("Static analysis disabled; every path will be emitted.");
             }
 
+            if (commandLine.hasOption("x")) {
+                String level = commandLine.getOptionValue("x").trim().toUpperCase(java.util.Locale.ROOT);
+                try {
+                    generator.setExtraInvariantLevel(
+                            su.nsk.iae.reflex.vc.ExtraInvariantGenerator.Level.valueOf(level));
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("-x takes none, advanced or all, not "
+                            + commandLine.getOptionValue("x"));
+                }
+            }
+
             if (commandLine.hasOption("g")) {
                 generator.exportGraph(destination);
                 System.out.println("Wrote the program graph to " + destination);
@@ -93,7 +108,7 @@ public final class Main {
 
     private static void usage(Options options) {
         new HelpFormatter().printHelp(
-                "ReflexVCG -s <program.rcs> [-o <dir>] [-g] [-a true|false]",
+                "ReflexVCG -s <program.rcs> [-o <dir>] [-g] [-a true|false] [-x none|advanced|all]",
                 "Generates Isabelle/HOL verification conditions for a Reflex program.",
                 options, "");
     }

@@ -1,8 +1,11 @@
 package su.nsk.iae.reflex.vc;
 
+import su.nsk.iae.reflex.inv.ExtraInvariant;
+import su.nsk.iae.reflex.inv.ExtraInvariants;
 import su.nsk.iae.reflex.ir.IrDecl;
 import su.nsk.iae.reflex.ir.IrProgram;
 import su.nsk.iae.reflex.ir.TimeRef;
+import su.nsk.iae.reflex.term.TermRenderer;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,6 +35,9 @@ public final class VcWriter {
     /** The theory holding one invariant per loop, which every condition imports. */
     public static final String LOOP_THEORY = "LoopInvariants";
 
+    /** The theory holding the extra invariants, imported only when there are any. */
+    public static final String EXTRA_THEORY = "ExtraInvariants";
+
     /** The names the annotation translator gives to the states it binds. */
     private static final Pattern BOUND_STATE = Pattern.compile("\\bsa\\d+\\b");
 
@@ -41,6 +47,7 @@ public final class VcWriter {
     /** Lemmas already written, so a repeated obligation is not written twice. */
     private final Set<String> seen = new HashSet<>();
     private int written;
+    private boolean extraInvariants;
 
     public VcWriter(Path destination, String programName) {
         if (!Files.isDirectory(destination)) {
@@ -95,6 +102,38 @@ public final class VcWriter {
     }
 
     /**
+     * Writes {@value #EXTRA_THEORY}: one definition per extra invariant, a comment above it
+     * saying what it claims and how it is tagged, and {@code combined} as their conjunction.
+     * Every condition written after this imports it.
+     *
+     * <p>Like the global invariant, each speaks about every boundary at or below the state
+     * it is given, so it can be assumed at the start of a cycle and shown at the end.
+     */
+    public void writeExtraInvariants(ExtraInvariants container, List<ExtraInvariant> invariants,
+                                     String combined) {
+        TermRenderer terms = new TermRenderer();
+        StringBuilder body = new StringBuilder();
+        List<String> conjuncts = new ArrayList<>();
+        for (ExtraInvariant invariant : invariants) {
+            body.append("(* ").append(invariant.description()).append("\n   ")
+                    .append(container.tagsOf(invariant)).append(" *)\n")
+                    .append("definition ").append(invariant.name())
+                    .append(" :: \"state \\<Rightarrow> bool\" where\n")
+                    .append("\"").append(invariant.name()).append(" s =\n")
+                    .append(terms.render(invariant.formula())).append("\"\n\n");
+            conjuncts.add("(" + invariant.name() + " s)");
+        }
+        body.append("definition ").append(combined)
+                .append(" :: \"state \\<Rightarrow> bool\" where\n")
+                .append("\"").append(combined).append(" s =\n(")
+                .append(conjuncts.isEmpty() ? "True" : String.join("\n\\<and> ", conjuncts))
+                .append(")\"\n");
+        write(EXTRA_THEORY + ".thy", renderer.renderTheory(
+                EXTRA_THEORY, List.of(baseTheoryName()), body.toString()));
+        extraInvariants = true;
+    }
+
+    /**
      * A loop invariant ready to be written: its name, the loop it belongs to, and the
      * formula defining it - null when no {@code [invariant: ...]} was written for the loop.
      */
@@ -117,8 +156,11 @@ public final class VcWriter {
             return;
         }
         String name = programName + "_" + prefixOf(condition.getKind()) + written;
-        write(name + ".thy", renderer.renderTheory(
-                name, List.of(baseTheoryName(), LOOP_THEORY, "Requirements"), lemma));
+        List<String> imports = new ArrayList<>(List.of(baseTheoryName(), LOOP_THEORY, "Requirements"));
+        if (extraInvariants) {
+            imports.add(EXTRA_THEORY);
+        }
+        write(name + ".thy", renderer.renderTheory(name, imports, lemma));
         written++;
     }
 
@@ -156,6 +198,8 @@ public final class VcWriter {
                 return "LOOPBOUND";
             case LOOP_VARIANT_DECREASE:
                 return "LOOPDECREASE";
+            case EXTRA_INVARIANT:
+                return "EXTRA";
             default:
                 return "VC";
         }

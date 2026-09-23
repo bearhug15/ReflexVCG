@@ -171,6 +171,21 @@ lemma substate_eq_or_predEnv:
          apply(auto)
   done
 
+(* A claim made about every boundary up to some state, carried across one cycle: it holds
+   up to the cycle's end if it held up to the boundary before it, and holds at the end.
+   Every extra invariant has this shape. *)
+lemma boundaries_step:
+  assumes "predEnv sf = s0"
+      and "\<forall> s1. toEnvP s1 \<and> substate s1 s0 \<longrightarrow> Q s1"
+      and "toEnvP sf \<Longrightarrow> Q sf"
+  shows "\<forall> s1. toEnvP s1 \<and> substate s1 sf \<longrightarrow> Q s1"
+  using assms substate_eq_or_predEnv by blast
+
+(* The same claim, read at the boundary it is stated about. *)
+lemma boundaries_here:
+  "\<forall> s1. toEnvP s1 \<and> substate s1 s \<longrightarrow> Q s1 \<Longrightarrow> toEnvP s \<Longrightarrow> Q s"
+  using substate_refl by blast
+
 lemma substate_total: 
 "substate s1 s \<and> substate s2 s \<longrightarrow>
  substate s1 s2 \<or> substate s2 s1"

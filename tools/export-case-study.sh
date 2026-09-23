@@ -65,6 +65,7 @@ done
   echo "  theories"
   echo "    ReflexBase ReflexLemmas ReflexPatterns"
   echo "    $THEORY LoopInvariants Requirements"
+  [ -f "$DEST/ExtraInvariants.thy" ] && echo "    ExtraInvariants"
   for f in "$DEST"/${PREFIX}_*.thy; do echo "    $(basename "${f%.thy}")"; done
 } > "$DEST/ROOT"
 

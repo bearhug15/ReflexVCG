@@ -260,11 +260,16 @@ public final class IsabelleRenderer {
     }
 
     private String renderDuration(TimeRef duration) {
+        return renderDuration(duration, FINAL_STATE);
+    }
+
+    /** A timeout's duration, with a named one read in {@code state}. */
+    public String renderDuration(TimeRef duration, String state) {
         return switch (duration.getKind()) {
             case TIME_LITERAL -> Long.toString(parseTimeMillis(duration.getText()));
             case INTEGER -> Long.toString(parseInteger(duration.getText()));
             // A named duration is a variable or constant, read as a count.
-            case NAME -> "(theNat (getVarVal " + FINAL_STATE + " " + quote(duration.getText()) + " []))";
+            case NAME -> "(theNat (getVarVal " + state + " " + quote(duration.getText()) + " []))";
         };
     }
 

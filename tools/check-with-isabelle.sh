@@ -58,12 +58,16 @@ recorded_proof() {
   ' "$PROOF_FILE"
 }
 
+# Extra invariants are written only when generation was asked for them (-x).
+EXTRA=""
+[ -f "$GEN/ExtraInvariants.thy" ] && EXTRA="ExtraInvariants"
+
 cat > "$GEN/ROOT" <<EOF
 session CheckBase = HOL +
   options [document = false]
   theories
     ReflexBase ReflexLemmas ReflexPatterns
-    $THEORY LoopInvariants Requirements
+    $THEORY LoopInvariants Requirements $EXTRA
 EOF
 
 rm -rf "$WORK"; mkdir -p "$WORK"
@@ -80,6 +84,7 @@ for f in "$GEN"/${PREFIX}_*.thy; do
   mkdir -p "$WORK/$short"
   sed -e '/^  sorry$/d' -e '/^end$/d' \
       -e "s/^\timports $THEORY LoopInvariants Requirements/\timports \"CheckBase.$THEORY\" \"CheckBase.LoopInvariants\" \"CheckBase.Requirements\"/" \
+      -e "s/ ExtraInvariants$/ \"CheckBase.ExtraInvariants\"/" \
       "$f" > "$WORK/$short/$name.thy"
   printf '  %s\nend\n' "$PROOF" >> "$WORK/$short/$name.thy"
   { echo "session Check_$short in \"$short\" = CheckBase +"

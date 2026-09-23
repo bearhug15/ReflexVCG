@@ -30,7 +30,9 @@ public final class VerificationCondition {
         /** A loop's measure never goes below zero. */
         LOOP_VARIANT_BOUND,
         /** A loop's measure drops with every iteration. */
-        LOOP_VARIANT_DECREASE
+        LOOP_VARIANT_DECREASE,
+        /** The extra invariants hold at the start, or are kept by a cycle. */
+        EXTRA_INVARIANT
     }
 
     private final List<VcStatement> statements = new ArrayList<>();

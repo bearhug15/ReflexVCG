@@ -64,6 +64,13 @@ public sealed interface Term {
     record Choice(String variable, Term body) implements Term {
     }
 
+    /**
+     * {@code let v = value in body}: names a term once so the body can refer to it several
+     * times - the state a transition was taken from, in an extra invariant.
+     */
+    record Let(String variable, Term value, Term body) implements Term {
+    }
+
     /** A list, as the access path argument of getVarVal and setVarVal. */
     record ListTerm(List<Term> elements) implements Term {
         public ListTerm {
@@ -112,6 +119,10 @@ public sealed interface Term {
         }
         if (term instanceof Choice choice) {
             return new Choice(choice.variable(), substitute(choice.body(), hole, replacement));
+        }
+        if (term instanceof Let let) {
+            return new Let(let.variable(), substitute(let.value(), hole, replacement),
+                    substitute(let.body(), hole, replacement));
         }
         if (term instanceof ListTerm list) {
             return new ListTerm(

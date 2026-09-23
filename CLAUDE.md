@@ -34,6 +34,8 @@ java -jar target/ReflexVCG-1.0-jar-with-dependencies.jar -s program.rcs [-o outD
   assignment — and a loop is drawn as one, its body a dashed cluster with `iterate` in and `repeat`
   back, though the graph itself holds no cycle. `GraphExportTest` pins this.
 - `-a` discard conditions for impossible paths (default true)
+- `-x` extra invariants derived from the program's structure: `none` (default), `advanced`, `all` —
+  see **Extra invariants** below
 
 ## Pipeline architecture
 
@@ -180,6 +182,44 @@ exactly one place, at the very end.
     iteration of an earlier run of the same loop. The boundaries of a run are its entry state and the
     end of each iteration (`AnnTranslator.boundaryOf`): an iteration ends in a `toEnv`, but the entry
     is mid-cycle and carries no marker, so it is named explicitly — see **Not done yet**.
+- **Extra invariants** (mainOverview.tex, "Extra Invariants"; `inv/`, off unless `-x` or
+  `ReflexVcg.setExtraInvariantLevel`). Four kinds, each a claim about every boundary at or below `s`,
+  all in the one shape `∀s1. toEnvP s1 ∧ substate s1 s ⟶ Q s1`:
+  - *process states* — the states a process is ever found in at a boundary;
+  - *defined variables* — values variables hold whenever a process is in a state;
+  - *stabilized variables* — values they hold once it has stayed there two boundaries running
+    (`predEnv`); dropped where they contradict each other, which means it never stays;
+  - *transition conditions* — `let s2 = prevProcState s1 P in …`, one disjunct per way in: the guards
+    still valid just before a `set state`/`start` that actually changes the state, the process states
+    known there, `ltime ≥ d` for a timeout, and "no boundary before `s2`" for the initial state.
+    `prevProcState` is in `ReflexBase.thy`.
+
+  The first three form the *advanced* group (`-x advanced`), transitions the *optional* one (`-x all`).
+  `StructuralInvariants` finds them Houdini-style: guess every candidate, keep what holds at the first
+  boundary, then walk every cycle path (`AbstractCycle`: constants, unknowns, "as at the cycle's
+  start") assuming what stands and drop what breaks, until nothing does. What is left is inductive.
+
+  They are kept in `ExtraInvariants`, a container searched by tag — `kind`, `group`, `process`,
+  `state` (`Process.state`), `variable`, `transition` — and callers may attach their own. They reach
+  the output as `ExtraInvariants.thy` (one definition each, `extraInv` their conjunction), as named
+  assumptions about `st0` in a condition — only those tagged with a state its path passes through —
+  and as an `EXTRA<n>` obligation per cycle and for the base case, showing `extraInv st_final`.
+  Nothing is trusted: the obligations and the main conditions together are the induction for `inv`
+  and `extraInv` combined.
+
+  Proved in Isabelle for `newThermopot` at `-x all`: all 42 `EXTRA` obligations, with
+  `boundaries_step`/`boundaries_here` from `ReflexLemmas`, where `DEFS` lists every `extra_*_def`:
+  - a cycle: `proof - have pred: "predEnv st_final = st0" using assms by (simp add: setVarVal_def)
+    show ?thesis using assms unfolding extraInv_def DEFS apply (elim conjE) apply (intro conjI;
+    rule boundaries_step[OF pred], assumption, (drule boundaries_here[OF _ st0_boundary])+,
+    auto simp add: setVarVal_def inv_def constants_def) done qed`
+  - the base case: the same `pred`, `have start: "st0 = emptyState" using assms by simp`, then
+    `unfolding extraInv_def DEFS apply (intro conjI) apply (rule boundaries_step[OF pred];
+    (simp add: start; fail)?)+ apply (auto simp add: assms setVarVal_def) done`.
+
+  A blanket `auto` over the unfolded definitions times out on every one; go through
+  `boundaries_step`. `StructuralInvariantsTest` pins each rule on a small program,
+  `ExtraInvariantsTest` the container, `ExtraInvariantGeneratorTest` the output.
 - **An obligation is written once, not once per path.** It depends only on the path up to where it is
   stated, so every path continuing past it restates it word for word. `VcWriter` drops the repeats,
   comparing lemmas with their bound state names renumbered, since those come from a program-wide
@@ -243,8 +283,15 @@ exactly one place, at the very end.
 
 - **The pruned counts for the four multi-process programs are unconfirmed.** They differ from the old
   pipeline, whose grouping was the non-deterministic part, so matching it is not evidence either way.
-- **`ExtraInvariantGenerator` still does nothing.** Its hooks are wired in and reach the annotations,
-  the graph and each generated condition, but every one returns its input unchanged.
+- **Extra invariants and loops.** A loop's iterations end in `toEnv`, so every extra invariant has to
+  hold at them too. The analysis accounts for that — it forgets what a loop body writes and checks
+  every candidate there — but the opaque state past a loop says nothing about the boundaries
+  *between* its entry and it, so an `EXTRA` obligation on a path through a loop cannot be proved,
+  exactly as the global invariant cannot (see the `toLoop` item below).
+- **What the extra-invariant analysis does not see.** Only scalar bool, integer and time variables
+  are tracked — not reals, arrays or structs — and only values that evaluate to constants. Where a
+  process is started by another in the same cycle, the state it was in before cannot be observed,
+  so that transition says nothing about it. All of these lose invariants, never soundness.
 - **Two gaps in `ReflexAL.g4`.** Its `variable` rule writes a qualified prefix with exactly two
   separators, so a program-scope variable has to be written `##x` to mean the mangled `#x`
   (`AnnMangling` normalises that away), and a state-scoped name — four parts,

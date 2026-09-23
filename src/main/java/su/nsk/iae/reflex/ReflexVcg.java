@@ -53,6 +53,7 @@ public final class ReflexVcg {
     private final AnnotationBinder annotations;
     private Cfg cfg;
     private ExtraInvariantGenerator extraInvariants;
+    private ExtraInvariantGenerator.Level extraInvariantLevel = ExtraInvariantGenerator.Level.NONE;
     private AttributePreparation attributePreparation;
     private boolean staticAnalysis = true;
     private List<WriteTargetCheck.Finding> writeTargetWarnings = List.of();
@@ -137,19 +138,25 @@ public final class ReflexVcg {
 
         ExtraInvariantGenerator extras = extraInvariants != null
                 ? extraInvariants
-                : new ExtraInvariantGenerator(program, graph, annotations);
+                : new ExtraInvariantGenerator(program, graph, annotations, extraInvariantLevel);
         extras.analyse();
 
         VcWriter writer = new VcWriter(destination, program.getName());
         writer.writeSupportingTheories(program, extras.extraDefinitions(),
                 globalInvariants(annotationTranslator()),
                 loopInvariants(graph, annotationTranslator()));
+        if (extras.isEnabled()) {
+            writer.writeExtraInvariants(extras.getInvariants(), extras.selectedInvariants(),
+                    ExtraInvariantGenerator.COMBINED);
+        }
         // The base case first: the inductive step below assumes the invariant holds,
         // so something has to establish that it holds to begin with.
-        VerificationCondition initial = extras.process(InitialCondition.build(program));
+        VerificationCondition base = InitialCondition.build(program);
+        VerificationCondition initial = extras.process(base);
         if (initial != null) {
             writer.write(initial);
         }
+        extras.obligations(base).forEach(writer::write);
 
         AnnTranslator translator = annotationTranslator();
         StaticAnalysis analysis = staticAnalysis ? new StaticAnalysis(program) : null;
@@ -158,17 +165,27 @@ public final class ReflexVcg {
             if (processed != null) {
                 writer.write(processed);
             }
+            extras.obligations(condition).forEach(writer::write);
         });
         return writer.getWritten();
     }
 
     /**
-     * Replaces the extra-invariant stage. The default does nothing; supplying a subclass
-     * is how annotation-driven generation, condition post-processing and extra graph
-     * analysis get added without changing the pipeline.
+     * Replaces the extra-invariant stage. The default derives the structural invariants at
+     * the level {@link #setExtraInvariantLevel} sets; supplying a subclass is how further
+     * analyses and condition post-processing get added without changing the pipeline. A
+     * replacement brings its own level, and the one set here is ignored.
      */
     public void setExtraInvariantGenerator(ExtraInvariantGenerator extraInvariants) {
         this.extraInvariants = extraInvariants;
+    }
+
+    /**
+     * Which extra invariants the default stage derives and gives the conditions. None by
+     * default, which leaves the output as it would be without them.
+     */
+    public void setExtraInvariantLevel(ExtraInvariantGenerator.Level level) {
+        this.extraInvariantLevel = level;
     }
 
     /**

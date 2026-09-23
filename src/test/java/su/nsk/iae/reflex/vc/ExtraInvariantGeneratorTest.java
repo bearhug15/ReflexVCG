@@ -19,9 +19,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The extra-invariant stage does nothing by default, so what is worth testing is that
- * its hooks are actually reached and can influence the output - that is the point of
- * having them now.
+ * The extra-invariant stage: its hooks are reached and can influence the output, it
+ * changes nothing unless asked, and when asked every invariant it lets a condition assume
+ * is also proved.
  */
 class ExtraInvariantGeneratorTest {
 
@@ -119,5 +119,86 @@ class ExtraInvariantGeneratorTest {
         assertEquals(2, stage.all().size());
         assertEquals(1, stage.invariants().size());
         assertFalse(stage.invariants().get(0).getText().isEmpty());
+    }
+
+    // ------------------------------------------------------------------ extra invariants
+
+    /** The stage does nothing unless asked: no theory, no obligations, no imports. */
+    @Test
+    void noExtraInvariantsUnlessAskedFor(@TempDir Path output) throws IOException {
+        ReflexVcg.load(PROGRAMS.resolve("newThermopot.rcs")).generate(output);
+
+        assertFalse(Files.exists(output.resolve("ExtraInvariants.thy")));
+        for (Path theory : theories(output, "_")) {
+            assertFalse(Files.readString(theory).contains("ExtraInvariants"), theory.toString());
+        }
+    }
+
+    /**
+     * Each extra invariant is assumed only where it is proved: every condition assuming the
+     * global invariant has a companion showing the extra ones kept, and the base case one
+     * showing they hold to begin with.
+     */
+    @Test
+    void everyCycleProvesTheExtraInvariantsItMayAssume(@TempDir Path output) throws IOException {
+        ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("newThermopot.rcs"));
+        generator.setExtraInvariantLevel(ExtraInvariantGenerator.Level.ADVANCED);
+        generator.generate(output);
+
+        String extra = Files.readString(output.resolve("ExtraInvariants.thy"));
+        assertTrue(extra.contains("definition extraInv :: \"state \\<Rightarrow> bool\" where"), extra);
+        assertTrue(extra.contains("definition extra_states_HeaterController"), extra);
+        assertFalse(extra.contains("extra_trans_"), "transitions are optional: " + extra);
+
+        List<Path> cycles = theories(output, "_VC");
+        List<Path> obligations = theories(output, "_EXTRA");
+        assertEquals(cycles.size(), obligations.size(), "one obligation per main condition");
+
+        int bases = 0;
+        for (Path obligation : obligations) {
+            String text = Files.readString(obligation);
+            assertTrue(text.contains("imports ThermopotTheory LoopInvariants Requirements ExtraInvariants"), text);
+            assertTrue(text.contains("shows \"(extraInv st_final)\""), text);
+            if (text.contains("base_inv:")) {
+                assertTrue(text.contains("extra_inv:\"(extraInv st0)\""), text);
+            } else {
+                bases++;
+            }
+        }
+        assertEquals(1, bases, "the base case");
+    }
+
+    /** A condition gets the invariants about the states its path passes through. */
+    @Test
+    void aConditionAssumesWhatConcernsItsStates(@TempDir Path output) throws IOException {
+        ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("newThermopot.rcs"));
+        generator.setExtraInvariantLevel(ExtraInvariantGenerator.Level.ALL);
+        generator.generate(output);
+
+        int checked = 0;
+        for (Path condition : theories(output, "_VC")) {
+            String text = Files.readString(condition);
+            if (!text.contains("base_inv:")) {
+                continue;
+            }
+            assertTrue(text.contains("extra_states_HeaterController:\"(extra_states_HeaterController st0)\""),
+                    text);
+            boolean maintaining = text.contains("''HeaterController''=''maintaining''")
+                    || text.contains("''HeaterController'' ''maintaining''");
+            boolean heating = text.contains("''HeaterController''=''heating''")
+                    || text.contains("''HeaterController'' ''heating''");
+            assertEquals(maintaining, text.contains("extra_vars_HeaterController_maintaining:"), text);
+            assertEquals(heating, text.contains("extra_trans_HeaterController_heating:"), text);
+            checked++;
+        }
+        assertTrue(checked > 10, "cycles checked: " + checked);
+    }
+
+    private static List<Path> theories(Path directory, String marker) throws IOException {
+        try (var files = Files.list(directory)) {
+            return files.filter(f -> f.getFileName().toString().contains(marker)
+                            && f.getFileName().toString().endsWith(".thy"))
+                    .sorted().toList();
+        }
     }
 }
