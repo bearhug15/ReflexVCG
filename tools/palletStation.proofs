@@ -1,0 +1,83 @@
+# Proofs for the conditions palletStation.rcs generates, measured against Isabelle2025-2
+# on 2026-09-22. 36 of 62 close; what the other 26 need is recorded at the bottom.
+#
+#   java -jar target/ReflexVCG-1.0-jar-with-dependencies.jar \
+#        -s src/test/resources/programs-new/palletStation.rcs -o target/isa-check
+#   tools/check-with-isabelle.sh target/isa-check PalletStationTheory \
+#        --proofs tools/palletStation.proofs
+#
+# A condition's name carries the number it was written under, and those shift whenever the
+# program does. Regenerate this file rather than renumbering it by hand.
+
+@simp = using assms by (simp add: setVarVal_def constants_def inv_def)
+@auto = using assms by (auto simp add: setVarVal_def constants_def inv_def substate_refl loopInv0_def loopInv1_def loopInv2_def loopInv3_def loopInv4_def)
+
+# --- loops -----------------------------------------------------------------------------
+# Every entry, every variant bound, every variant decrease, and six of the seven steps.
+# The bounds and decreases need no case analysis, so simp is enough; the entries and steps
+# have to instantiate the invariant at a state, which needs auto and substate_refl.
+LOOPENTRY14	@auto
+LOOPENTRY26	@auto
+LOOPENTRY34	@auto
+LOOPENTRY45	@auto
+LOOPENTRY50	@auto
+LOOPSTEP16	@auto
+LOOPSTEP28	@auto
+LOOPSTEP30	@auto
+LOOPSTEP36	@auto
+LOOPSTEP38	@auto
+LOOPSTEP52	@auto
+LOOPBOUND15	@simp
+LOOPBOUND27	@simp
+LOOPBOUND35	@simp
+LOOPBOUND46	@simp
+LOOPBOUND51	@simp
+LOOPDECREASE17	@simp
+LOOPDECREASE29	@simp
+LOOPDECREASE31	@simp
+LOOPDECREASE37	@simp
+LOOPDECREASE39	@simp
+LOOPDECREASE48	@simp
+LOOPDECREASE53	@simp
+
+# --- annotations -----------------------------------------------------------------------
+ASSERT2	@simp
+ASSERT5	@simp
+ASSERT7	@simp
+ASSERT10	@simp
+ASSERT18	@auto
+ASSERT54	@auto
+ASSERT56	@auto
+ASSERT60	@auto
+ASSUME33	@simp
+ASSUME44	@simp
+ASSUME49	@auto
+
+# --- cycles ----------------------------------------------------------------------------
+VC59	@auto
+VC61	@auto
+
+# =========================================================================================
+# Open, and why. None of these is a malformed lemma; each is a claim that does not follow.
+#
+# LOOPSTEP47 - a generator defect, and the only one here. The inner loop's exit state is
+#   opaque and declared toEnvP, which makes it a boundary of the *outer* loop's run too, so
+#   the outer invariant is demanded half-way through an outer iteration, where
+#   placed = r*COLS + COLS and the invariant says placed = r*COLS. Restricted to the
+#   iteration's end the step proves with @auto; restricted to the inner loop's exit state it
+#   is not provable. This is what forces the per-loop toLoop/toLoopP pair the specification
+#   asks for and ReflexBase.thy lacks - see CLAUDE.md, "Not done yet".
+#
+# VC0 VC1 VC8 VC9 VC11 VC12 VC20 VC21 VC23 VC24 VC42 VC43 VC58 - the cycle conditions. Each
+#   must show all of inv, which conjoins invariants palletStation does not implement:
+#   nothing stops the belts on jam, and nothing bounds the time spent in packing. One false
+#   conjunct sinks the whole condition. The machinery underneath is sound - VC8 restricted
+#   to the conjuncts the program does establish proves with @auto, induction across the
+#   cycle boundary included.
+#
+# ASSERT3 ASSERT6 ASSERT19 ASSERT22 ASSERT32 ASSERT40 ASSERT41 ASSERT55 ASSERT57
+# ASSUME4 ASSUME13 ASSUME25 - annotations that state more than their path establishes: an
+#   assume over a free input the environment supplies, a claim about an earlier cycle that
+#   inv does not record, or (ASSERT6) next(...), which asks about a boundary the path has
+#   not reached. palletStation is written to exercise every operator, not to satisfy what it
+#   claims, so several of its annotations are simply false of it.

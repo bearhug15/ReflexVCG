@@ -214,18 +214,21 @@ exactly one place, at the very end.
   - `Requirements.thy` and `LoopInvariants.thy` import the program theory, where `ltime` lives, and
     the conjunction defining `inv` is parenthesised - `=` binds tighter than `\<and>`.
 
-  To check a generated directory: build one session over `HOL` holding the three `Reflex*` theories,
-  the program theory, `LoopInvariants` and `Requirements`, then one session per condition on top of
-  it (a session each, so one hard goal cannot stall the rest, with `timeout` to bound it); append a
-  proof to each `lemma` - `sorry` under `quick_and_dirty` just type-checks. Two proofs close most of
-  them: `using assms by (simp add: setVarVal_def constants_def inv_def)` for the bounds, decreases
-  and simple annotations, and the same with `auto`, `substate_refl` and the `loopInv<n>_def`s for the
-  entries and steps. Of `palletStation`'s 62 conditions, 36 close this way — every entry, bound and
-  decrease, and six of the seven steps. The rest need either whole-program induction (the `VC`s,
-  which carry every temporal invariant) or a property the program does not implement: `palletStation`
-  is written to exercise every operator, not to satisfy what it claims, so several of its annotations
-  are simply false of it. A cycle condition restricted to the conjuncts the program does establish
-  does go through automatically, induction across the cycle boundary included.
+  `tools/check-with-isabelle.sh` runs the check on a generated directory: a base session over `HOL`
+  holding the three `Reflex*` theories, the program theory, `LoopInvariants` and `Requirements`, then
+  one session per condition on top of it — a session each, so one hard goal cannot stall the rest,
+  and `timeout` bounds it. The default proof is `sorry`, which only type-checks. Two proofs close
+  most conditions: `using assms by (simp add: setVarVal_def constants_def inv_def)` for the bounds,
+  decreases and simple annotations, and the same with `auto`, `substate_refl` and the
+  `loopInv<n>_def`s for the entries and steps.
+
+  `tools/palletStation.proofs` records which proof closes which of that program's conditions, and
+  `--proofs <file>` replays them and fails on any that stopped working — a measurement turned into a
+  gate. 36 of its 62 close: every entry, bound and decrease, and six of the seven steps. That file
+  also records why each of the other 26 does not, one of which — `LOOPSTEP47` — is a generator defect
+  and the rest properties `palletStation` does not implement. Condition names carry the number they
+  were written under, which shifts whenever the program does, so regenerate that file rather than
+  renumbering it.
 
 ## Not done yet
 
