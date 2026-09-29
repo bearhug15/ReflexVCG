@@ -9,7 +9,9 @@
 # invariants and the requirements, then one session per condition on top of it - a session
 # each, so one hard goal cannot stall the rest, and `timeout` bounds it.
 #
-# Default proof is `sorry`, which only type-checks. The two that close most conditions:
+# Default proof is `sorry`, which only type-checks. @structural is the proof for extra
+# invariants: it unfolds every one ExtraInvariants.thy defines. The two that close most
+# loop conditions:
 #   "using assms by (simp add: setVarVal_def constants_def inv_def)"
 #   "using assms by (auto simp add: setVarVal_def constants_def inv_def substate_refl \
 #                                   loopInv0_def loopInv1_def ...)"
@@ -58,9 +60,20 @@ recorded_proof() {
   ' "$PROOF_FILE"
 }
 
-# Extra invariants are written only when generation was asked for them (-x).
+# Extra invariants are written for every program with processes; -x none turns them off.
 EXTRA=""
 [ -f "$GEN/ExtraInvariants.thy" ] && EXTRA="ExtraInvariants"
+
+# @structural: the one proof that closes the conditions about extra invariants - every
+# derived invariant's definition unfolded along with inv, and the chain of states computed.
+if [ "$PROOF" = "@structural" ]; then
+  DEFS=""
+  if [ -n "$EXTRA" ]; then
+    DEFS="extraInv_def $(grep -o '^definition extra_[A-Za-z0-9_]*' "$GEN/ExtraInvariants.thy" \
+      | sed 's/^definition //; s/$/_def/' | tr '\n' ' ')"
+  fi
+  PROOF="using assms by (auto simp add: setVarVal_def constants_def inv_def Let_def $DEFS)"
+fi
 
 cat > "$GEN/ROOT" <<EOF
 session CheckBase = HOL +
@@ -84,7 +97,6 @@ for f in "$GEN"/${PREFIX}_*.thy; do
   mkdir -p "$WORK/$short"
   sed -e '/^  sorry$/d' -e '/^end$/d' \
       -e "s/^\timports $THEORY LoopInvariants Requirements/\timports \"CheckBase.$THEORY\" \"CheckBase.LoopInvariants\" \"CheckBase.Requirements\"/" \
-      -e "s/ ExtraInvariants$/ \"CheckBase.ExtraInvariants\"/" \
       "$f" > "$WORK/$short/$name.thy"
   printf '  %s\nend\n' "$PROOF" >> "$WORK/$short/$name.thy"
   { echo "session Check_$short in \"$short\" = CheckBase +"

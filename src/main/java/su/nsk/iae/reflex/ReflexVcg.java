@@ -17,6 +17,7 @@ import su.nsk.iae.reflex.cfg.CfgNode;
 import su.nsk.iae.reflex.cfg.PathEnumerator;
 import su.nsk.iae.reflex.frontend.AnnotationBinder;
 import su.nsk.iae.reflex.frontend.AstBuilder;
+import su.nsk.iae.reflex.inv.Selection;
 import su.nsk.iae.reflex.ir.Annotation;
 import su.nsk.iae.reflex.ir.IrProcess;
 import su.nsk.iae.reflex.ir.IrProgram;
@@ -53,7 +54,8 @@ public final class ReflexVcg {
     private final AnnotationBinder annotations;
     private Cfg cfg;
     private ExtraInvariantGenerator extraInvariants;
-    private ExtraInvariantGenerator.Level extraInvariantLevel = ExtraInvariantGenerator.Level.NONE;
+    private Selection extraInvariantSelection = Selection.high();
+    private List<String> extraInvariantDiagnostics = List.of();
     private AttributePreparation attributePreparation;
     private boolean staticAnalysis = true;
     private List<WriteTargetCheck.Finding> writeTargetWarnings = List.of();
@@ -138,17 +140,16 @@ public final class ReflexVcg {
 
         ExtraInvariantGenerator extras = extraInvariants != null
                 ? extraInvariants
-                : new ExtraInvariantGenerator(program, graph, annotations, extraInvariantLevel);
+                : new ExtraInvariantGenerator(program, graph, annotations, extraInvariantSelection);
+        // The annotation invariants are registered with the rest, so everything a condition
+        // may rely on can be found in one place by its tags.
+        List<String> globals = globalInvariants(annotationTranslator(), extras);
+        List<VcWriter.RenderedLoopInvariant> loops = loopInvariants(graph, annotationTranslator(), extras);
         extras.analyse();
+        extraInvariantDiagnostics = extras.getDiagnostics();
 
         VcWriter writer = new VcWriter(destination, program.getName());
-        writer.writeSupportingTheories(program, extras.extraDefinitions(),
-                globalInvariants(annotationTranslator()),
-                loopInvariants(graph, annotationTranslator()));
-        if (extras.isEnabled()) {
-            writer.writeExtraInvariants(extras.getInvariants(), extras.selectedInvariants(),
-                    ExtraInvariantGenerator.COMBINED);
-        }
+        writer.writeSupportingTheories(program, extras.extraDefinitions(), globals, loops, extras.theory());
         // The base case first: the inductive step below assumes the invariant holds,
         // so something has to establish that it holds to begin with.
         VerificationCondition base = InitialCondition.build(program);
@@ -171,21 +172,26 @@ public final class ReflexVcg {
     }
 
     /**
-     * Replaces the extra-invariant stage. The default derives the structural invariants at
-     * the level {@link #setExtraInvariantLevel} sets; supplying a subclass is how further
-     * analyses and condition post-processing get added without changing the pipeline. A
-     * replacement brings its own level, and the one set here is ignored.
+     * Replaces the extra-invariant stage. The default derives the structural invariants the
+     * selection {@link #setExtraInvariantSelection} sets asks for; supplying a subclass is
+     * how further analyses and condition post-processing get added without changing the
+     * pipeline. A replacement brings its own selection, and the one set here is ignored.
      */
     public void setExtraInvariantGenerator(ExtraInvariantGenerator extraInvariants) {
         this.extraInvariants = extraInvariants;
     }
 
     /**
-     * Which extra invariants the default stage derives and gives the conditions. None by
-     * default, which leaves the output as it would be without them.
+     * Which derived invariants the conditions get - the {@code -x} key. The high priority by
+     * default: every condition then knows which states each process can be in.
      */
-    public void setExtraInvariantLevel(ExtraInvariantGenerator.Level level) {
-        this.extraInvariantLevel = level;
+    public void setExtraInvariantSelection(Selection selection) {
+        this.extraInvariantSelection = selection;
+    }
+
+    /** What the extra-invariant analysis of the last generation found worth reporting. */
+    public List<String> getExtraInvariantDiagnostics() {
+        return extraInvariantDiagnostics;
     }
 
     /**
@@ -206,7 +212,7 @@ public final class ReflexVcg {
      * every state, a process invariant only while that process runs, and a state invariant
      * only while it is in that state.
      */
-    private List<String> globalInvariants(AnnTranslator translator) {
+    private List<String> globalInvariants(AnnTranslator translator, ExtraInvariantGenerator extras) {
         TermRenderer renderer = new TermRenderer();
         Term state = new Term.Var("s");
         List<String> invariants = new ArrayList<>();
@@ -219,8 +225,10 @@ public final class ReflexVcg {
                 // A loop invariant is not global; it belongs to that loop's conditions.
                 return;
             }
-            invariants.add(renderer.render(translator.translateInvariant(
-                    annotation, state, owner.scale(), owner.process(), owner.state())));
+            Term formula = translator.translateInvariant(
+                    annotation, state, owner.scale(), owner.process(), owner.state());
+            extras.registerAnnotationInvariant(annotation, formula, owner.process(), owner.state());
+            invariants.add(renderer.render(formula));
         });
         return invariants;
     }
@@ -233,8 +241,8 @@ public final class ReflexVcg {
      * {@code [invariant: ...]} gets a definition; a loop written without one gets no
      * formula, and the writer leaves it uninterpreted.
      */
-    private List<VcWriter.RenderedLoopInvariant> loopInvariants(Cfg graph,
-                                                               AnnTranslator translator) {
+    private List<VcWriter.RenderedLoopInvariant> loopInvariants(Cfg graph, AnnTranslator translator,
+                                                               ExtraInvariantGenerator extras) {
         TermRenderer renderer = new TermRenderer();
         Term entry = new Term.Var("t0");
         Term state = new Term.Var("s");
@@ -243,8 +251,9 @@ public final class ReflexVcg {
         for (Cfg.LoopInvariant invariant : graph.getLoopInvariants()) {
             String formula = null;
             if (invariant.isDefined()) {
-                formula = renderer.render(translator.translateLoopInvariant(
-                        invariant.annotation(), entry, state));
+                Term translated = translator.translateLoopInvariant(invariant.annotation(), entry, state);
+                extras.registerLoopInvariant(invariant.name(), invariant.annotation(), translated);
+                formula = renderer.render(translated);
             }
             rendered.add(new VcWriter.RenderedLoopInvariant(
                     invariant.name(), invariant.line(), formula));

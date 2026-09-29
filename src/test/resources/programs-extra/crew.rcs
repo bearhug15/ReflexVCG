@@ -1,0 +1,46 @@
+// Three processes, for the invariants relating one process to another.
+//
+// Starter runs once: it starts Worker and Helper, then stops itself. Worker toggles
+// between idle and busy with the go input, and blinks a lamp that has to go dark within
+// half a second of starting. Helper just runs. Nothing ever stops Worker or Helper, so
+// they are stopped together - at the start - and running together ever after.
+program Crew {
+	clock 100;
+	import IO {
+		register inp
+		register outp
+	}
+	node N { clock 100; }
+	bool go as (read = inp, bit = 0);
+	bool blink as (read = outp, write = outp, bit = 0);
+	int16 jobs = 0;
+	process Starter :: node N {
+		state begin {
+			start Worker;
+			start Helper;
+			stop;
+		}
+	}
+	process Worker :: node N {
+		state idle {
+			blink = false;
+			if (go) {
+				jobs = jobs + 1;
+				set state busy;
+			}
+		}
+		state busy {
+			blink = true;
+			timeout 0t500ms {
+				set state idle;
+			}
+		}
+	}
+	process Helper :: node N {
+		state run {
+			if (process Worker in state active) {
+				;
+			}
+		}
+	}
+}

@@ -3,13 +3,12 @@ package su.nsk.iae.reflex.inv;
 import java.util.Objects;
 
 /**
- * A label attached to an extra invariant, by which it can be found again.
+ * A label attached to an invariant, by which it can be found again.
  *
  * <p>A tag is a key and a value, so the same key can be asked about with different values -
  * {@code process=Controller}, {@code process=Pump} - and a caller can make up keys of its
- * own. The factories below are the ones the structural analysis attaches; searching by a
- * set of them is how a condition picks out the invariants that concern the states it
- * passes through.
+ * own. The factories below are the ones generation attaches; searching by a set of them is
+ * how a condition picks out the invariants that concern the states it passes through.
  */
 public record Tag(String key, String value) {
 
@@ -22,14 +21,14 @@ public record Tag(String key, String value) {
         return new Tag(key, value);
     }
 
-    /** What kind of structural invariant this is. */
+    /** Which rule produced the invariant. */
     public static Tag kind(ExtraInvariant.Kind kind) {
         return new Tag("kind", kind.name());
     }
 
-    /** Which group of lemmas it belongs to, which decides whether it is used by default. */
-    public static Tag group(ExtraInvariant.Group group) {
-        return new Tag("group", group.name());
+    /** How far it reaches into generation. */
+    public static Tag priority(ExtraInvariant.Priority priority) {
+        return new Tag("priority", priority.name());
     }
 
     /** The process the invariant is about. */
@@ -45,7 +44,7 @@ public record Tag(String key, String value) {
         return new Tag("state", process + "." + state);
     }
 
-    /** A variable the invariant states the value of. */
+    /** A variable the invariant says something about. */
     public static Tag variable(String variable) {
         return new Tag("variable", variable);
     }
@@ -53,6 +52,11 @@ public record Tag(String key, String value) {
     /** One way a transition condition says a state can be entered. */
     public static Tag transition(ExtraInvariant.Transition transition) {
         return new Tag("transition", transition.name());
+    }
+
+    /** The loop a loop invariant belongs to, by the name the conditions state it under. */
+    public static Tag loop(String name) {
+        return new Tag("loop", name);
     }
 
     @Override

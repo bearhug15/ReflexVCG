@@ -6,6 +6,7 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import su.nsk.iae.reflex.inv.Selection;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,9 +30,12 @@ public final class Main {
         options.addOption("a", "analysis", true,
                 "Discard conditions for impossible paths: true/false (default true).");
         options.addOption("x", "extra", true,
-                "Extra invariants derived from the program structure: none, advanced (process "
-                        + "states and variable values) or all (transition conditions too). "
-                        + "Default none.");
+                "Extra invariants derived from the program structure, by priority: high (the "
+                        + "default - the states each process can be in, part of every "
+                        + "condition), mid (adds variable values, process pairs, timer bounds, "
+                        + "static-analysis claims, values unchanged since entry) or low (adds "
+                        + "transition conditions and values copied on entry). Kinds can also be "
+                        + "named, comma-separated, e.g. -x high,timer_bounds. none turns them off.");
         options.addOption("h", "help", false, "Show this help.");
 
         CommandLineParser commandLineParser = new DefaultParser();
@@ -83,14 +87,7 @@ public final class Main {
             }
 
             if (commandLine.hasOption("x")) {
-                String level = commandLine.getOptionValue("x").trim().toUpperCase(java.util.Locale.ROOT);
-                try {
-                    generator.setExtraInvariantLevel(
-                            su.nsk.iae.reflex.vc.ExtraInvariantGenerator.Level.valueOf(level));
-                } catch (IllegalArgumentException e) {
-                    throw new IllegalArgumentException("-x takes none, advanced or all, not "
-                            + commandLine.getOptionValue("x"));
-                }
+                generator.setExtraInvariantSelection(Selection.parse(commandLine.getOptionValue("x")));
             }
 
             if (commandLine.hasOption("g")) {
@@ -99,6 +96,10 @@ public final class Main {
             }
 
             int generated = generator.generate(destination);
+            if (!generator.getExtraInvariantDiagnostics().isEmpty()) {
+                System.out.println("Extra invariants:");
+                generator.getExtraInvariantDiagnostics().forEach(d -> System.out.println("  " + d));
+            }
             System.out.println("Wrote " + generated + " verification conditions to " + destination);
         } catch (IllegalArgumentException | IllegalStateException e) {
             System.err.println(e.getMessage());
@@ -108,7 +109,7 @@ public final class Main {
 
     private static void usage(Options options) {
         new HelpFormatter().printHelp(
-                "ReflexVCG -s <program.rcs> [-o <dir>] [-g] [-a true|false] [-x none|advanced|all]",
+                "ReflexVCG -s <program.rcs> [-o <dir>] [-g] [-a true|false] [-x high|mid|low|<kind>,...]",
                 "Generates Isabelle/HOL verification conditions for a Reflex program.",
                 options, "");
     }

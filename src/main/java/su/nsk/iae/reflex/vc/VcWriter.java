@@ -35,7 +35,10 @@ public final class VcWriter {
     /** The theory holding one invariant per loop, which every condition imports. */
     public static final String LOOP_THEORY = "LoopInvariants";
 
-    /** The theory holding the extra invariants, imported only when there are any. */
+    /**
+     * The theory defining the derived invariants. {@code Requirements} imports it, so every
+     * condition sees it through there.
+     */
     public static final String EXTRA_THEORY = "ExtraInvariants";
 
     /** The names the annotation translator gives to the states it binds. */
@@ -47,7 +50,11 @@ public final class VcWriter {
     /** Lemmas already written, so a repeated obligation is not written twice. */
     private final Set<String> seen = new HashSet<>();
     private int written;
-    private boolean extraInvariants;
+    /**
+     * Extra-invariant obligations are numbered on their own, so asking for them leaves the
+     * name of every other condition as it was - and a proof recorded against it valid.
+     */
+    private int extraWritten;
 
     public VcWriter(Path destination, String programName) {
         if (!Files.isDirectory(destination)) {
@@ -57,8 +64,14 @@ public final class VcWriter {
         this.programName = programName;
     }
 
+    /** Every condition written, extra-invariant obligations included. */
     public int getWritten() {
-        return written;
+        return written + extraWritten;
+    }
+
+    /** The extra-invariant obligations among them. */
+    public int getExtraWritten() {
+        return extraWritten;
     }
 
     /** Copies ReflexBase and writes the program and requirements theories. */
@@ -85,6 +98,22 @@ public final class VcWriter {
     public void writeSupportingTheories(IrProgram program, List<String> extraDefinitions,
                                         List<String> globalInvariants,
                                         List<RenderedLoopInvariant> loopInvariants) {
+        writeSupportingTheories(program, extraDefinitions, globalInvariants, loopInvariants, null);
+    }
+
+    /**
+     * @param extraDefinitions definitions contributed by the extra-invariant stage,
+     *                         written into the requirements theory after the invariant
+     * @param globalInvariants invariants written on the program, its processes or their
+     *                         states, conjoined into the invariant itself
+     * @param loopInvariants   one per loop, each rendered into {@value #LOOP_THEORY}
+     * @param extra            the derived invariants, or null when there are none: the high
+     *                         ones join the global invariant, the rest make up their own
+     */
+    public void writeSupportingTheories(IrProgram program, List<String> extraDefinitions,
+                                        List<String> globalInvariants,
+                                        List<RenderedLoopInvariant> loopInvariants,
+                                        ExtraTheory extra) {
         // ReflexBase defines the state and its values, ReflexLemmas the facts about them,
         // ReflexPatterns the reusable proof patterns built on those.
         copyResource("ReflexTheory/ReflexBase.thy", "ReflexBase.thy");
@@ -96,41 +125,59 @@ public final class VcWriter {
         // been in its state, and ltime is defined there, against the program's clock.
         write(LOOP_THEORY + ".thy", renderer.renderTheory(
                 LOOP_THEORY, List.of(baseTheoryName()), loopInvariantBody(loopInvariants)));
+
+        List<String> conjuncts = new ArrayList<>(globalInvariants);
+        String requirementsImport = baseTheoryName();
+        if (extra != null) {
+            write(EXTRA_THEORY + ".thy", renderer.renderTheory(
+                    EXTRA_THEORY, List.of(baseTheoryName()), extraInvariantBody(extra)));
+            extra.inInvariant().forEach(invariant -> conjuncts.add("(" + invariant.name() + " s)"));
+            requirementsImport = EXTRA_THEORY;
+        }
         write("Requirements.thy", renderer.renderTheory(
-                "Requirements", List.of(baseTheoryName()),
-                requirementsBody(globalInvariants) + String.join("\n", extraDefinitions)));
+                "Requirements", List.of(requirementsImport),
+                requirementsBody(conjuncts) + String.join("\n", extraDefinitions)));
     }
 
     /**
-     * Writes {@value #EXTRA_THEORY}: one definition per extra invariant, a comment above it
-     * saying what it claims and how it is tagged, and {@code combined} as their conjunction.
-     * Every condition written after this imports it.
+     * The derived invariants, for {@value #EXTRA_THEORY}.
      *
-     * <p>Like the global invariant, each speaks about every boundary at or below the state
-     * it is given, so it can be assumed at the start of a cycle and shown at the end.
+     * @param container   where they are held, for their tags
+     * @param inInvariant the high ones, conjoined into {@code inv}
+     * @param selected    the mid and low ones asked for, conjoined into {@code combined}
      */
-    public void writeExtraInvariants(ExtraInvariants container, List<ExtraInvariant> invariants,
-                                     String combined) {
+    public record ExtraTheory(ExtraInvariants container, List<ExtraInvariant> inInvariant,
+                              List<ExtraInvariant> selected, String combined) {
+    }
+
+    /**
+     * One definition per derived invariant, with a comment saying what it claims and how
+     * it is tagged, then {@code combined}, the conjunction of the selected ones. Each speaks
+     * about the state it is given, and holds at every cycle boundary.
+     */
+    private String extraInvariantBody(ExtraTheory extra) {
         TermRenderer terms = new TermRenderer();
         StringBuilder body = new StringBuilder();
-        List<String> conjuncts = new ArrayList<>();
-        for (ExtraInvariant invariant : invariants) {
+        List<ExtraInvariant> all = new ArrayList<>(extra.inInvariant());
+        all.addAll(extra.selected());
+        for (ExtraInvariant invariant : all) {
             body.append("(* ").append(invariant.description()).append("\n   ")
-                    .append(container.tagsOf(invariant)).append(" *)\n")
+                    .append(extra.container().tagsOf(invariant)).append(" *)\n")
                     .append("definition ").append(invariant.name())
                     .append(" :: \"state \\<Rightarrow> bool\" where\n")
                     .append("\"").append(invariant.name()).append(" s =\n")
                     .append(terms.render(invariant.formula())).append("\"\n\n");
-            conjuncts.add("(" + invariant.name() + " s)");
         }
-        body.append("definition ").append(combined)
+        List<String> conjuncts = new ArrayList<>();
+        extra.selected().forEach(invariant -> conjuncts.add("(" + invariant.name() + " s)"));
+        body.append("(* The mid and low priority invariants asked for, which every cycle proves\n")
+                .append("   in a condition of its own. The high ones are part of inv. *)\n")
+                .append("definition ").append(extra.combined())
                 .append(" :: \"state \\<Rightarrow> bool\" where\n")
-                .append("\"").append(combined).append(" s =\n(")
+                .append("\"").append(extra.combined()).append(" s =\n(")
                 .append(conjuncts.isEmpty() ? "True" : String.join("\n\\<and> ", conjuncts))
                 .append(")\"\n");
-        write(EXTRA_THEORY + ".thy", renderer.renderTheory(
-                EXTRA_THEORY, List.of(baseTheoryName()), body.toString()));
-        extraInvariants = true;
+        return body.toString();
     }
 
     /**
@@ -155,13 +202,15 @@ public final class VcWriter {
         if (!seen.add(withCanonicalBoundNames(lemma))) {
             return;
         }
-        String name = programName + "_" + prefixOf(condition.getKind()) + written;
-        List<String> imports = new ArrayList<>(List.of(baseTheoryName(), LOOP_THEORY, "Requirements"));
-        if (extraInvariants) {
-            imports.add(EXTRA_THEORY);
+        boolean extra = condition.getKind() == VerificationCondition.Kind.EXTRA_INVARIANT;
+        String name = programName + "_" + prefixOf(condition.getKind()) + (extra ? extraWritten : written);
+        write(name + ".thy", renderer.renderTheory(
+                name, List.of(baseTheoryName(), LOOP_THEORY, "Requirements"), lemma));
+        if (extra) {
+            extraWritten++;
+        } else {
+            written++;
         }
-        write(name + ".thy", renderer.renderTheory(name, imports, lemma));
-        written++;
     }
 
     /**

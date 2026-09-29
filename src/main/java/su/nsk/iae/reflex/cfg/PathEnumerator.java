@@ -437,8 +437,19 @@ public final class PathEnumerator {
             unchanged.add(new su.nsk.iae.reflex.term.Term.Infix("=",
                     su.nsk.iae.reflex.term.Terms.pstateOf(after, process),
                     su.nsk.iae.reflex.term.Terms.pstateOf(before, process)));
+            // Nor where it last changed state: a loop that never moves a process cannot
+            // move the state prevProcState finds for it either.
+            unchanged.add(new su.nsk.iae.reflex.term.Term.Infix("=",
+                    prevProcState(after, process), prevProcState(before, process)));
         }
         return unchanged.isEmpty() ? null : su.nsk.iae.reflex.term.Terms.conjunction(unchanged);
+    }
+
+    /** {@code prevProcState s ''p''}: the state just before the process last changed state. */
+    private static su.nsk.iae.reflex.term.Term prevProcState(su.nsk.iae.reflex.term.Term state,
+                                                             String process) {
+        return new su.nsk.iae.reflex.term.Term.App("prevProcState",
+                List.of(state, new su.nsk.iae.reflex.term.Term.Quoted(process)));
     }
 
     /** {@code getVarVal s ''v'' []}: the whole value, whatever its type or shape. */

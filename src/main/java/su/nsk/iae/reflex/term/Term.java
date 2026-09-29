@@ -1,5 +1,7 @@
 package su.nsk.iae.reflex.term;
 
+import su.nsk.iae.reflex.ir.IrExpr;
+
 import java.util.List;
 
 /**
@@ -71,6 +73,19 @@ public sealed interface Term {
     record Let(String variable, Term value, Term body) implements Term {
     }
 
+    /**
+     * A program expression read in the state a name stands for, carried with its rendering.
+     *
+     * <p>An extra invariant quotes the program's own guards and assignments, and rendering an
+     * IR expression is the renderer's business, so the text arrives already rendered. The
+     * expression itself travels along so something other than a prover - a test evaluating
+     * the invariant on a concrete run - can read what it says. {@code state} is the name the
+     * text reads in; it is bound by an enclosing {@link Let}, and substitution does not reach
+     * into the text.
+     */
+    record Expr(IrExpr expression, String state, String text) implements Term {
+    }
+
     /** A list, as the access path argument of getVarVal and setVarVal. */
     record ListTerm(List<Term> elements) implements Term {
         public ListTerm {
@@ -128,7 +143,7 @@ public sealed interface Term {
             return new ListTerm(
                     list.elements().stream().map(e -> substitute(e, hole, replacement)).toList());
         }
-        // Var, Quoted and Raw have no interior to rewrite.
+        // Var, Quoted, Raw and Expr have no interior to rewrite.
         return term;
     }
 }

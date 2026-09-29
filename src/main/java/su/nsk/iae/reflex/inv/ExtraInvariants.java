@@ -12,13 +12,14 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The extra invariants of a program, each with a set of tags.
+ * The invariants of a program - written as annotations or derived from its structure -
+ * each with a set of tags.
  *
  * <p>Tags can be attached when an invariant is added or at any point after, and
  * {@link #find} returns the invariants carrying <em>every</em> tag asked for - so a
  * condition that passes through {@code Controller} in {@code filling} asks for
- * {@code {state=Controller.filling}}, and one that wants only the cheap lemmas adds
- * {@code group=ADVANCED}.
+ * {@code {state=Controller.filling}}, and one that wants only what every condition gets
+ * adds {@code priority=HIGH}.
  *
  * <p>Everything comes back in the order the invariants were added, whatever the query:
  * generation has to be deterministic, and the order they are written in is this one.
@@ -34,7 +35,7 @@ public final class ExtraInvariants implements Iterable<ExtraInvariant> {
     }
 
     /**
-     * Adds an invariant with its tags. Its kind and group are tagged automatically, so
+     * Adds an invariant with its tags. Its kind and priority are tagged automatically, so
      * those can always be searched for.
      *
      * @throws IllegalArgumentException if an invariant of the same name is already held
@@ -49,7 +50,7 @@ public final class ExtraInvariants implements Iterable<ExtraInvariant> {
                     + " is already present");
         }
         entries.put(invariant.name(), new Entry(invariant, new LinkedHashSet<>()));
-        attach(invariant, Tag.kind(invariant.kind()), Tag.group(invariant.group()));
+        attach(invariant, Tag.kind(invariant.kind()), Tag.priority(invariant.priority()));
         attach(invariant, tags);
         return invariant;
     }

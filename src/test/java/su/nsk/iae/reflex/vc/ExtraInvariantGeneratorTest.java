@@ -6,6 +6,10 @@ import su.nsk.iae.reflex.ReflexVcg;
 import su.nsk.iae.reflex.cfg.Cfg;
 import su.nsk.iae.reflex.frontend.AnnotationBinder;
 import su.nsk.iae.reflex.ir.Annotation;
+import su.nsk.iae.reflex.inv.ExtraInvariant;
+import su.nsk.iae.reflex.inv.ExtraInvariants;
+import su.nsk.iae.reflex.inv.Selection;
+import su.nsk.iae.reflex.inv.Tag;
 import su.nsk.iae.reflex.ir.IrProgram;
 
 import java.io.IOException;
@@ -121,43 +125,76 @@ class ExtraInvariantGeneratorTest {
         assertFalse(stage.invariants().get(0).getText().isEmpty());
     }
 
-    // ------------------------------------------------------------------ extra invariants
+    // ------------------------------------------------------------------ priorities
 
-    /** The stage does nothing unless asked: no theory, no obligations, no imports. */
+    /** -x none: the output exactly as it was before there were extra invariants. */
     @Test
-    void noExtraInvariantsUnlessAskedFor(@TempDir Path output) throws IOException {
-        ReflexVcg.load(PROGRAMS.resolve("newThermopot.rcs")).generate(output);
+    void noneLeavesTheOutputAsItWas(@TempDir Path output) throws IOException {
+        ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("newThermopot.rcs"));
+        generator.setExtraInvariantSelection(Selection.none());
+        generator.generate(output);
 
         assertFalse(Files.exists(output.resolve("ExtraInvariants.thy")));
+        assertTrue(Files.readString(output.resolve("Requirements.thy")).contains("imports ThermopotTheory"));
         for (Path theory : theories(output, "_")) {
-            assertFalse(Files.readString(theory).contains("ExtraInvariants"), theory.toString());
+            assertFalse(Files.readString(theory).contains("extra"), theory.toString());
         }
     }
 
     /**
-     * Each extra invariant is assumed only where it is proved: every condition assuming the
-     * global invariant has a companion showing the extra ones kept, and the base case one
-     * showing they hold to begin with.
+     * The default, high priority: which states each process can be in joins the global
+     * invariant, so every condition assumes and proves it - and no condition is added.
      */
     @Test
-    void everyCycleProvesTheExtraInvariantsItMayAssume(@TempDir Path output) throws IOException {
+    void theHighPriorityJoinsTheGlobalInvariant(@TempDir Path output) throws IOException {
+        Path withoutExtras = Files.createDirectories(output.resolve("none"));
+        Path withHigh = Files.createDirectories(output.resolve("high"));
+        ReflexVcg none = ReflexVcg.load(PROGRAMS.resolve("newThermopot.rcs"));
+        none.setExtraInvariantSelection(Selection.none());
+        int before = none.generate(withoutExtras);
+        int after = ReflexVcg.load(PROGRAMS.resolve("newThermopot.rcs")).generate(withHigh);
+
+        assertEquals(before, after, "no condition is added");
+        assertEquals(names(theories(withoutExtras, "_")), names(theories(withHigh, "_")));
+
+        String requirements = Files.readString(withHigh.resolve("Requirements.thy"));
+        assertTrue(requirements.contains("imports ExtraInvariants"), requirements);
+        assertTrue(requirements.contains("\\<and> (extra_states_HeaterController s)"), requirements);
+        String extra = Files.readString(withHigh.resolve("ExtraInvariants.thy"));
+        assertTrue(extra.contains("definition extra_states_HeaterController :: \"state \\<Rightarrow> bool\" where"), extra);
+        assertTrue(extra.contains("\"extraInv s =\n(True)\""), "nothing mid or low: " + extra);
+    }
+
+    /**
+     * Mid and low: each is assumed only where it is proved - every condition assuming the
+     * global invariant has a companion showing them kept, and the base case one showing
+     * they hold to begin with. Numbered on their own, so no other condition is renamed.
+     */
+    @Test
+    void everyCycleProvesTheMidInvariantsItMayAssume(@TempDir Path output) throws IOException {
+        Path withHigh = Files.createDirectories(output.resolve("high"));
+        Path withMid = Files.createDirectories(output.resolve("mid"));
+        ReflexVcg.load(PROGRAMS.resolve("newThermopot.rcs")).generate(withHigh);
         ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("newThermopot.rcs"));
-        generator.setExtraInvariantLevel(ExtraInvariantGenerator.Level.ADVANCED);
-        generator.generate(output);
+        generator.setExtraInvariantSelection(Selection.mid());
+        generator.generate(withMid);
 
-        String extra = Files.readString(output.resolve("ExtraInvariants.thy"));
+        String extra = Files.readString(withMid.resolve("ExtraInvariants.thy"));
         assertTrue(extra.contains("definition extraInv :: \"state \\<Rightarrow> bool\" where"), extra);
-        assertTrue(extra.contains("definition extra_states_HeaterController"), extra);
-        assertFalse(extra.contains("extra_trans_"), "transitions are optional: " + extra);
+        assertTrue(extra.contains("(extra_vars_HeaterController_heating s)"), extra);
+        assertFalse(extra.contains("extra_trans_"), "transitions are low: " + extra);
+        assertFalse(extra.contains("(extra_states_HeaterController s)\n\\<and>"),
+                "the high ones are in inv, not in extraInv: " + extra);
 
-        List<Path> cycles = theories(output, "_VC");
-        List<Path> obligations = theories(output, "_EXTRA");
+        List<Path> cycles = theories(withMid, "_VC");
+        List<Path> obligations = theories(withMid, "_EXTRA");
         assertEquals(cycles.size(), obligations.size(), "one obligation per main condition");
+        assertEquals(names(theories(withHigh, "_VC")), names(cycles), "no main condition is renamed");
 
         int bases = 0;
         for (Path obligation : obligations) {
             String text = Files.readString(obligation);
-            assertTrue(text.contains("imports ThermopotTheory LoopInvariants Requirements ExtraInvariants"), text);
+            assertTrue(text.contains("imports ThermopotTheory LoopInvariants Requirements\n"), text);
             assertTrue(text.contains("shows \"(extraInv st_final)\""), text);
             if (text.contains("base_inv:")) {
                 assertTrue(text.contains("extra_inv:\"(extraInv st0)\""), text);
@@ -168,11 +205,11 @@ class ExtraInvariantGeneratorTest {
         assertEquals(1, bases, "the base case");
     }
 
-    /** A condition gets the invariants about the states its path passes through. */
+    /** A condition gets the invariants about the states its path passes through, found by tag. */
     @Test
     void aConditionAssumesWhatConcernsItsStates(@TempDir Path output) throws IOException {
         ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("newThermopot.rcs"));
-        generator.setExtraInvariantLevel(ExtraInvariantGenerator.Level.ALL);
+        generator.setExtraInvariantSelection(Selection.low());
         generator.generate(output);
 
         int checked = 0;
@@ -181,8 +218,6 @@ class ExtraInvariantGeneratorTest {
             if (!text.contains("base_inv:")) {
                 continue;
             }
-            assertTrue(text.contains("extra_states_HeaterController:\"(extra_states_HeaterController st0)\""),
-                    text);
             boolean maintaining = text.contains("''HeaterController''=''maintaining''")
                     || text.contains("''HeaterController'' ''maintaining''");
             boolean heating = text.contains("''HeaterController''=''heating''")
@@ -194,11 +229,67 @@ class ExtraInvariantGeneratorTest {
         assertTrue(checked > 10, "cycles checked: " + checked);
     }
 
+    /** Diagnostics reach the caller: none for thermopot, whose static-analysis claims all hold. */
+    @Test
+    void theDiagnosticsAreReported(@TempDir Path output) throws IOException {
+        ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("newThermopot.rcs"));
+        generator.setExtraInvariantSelection(Selection.mid());
+        generator.generate(output);
+        assertEquals(List.of(), generator.getExtraInvariantDiagnostics());
+    }
+
+    /** Annotation invariants are registered with the rest, tagged with their scope. */
+    @Test
+    void annotationInvariantsAreInTheContainer(@TempDir Path output) throws IOException {
+        ReflexVcg generator = ReflexVcg.load(PROGRAMS.resolve("annotatedTank.rcs"));
+        List<ExtraInvariantGenerator> seen = new ArrayList<>();
+        generator.setExtraInvariantGenerator(new ExtraInvariantGenerator(
+                generator.getProgram(), generator.getCfg(), generator.getAnnotations()) {
+            @Override
+            public void analyse() {
+                super.analyse();
+                seen.add(this);
+            }
+        });
+        generator.generate(output);
+
+        ExtraInvariants all = seen.get(0).getInvariants();
+        assertEquals(4, all.find(Tag.kind(ExtraInvariant.Kind.ANNOTATION)).size());
+        assertEquals(1, all.find(Tag.kind(ExtraInvariant.Kind.ANNOTATION), Tag.state("Controller", "filling")).size());
+        assertEquals(1, all.find(Tag.kind(ExtraInvariant.Kind.LOOP_INVARIANT)).size());
+        assertTrue(all.find(Tag.priority(ExtraInvariant.Priority.HIGH)).size() >= 6,
+                "annotations, the loop invariant and the process states");
+    }
+
+    /**
+     * Past a loop, a process the loop never moves still has the prevProcState it had:
+     * without that, nothing stated since a process's entry into its state could be carried
+     * past a loop.
+     */
+    @Test
+    void aLoopKeepsWhereTheProcessesItDoesNotMoveLastChangedState(@TempDir Path output) throws IOException {
+        ReflexVcg.load(PROGRAMS.resolve("loopSum.rcs")).generate(output);
+        boolean found = false;
+        for (Path condition : theories(output, "_VC")) {
+            String text = Files.readString(condition);
+            if (text.contains("_frame:")) {
+                assertTrue(text.matches("(?s).*\\(\\(prevProcState st\\d+ ''\\w+''\\) = \\(prevProcState st\\d+ ''\\w+''\\)\\).*"),
+                        text);
+                found = true;
+            }
+        }
+        assertTrue(found, "loopSum has a path past its loop");
+    }
+
     private static List<Path> theories(Path directory, String marker) throws IOException {
         try (var files = Files.list(directory)) {
             return files.filter(f -> f.getFileName().toString().contains(marker)
                             && f.getFileName().toString().endsWith(".thy"))
                     .sorted().toList();
         }
+    }
+
+    private static List<String> names(List<Path> files) {
+        return files.stream().map(f -> f.getFileName().toString()).toList();
     }
 }

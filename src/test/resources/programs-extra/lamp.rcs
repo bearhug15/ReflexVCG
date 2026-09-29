@@ -1,0 +1,42 @@
+// A lamp with a dimmer, small enough to work every extra invariant out by hand.
+//
+// dark: the lamp is off; pressing the button latches the dial into setpoint, sets the
+//       level to BRIGHT and moves to lit.
+// lit:  the lamp is on; after two seconds the timeout puts the level back to 0 and moves
+//       to dark.
+// never: declared, but nothing ever moves the switch there.
+program Lamp {
+	clock 100;
+	import IO {
+		register inp
+		register dial
+		register outp
+	}
+	node Main { clock 100; }
+	const int16 BRIGHT = 5;
+	bool button as (read = inp, bit = 0);
+	int16 dial as (read = dial, bit = 0);
+	bool lamp as (read = outp, write = outp, bit = 0);
+	int16 level = 0;
+	int16 setpoint = 0;
+	process Switch :: node Main {
+		state dark {
+			lamp = false;
+			if (button) {
+				setpoint = dial;
+				level = BRIGHT;
+				set state lit;
+			}
+		}
+		state lit {
+			lamp = true;
+			timeout 0t2s {
+				level = 0;
+				set state dark;
+			}
+		}
+		state never {
+			level = 7;
+		}
+	}
+}

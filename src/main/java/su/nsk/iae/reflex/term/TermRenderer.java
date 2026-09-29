@@ -21,6 +21,9 @@ public final class TermRenderer {
         if (term instanceof Term.Raw raw) {
             return raw.text();
         }
+        if (term instanceof Term.Expr expr) {
+            return expr.text();
+        }
         if (term instanceof Term.App app) {
             return renderApplication(app);
         }

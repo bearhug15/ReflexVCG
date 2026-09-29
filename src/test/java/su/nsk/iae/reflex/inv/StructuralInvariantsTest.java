@@ -2,218 +2,389 @@ package su.nsk.iae.reflex.inv;
 
 import org.junit.jupiter.api.Test;
 import su.nsk.iae.reflex.ReflexVcg;
-import su.nsk.iae.reflex.ir.IrExpr;
-import su.nsk.iae.reflex.ir.TimeRef;
+import su.nsk.iae.reflex.term.Term;
 import su.nsk.iae.reflex.term.TermRenderer;
+import su.nsk.iae.reflex.term.Terms;
 import su.nsk.iae.reflex.vc.IsabelleRenderer;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The structural rules of mainOverview.tex, "Extra Invariants", one at a time, on a
- * program small enough to work each answer out by hand, and then on the test programs.
+ * Every way of deriving invariants, one at a time, on programs small enough to work each
+ * answer out by hand (extra-invariants.md has them worked out):
+ * {@code programs-extra/lamp.rcs} for what a single process's states say, and
+ * {@code programs-extra/crew.rcs} for what relates processes. Then the stages, the
+ * pluggable sources, and the test programs.
  */
 class StructuralInvariantsTest {
 
     private static final Path PROGRAMS = Path.of("src/test/resources/programs-new");
-
-    /**
-     * A lamp: {@code dark} turns it on when the button is pressed, {@code lit} times out back
-     * to {@code dark}, and {@code never} is declared but nothing ever moves there.
-     */
-    private static final String LAMP = """
-            program Lamp {
-            	clock 100;
-            	import IO {
-            		register inp
-            		register outp
-            	}
-            	node Main { clock 100; }
-            	const int16 BRIGHT = 5;
-            	bool button as (read = inp, bit = 0);
-            	bool lamp as (read = outp, write = outp, bit = 0);
-            	int16 level = 0;
-            	process Switch :: node Main {
-            		state dark {
-            			lamp = false;
-            			if (button) {
-            				level = BRIGHT;
-            				set state lit;
-            			}
-            		}
-            		state lit {
-            			lamp = true;
-            			timeout 0t2s {
-            				level = 0;
-            				set state dark;
-            			}
-            		}
-            		state never {
-            			level = 7;
-            		}
-            	}
-            }
-            """;
+    private static final Path LAMP = Path.of("src/test/resources/programs-extra/lamp.rcs");
+    private static final Path CREW = Path.of("src/test/resources/programs-extra/crew.rcs");
 
     private final TermRenderer terms = new TermRenderer();
 
+    // ------------------------------------------------------------------ process states (high)
+
     @Test
     void aProcessIsOnlyFoundInTheStatesSomethingMovesItTo() throws IOException {
-        ExtraInvariants found = analyse(LAMP);
-        List<ExtraInvariant> states = found.find(Tag.kind(ExtraInvariant.Kind.PROCESS_STATES),
-                Tag.process("Switch"));
+        ExtraInvariant states = only(analyse(LAMP, Selection.high()), ExtraInvariant.Kind.PROCESS_STATES);
 
-        assertEquals(1, states.size());
-        String formula = render(states.get(0));
-        assertTrue(formula.contains("= ''dark''") && formula.contains("= ''lit''"), formula);
-        // Nothing moves it to never, stops it or fails it.
-        assertFalse(formula.contains("''never''"), formula);
-        assertFalse(formula.contains("''stop''"), formula);
-        assertFalse(formula.contains("''error''"), formula);
+        assertEquals("(((getPstate s ''Switch'') = ''dark'') \\<or> ((getPstate s ''Switch'') = ''lit''))",
+                render(states), "never, stop and error are never reached");
+        assertEquals(ExtraInvariant.Priority.HIGH, states.priority());
     }
 
     @Test
-    void aStateNeverEnteredGetsNothingSaidAboutIt() throws IOException {
-        assertTrue(analyse(LAMP).find(Tag.state("Switch", "never")).isEmpty());
+    void theHighPriorityIsAllTheDefaultDerives() throws IOException {
+        ExtraInvariants found = analyse(CREW, Selection.high());
+        assertEquals(3, found.size(), "one per process");
+        assertTrue(found.all().stream().allMatch(i -> i.kind() == ExtraInvariant.Kind.PROCESS_STATES));
     }
 
     /**
-     * {@code level} is set to BRIGHT on the way into {@code lit} and nothing touches it
-     * there, and to 0 on the way into {@code dark} - where it also starts.
+     * The high priority joins the global invariant, so it has to stand on its own: asking
+     * for more must not change it.
      */
     @Test
-    void aValueSetOnTheWayInAndLeftAloneIsDefinedForTheState() throws IOException {
-        ExtraInvariants found = analyse(LAMP);
+    void processStatesAreTheSameWhateverElseIsAskedFor() throws IOException {
+        for (Path program : List.of(LAMP, CREW, PROGRAMS.resolve("newTurnstile.rcs"))) {
+            List<String> high = rendered(analyse(program, Selection.high()), ExtraInvariant.Kind.PROCESS_STATES);
+            List<String> low = rendered(analyse(program, Selection.low()), ExtraInvariant.Kind.PROCESS_STATES);
+            assertEquals(high, low, program.toString());
+        }
+    }
 
-        ExtraInvariant on = only(found.find(Tag.kind(ExtraInvariant.Kind.DEFINED_VARIABLES),
-                Tag.state("Switch", "lit")));
-        assertTrue(render(on).contains("= 5)"), render(on));
+    // ------------------------------------------------------------------ variable values (mid)
 
-        ExtraInvariant off = only(found.find(Tag.kind(ExtraInvariant.Kind.DEFINED_VARIABLES),
-                Tag.state("Switch", "dark")));
-        assertTrue(render(off).contains("= 0)"), render(off));
-        // The lamp (bound as outp_0) is still lit the moment the timeout moves it to dark.
-        assertFalse(off.description().contains("outp_0"), off.description());
+    /** level is set to BRIGHT on the way into lit and to 0 on the way into dark. */
+    @Test
+    void aConstantSetOnTheWayInAndLeftAloneIsDefined() throws IOException {
+        ExtraInvariants found = analyse(LAMP, Selection.mid());
+
+        assertEquals("(((getPstate s ''Switch'') = ''lit'') \\<longrightarrow> ((theInt (getVarVal s ''#level'' [])) = 5))",
+                render(only(found, ExtraInvariant.Kind.DEFINED_VARIABLES, Tag.state("Switch", "lit"))));
+        ExtraInvariant dark = only(found, ExtraInvariant.Kind.DEFINED_VARIABLES, Tag.state("Switch", "dark"));
+        assertTrue(render(dark).contains("= 0)"), render(dark));
+        // The lamp is still lit the cycle the timeout moves the switch back to dark.
+        assertFalse(dark.description().contains("outp_0"), dark.description());
+    }
+
+    /** lit lights the lamp every pass, but the cycle entering lit ran dark, which put it out. */
+    @Test
+    void aConstantWrittenOnEveryPassIsStabilized() throws IOException {
+        ExtraInvariant lit = only(analyse(LAMP, Selection.mid()), ExtraInvariant.Kind.STABILIZED_VARIABLES,
+                Tag.state("Switch", "lit"));
+        assertEquals("((((getPstate s ''Switch'') = ''lit'') \\<and> ((getPstate (predEnv s) ''Switch'') = ''lit''))"
+                + " \\<longrightarrow> (theBool (getVarVal s ''outp_0'' [])))", render(lit));
     }
 
     /**
-     * {@code lit} lights the lamp every time it runs, but the cycle that enters it ran
-     * {@code dark}, which put it out: so it is lit only once the switch has stayed on.
+     * Stabilized facts that contradict each other mean the process never stays: kept, they
+     * would be vacuous. Thermopot's Init stops itself in the cycle it starts.
      */
     @Test
-    void aValueWrittenOnEveryPassIsStabilized() throws IOException {
-        ExtraInvariants found = analyse(LAMP);
-        ExtraInvariant stable = only(found.find(Tag.kind(ExtraInvariant.Kind.STABILIZED_VARIABLES),
-                Tag.state("Switch", "lit")));
-
-        String formula = render(stable);
-        assertTrue(formula.contains("(getPstate (predEnv s1) ''Switch'') = ''lit''"), formula);
-        assertTrue(stable.description().startsWith("outp_0") && stable.description().contains("= true"),
-                stable.description());
-        // Not restated: level is already defined for lit.
-        assertFalse(stable.description().contains("level"), stable.description());
+    void aStateNeverStayedInGetsNoStabilizedValues() throws IOException {
+        ExtraInvariants found = analyse(PROGRAMS.resolve("newThermopot.rcs"), Selection.mid());
+        assertTrue(found.find(Tag.kind(ExtraInvariant.Kind.STABILIZED_VARIABLES), Tag.state("Init", "begin")).isEmpty());
     }
+
+    // ------------------------------------------------------------------ unchanged since entry (mid)
+
+    @Test
+    void aVariableNothingWritesWhileInAStateIsUnchangedSinceEntry() throws IOException {
+        ExtraInvariants found = analyse(LAMP, Selection.mid());
+        ExtraInvariant lit = only(found, ExtraInvariant.Kind.UNCHANGED_SINCE_ENTRY, Tag.state("Switch", "lit"));
+        assertEquals("(((getPstate s ''Switch'') = ''lit'') \\<longrightarrow> (let s2 = (prevProcState s ''Switch'') in "
+                + "((getVarVal s ''#setpoint'' []) = (getVarVal s2 ''#setpoint'' []))))", render(lit));
+        // level is written on the way out of lit, but lit's defined value already pins it.
+        assertFalse(lit.description().contains("level"), lit.description());
+    }
+
+    /** jobs is incremented on the way into busy, and not while Worker is in either state. */
+    @Test
+    void aVariableWrittenOnTheWayInIsStillUnchangedSinceEntry() throws IOException {
+        ExtraInvariants found = analyse(CREW, Selection.mid());
+        assertEquals(2, found.find(Tag.kind(ExtraInvariant.Kind.UNCHANGED_SINCE_ENTRY), Tag.variable("#jobs")).size());
+    }
+
+    @Test
+    void aVariableWrittenInsideTheStateIsNotUnchanged() throws IOException {
+        ExtraInvariants found = analyse(CREW, Selection.mid());
+        // blink is written on every pass through idle and busy.
+        assertTrue(found.find(Tag.kind(ExtraInvariant.Kind.UNCHANGED_SINCE_ENTRY), Tag.variable("outp_0")).isEmpty());
+    }
+
+    // ------------------------------------------------------------------ timer bounds (mid)
+
+    @Test
+    void aTimeoutThatMovesTheProcessOnBoundsItsTime() throws IOException {
+        ExtraInvariant lit = only(analyse(LAMP, Selection.mid()), ExtraInvariant.Kind.TIMER_BOUNDS);
+        // 2 s timeout, one 100 ms tick past it at the most.
+        assertEquals("(((getPstate s ''Switch'') = ''lit'') \\<longrightarrow> ((ltime s ''Switch'') < 2100))", render(lit));
+        ExtraInvariant busy = only(analyse(CREW, Selection.mid()), ExtraInvariant.Kind.TIMER_BOUNDS);
+        assertTrue(render(busy).contains("((ltime s ''Worker'') < 600)"), render(busy));
+    }
+
+    @Test
+    void aTimeoutThatLeavesTheProcessWhereItIsBoundsNothing() throws IOException {
+        Path program = write("""
+                program Stay {
+                	clock 100;
+                	node N { clock 100; }
+                	int16 count = 0;
+                	process P :: node N {
+                		state waiting {
+                			timeout 0t1s {
+                				count = 1;
+                			}
+                		}
+                	}
+                }
+                """);
+        assertTrue(analyse(program, Selection.mid()).find(Tag.kind(ExtraInvariant.Kind.TIMER_BOUNDS)).isEmpty());
+    }
+
+    // ------------------------------------------------------------------ process pairs (mid)
+
+    @Test
+    void statesOfTwoProcessesNeverFoundTogetherAreExcluded() throws IOException {
+        ExtraInvariants found = analyse(CREW, Selection.mid());
+        assertEquals("(((getPstate s ''Starter'') = ''begin'') \\<longrightarrow> "
+                        + "(((getPstate s ''Worker'') = ''stop'') \\<and> ((getPstate s ''Helper'') = ''stop'')))",
+                render(only(found, ExtraInvariant.Kind.PROCESS_PAIRS, Tag.state("Starter", "begin"))));
+        assertEquals("(((getPstate s ''Worker'') = ''idle'') \\<longrightarrow> ((getPstate s ''Helper'') = ''run''))",
+                render(only(found, ExtraInvariant.Kind.PROCESS_PAIRS, Tag.state("Worker", "idle"))));
+    }
+
+    @Test
+    void aSingleProcessHasNoPairs() throws IOException {
+        assertTrue(analyse(LAMP, Selection.mid()).find(Tag.kind(ExtraInvariant.Kind.PROCESS_PAIRS)).isEmpty());
+    }
+
+    // ------------------------------------------------------------------ static analysis (mid)
+
+    @Test
+    void theStaticAnalysisGroupsAreConfirmedAndExported() throws IOException {
+        Path source = CREW;
+        ReflexVcg generator = ReflexVcg.load(source);
+        StructuralInvariants analysis = analysis(generator);
+        ExtraInvariants found = analysis.generate(Selection.mid());
+
+        ExtraInvariant group = only(found, ExtraInvariant.Kind.STATIC_ANALYSIS);
+        assertEquals("((((getPstate s ''Worker'') = ''stop'') = ((getPstate s ''Helper'') = ''stop'')) \\<and> "
+                + "(((getPstate s ''Worker'') = ''error'') = ((getPstate s ''Helper'') = ''error'')))", render(group));
+        assertTrue(analysis.getDiagnostics().isEmpty(), analysis.getDiagnostics().toString());
+    }
+
+    /** A claim the check does not keep is reported, not exported. */
+    @Test
+    void anUnconfirmedClaimIsReported() throws IOException {
+        ReflexVcg generator = ReflexVcg.load(CREW);
+        AnalysisContext context = new AnalysisContext(generator.getProgram(), generator.getCfg(),
+                new IsabelleRenderer()::renderExpression);
+        StaticAnalysisClaims claims = new StaticAnalysisClaims();
+        List<Candidate> guessed = claims.guess(context);
+        assertFalse(guessed.isEmpty());
+
+        ExtraInvariants into = new ExtraInvariants();
+        claims.build(List.of(), context, into);
+        assertTrue(into.isEmpty());
+        assertEquals(guessed.size(), claims.unconfirmed().size());
+        assertTrue(claims.unconfirmed().stream().anyMatch(c -> c.startsWith("group ")), claims.unconfirmed().toString());
+    }
+
+    @Test
+    void theMultiProcessProgramsClaimsAreAllConfirmed() throws IOException {
+        for (String program : List.of("newThermopot", "newTurnstile", "newSmartLighting", "newBarrier")) {
+            StructuralInvariants analysis = analysis(ReflexVcg.load(PROGRAMS.resolve(program + ".rcs")));
+            analysis.generate(Selection.of(ExtraInvariant.Kind.STATIC_ANALYSIS));
+            assertEquals(List.of(), analysis.getDiagnostics(), program);
+        }
+    }
+
+    // ------------------------------------------------------------------ transitions (low)
 
     @Test
     void aTransitionIsTheGuardsThatHeldJustBeforeIt() throws IOException {
-        ExtraInvariants found = analyse(LAMP);
-
-        ExtraInvariant on = only(found.find(Tag.kind(ExtraInvariant.Kind.TRANSITION),
-                Tag.state("Switch", "lit")));
-        String formula = render(on);
-        assertTrue(formula.contains("let s2 = (prevProcState s1 ''Switch'') in"), formula);
-        assertTrue(formula.contains("(getPstate s2 ''Switch'') = ''dark''"), formula);
-        assertTrue(formula.contains("theBool (getVarVal s2"), "the button's guard: " + formula);
-        assertEquals(List.of(on), found.find(Tag.transition(ExtraInvariant.Transition.CONDITIONAL),
-                Tag.state("Switch", "lit")));
+        ExtraInvariants found = analyse(LAMP, Selection.low());
+        ExtraInvariant lit = only(found, ExtraInvariant.Kind.TRANSITION, Tag.state("Switch", "lit"));
+        assertEquals("(((getPstate s ''Switch'') = ''lit'') \\<longrightarrow> (let s2 = (prevProcState s ''Switch'') in "
+                + "((theBool (getVarVal s2 ''inp_0'' [])) \\<and> ((getPstate s2 ''Switch'') = ''dark''))))", render(lit));
+        assertTrue(found.tagsOf(lit).contains(Tag.transition(ExtraInvariant.Transition.CONDITIONAL)));
     }
 
     @Test
     void theStartStateIsEnteredInitiallyAndATimeoutIsATimedTransition() throws IOException {
-        ExtraInvariants found = analyse(LAMP);
-        ExtraInvariant off = only(found.find(Tag.kind(ExtraInvariant.Kind.TRANSITION),
-                Tag.state("Switch", "dark")));
-        String formula = render(off);
-
-        assertTrue(formula.contains("(\\<forall> s3. ((substate s3 s2) \\<longrightarrow> (\\<not> (toEnvP s3))))"),
-                formula);
-        assertTrue(formula.contains("((ltime s2 ''Switch'') \\<ge> 2000)"), formula);
-        assertTrue(found.tagsOf(off).contains(Tag.transition(ExtraInvariant.Transition.INITIAL)));
-        assertTrue(found.tagsOf(off).contains(Tag.transition(ExtraInvariant.Transition.TIMED)));
+        ExtraInvariants found = analyse(LAMP, Selection.low());
+        ExtraInvariant dark = only(found, ExtraInvariant.Kind.TRANSITION, Tag.state("Switch", "dark"));
+        assertTrue(render(dark).contains("((toEnvNum emptyState s2) = 0)"), render(dark));
+        assertTrue(render(dark).contains("((ltime s2 ''Switch'') \\<ge> 2000)"), render(dark));
+        assertTrue(found.tagsOf(dark).contains(Tag.transition(ExtraInvariant.Transition.INITIAL)));
+        assertTrue(found.tagsOf(dark).contains(Tag.transition(ExtraInvariant.Transition.TIMED)));
     }
 
-    // ------------------------------------------------------------------ the test programs
+    /**
+     * A process started by another before its own body runs: the state it was in is
+     * still known, because the walk splits over the states it can have begun in.
+     */
+    @Test
+    void aStartByAnotherProcessSaysWhereTheTargetCameFrom() throws IOException {
+        ExtraInvariant run = only(analyse(CREW, Selection.low()), ExtraInvariant.Kind.TRANSITION,
+                Tag.state("Helper", "run"));
+        assertTrue(render(run).contains("((getPstate s2 ''Starter'') = ''begin'') \\<and> ((getPstate s2 ''Helper'') = ''stop'')"),
+                render(run));
+    }
+
+    // ------------------------------------------------------------------ copied on entry (low)
 
     @Test
-    void thermopot() throws IOException {
-        ExtraInvariants found = analyse(PROGRAMS.resolve("newThermopot.rcs"));
+    void aValueLatchedOnTheWayInIsCopiedOnEntry() throws IOException {
+        ExtraInvariant lit = only(analyse(LAMP, Selection.low()), ExtraInvariant.Kind.COPIED_ON_ENTRY);
+        assertEquals("(((getPstate s ''Switch'') = ''lit'') \\<longrightarrow> (let s2 = (prevProcState s ''Switch'') in "
+                + "((theInt (getVarVal s ''#setpoint'' [])) = (theInt (getVarVal s2 ''dial_0'' [])))))", render(lit));
+    }
 
-        String states = render(only(found.find(Tag.kind(ExtraInvariant.Kind.PROCESS_STATES),
-                Tag.process("HeaterController"))));
-        for (String state : List.of("begin", "heating", "maintaining", "stop")) {
-            assertTrue(states.contains("''" + state + "''"), states);
+    @Test
+    void aValueTheWaysInDisagreeOnIsNotCopied() throws IOException {
+        Path program = write("""
+                program Two {
+                	clock 100;
+                	import IO { register inp }
+                	node N { clock 100; }
+                	bool a as (read = inp, bit = 0);
+                	bool b as (read = inp, bit = 1);
+                	bool latched = false;
+                	process P :: node N {
+                		state idle {
+                			if (a) { latched = a; set state armed; }
+                			if (b) { latched = b; set state armed; }
+                		}
+                		state armed { ; }
+                	}
+                }
+                """);
+        assertTrue(analyse(program, Selection.low()).find(Tag.kind(ExtraInvariant.Kind.COPIED_ON_ENTRY)).isEmpty());
+    }
+
+    // ------------------------------------------------------------------ selection and sources
+
+    @Test
+    void onlyTheKindsSelectedAreDerived() throws IOException {
+        ExtraInvariants found = analyse(LAMP, Selection.of(ExtraInvariant.Kind.TIMER_BOUNDS));
+        for (ExtraInvariant invariant : found) {
+            assertTrue(Set.of(ExtraInvariant.Kind.PROCESS_STATES, ExtraInvariant.Kind.TIMER_BOUNDS)
+                    .contains(invariant.kind()), invariant.name());
         }
-        assertFalse(states.contains("''error''"), states);
-
-        // Entered only from heating, once the water boils.
-        String maintaining = render(only(found.find(Tag.kind(ExtraInvariant.Kind.TRANSITION),
-                Tag.state("HeaterController", "maintaining"))));
-        assertTrue(maintaining.contains("''temperature_0''") && maintaining.contains("''heating''"),
-                maintaining);
-
-        // Init never stays in begin - it stops itself - so nothing is stabilized there.
-        assertTrue(found.find(Tag.kind(ExtraInvariant.Kind.STABILIZED_VARIABLES),
-                Tag.state("Init", "begin")).isEmpty());
+        assertTrue(analyse(LAMP, Selection.none()).isEmpty());
     }
 
+    /**
+     * A source plugged in from outside goes through the same check: a true guess is kept,
+     * a false one dropped, and the survivor becomes an invariant.
+     */
     @Test
-    void annotatedTankNeverStops() throws IOException {
-        ExtraInvariants found = analyse(PROGRAMS.resolve("annotatedTank.rcs"));
-        String states = render(only(found.find(Tag.kind(ExtraInvariant.Kind.PROCESS_STATES))));
-        assertFalse(states.contains("''stop''"), states);
+    void aPluggedInSourceIsCheckedLikeAnyOther() throws IOException {
+        // "In lit, level is this" - with the hypothesis a real source would give it.
+        record LevelAtMost(long bound) implements Candidate {
+            @Override
+            public Set<String> concerns() {
+                return Set.of("Switch");
+            }
+
+            @Override
+            public boolean assume(CycleStart start) {
+                return !"lit".equals(start.initialState("Switch")) || start.assumeValue("#level", Value.of(bound));
+            }
+
+            @Override
+            public boolean holdsAt(Boundary boundary) {
+                if (!"lit".equals(boundary.pstate("Switch"))) {
+                    return boundary.pstate("Switch") != null;
+                }
+                Value level = boundary.value("#level");
+                return level != null && level.number().longValue() == bound;
+            }
+        }
+        List<Long> kept = new ArrayList<>();
+        CandidateSource<LevelAtMost> source = new CandidateSource<>() {
+            @Override
+            public Set<ExtraInvariant.Kind> kinds() {
+                return Set.of(ExtraInvariant.Kind.CUSTOM);
+            }
+
+            @Override
+            public List<LevelAtMost> guess(AnalysisContext context) {
+                return List.of(new LevelAtMost(5), new LevelAtMost(4));
+            }
+
+            @Override
+            public void build(List<LevelAtMost> survivors, AnalysisContext context, ExtraInvariants into) {
+                survivors.forEach(s -> kept.add(s.bound()));
+                for (LevelAtMost survivor : survivors) {
+                    Term level = Terms.valueGetter(ExtraInvariant.STATE, context.typeOf("#level"), "#level", List.of());
+                    into.add(new ExtraInvariant("level_at_most_" + survivor.bound(), ExtraInvariant.Kind.CUSTOM,
+                            ExtraInvariant.Priority.MID,
+                            new Term.Infix("\\<le>", level, new Term.Var(Long.toString(survivor.bound()))),
+                            "level never exceeds " + survivor.bound()));
+                }
+            }
+        };
+        ReflexVcg generator = ReflexVcg.load(LAMP);
+        ExtraInvariants found = analysis(generator).addSource(source).generate(Selection.high());
+
+        assertEquals(List.of(5L), kept, "level is 5 in lit, not 4");
+        assertEquals(1, found.find(Tag.kind(ExtraInvariant.Kind.CUSTOM)).size());
     }
 
     @Test
     void theAnalysisIsDeterministic() throws IOException {
         Path source = PROGRAMS.resolve("newTurnstile.rcs");
-        assertEquals(renderAll(analyse(source)), renderAll(analyse(source)));
+        assertEquals(renderAll(analyse(source, Selection.low())), renderAll(analyse(source, Selection.low())));
+    }
+
+    @Test
+    void everyTestProgramIsAnalysed() throws IOException {
+        try (var files = Files.list(PROGRAMS)) {
+            for (Path program : files.filter(f -> f.toString().endsWith(".rcs")).sorted().toList()) {
+                ExtraInvariants found = analyse(program, Selection.low());
+                assertFalse(found.find(Tag.kind(ExtraInvariant.Kind.PROCESS_STATES)).isEmpty(), program.toString());
+            }
+        }
     }
 
     // ------------------------------------------------------------------ helpers
 
-    private ExtraInvariants analyse(String source) throws IOException {
-        Path file = Files.createTempFile("lamp", ".rcs");
-        Files.writeString(file, source);
-        return analyse(file);
+    static ExtraInvariants analyse(Path source, Selection selection) throws IOException {
+        return analysis(ReflexVcg.load(source)).generate(selection);
     }
 
-    private static ExtraInvariants analyse(Path source) throws IOException {
-        ReflexVcg generator = ReflexVcg.load(source);
-        IsabelleRenderer renderer = new IsabelleRenderer();
+    static StructuralInvariants analysis(ReflexVcg generator) {
         return new StructuralInvariants(generator.getProgram(), generator.getCfg(),
-                new ExpressionRendering() {
-                    @Override
-                    public String expression(IrExpr expression, String state) {
-                        return renderer.renderExpression(expression, state);
-                    }
+                new IsabelleRenderer()::renderExpression);
+    }
 
-                    @Override
-                    public String duration(TimeRef duration, String state) {
-                        return renderer.renderDuration(duration, state);
-                    }
-                }).generate();
+    private static Path write(String source) throws IOException {
+        Path file = Files.createTempFile("extra", ".rcs");
+        Files.writeString(file, source);
+        return file;
     }
 
     private String render(ExtraInvariant invariant) {
         return terms.render(invariant.formula());
+    }
+
+    private List<String> rendered(ExtraInvariants found, ExtraInvariant.Kind kind) {
+        return found.find(Tag.kind(kind)).stream().map(this::render).toList();
     }
 
     private String renderAll(ExtraInvariants invariants) {
@@ -225,9 +396,11 @@ class StructuralInvariantsTest {
         return all.toString();
     }
 
-    private static ExtraInvariant only(List<ExtraInvariant> found) {
-        assertEquals(1, found.size(), found.toString());
-        assertNotNull(found.get(0));
-        return found.get(0);
+    private static ExtraInvariant only(ExtraInvariants found, ExtraInvariant.Kind kind, Tag... more) {
+        List<Tag> tags = new ArrayList<>(List.of(more));
+        tags.add(Tag.kind(kind));
+        List<ExtraInvariant> matching = found.find(tags);
+        assertEquals(1, matching.size(), kind + " " + List.of(more) + ": " + matching);
+        return matching.get(0);
     }
 }

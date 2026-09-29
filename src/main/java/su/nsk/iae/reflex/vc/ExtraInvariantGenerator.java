@@ -2,84 +2,69 @@ package su.nsk.iae.reflex.vc;
 
 import su.nsk.iae.reflex.cfg.Cfg;
 import su.nsk.iae.reflex.frontend.AnnotationBinder;
-import su.nsk.iae.reflex.inv.ExpressionRendering;
+import su.nsk.iae.reflex.inv.CandidateSource;
 import su.nsk.iae.reflex.inv.ExtraInvariant;
 import su.nsk.iae.reflex.inv.ExtraInvariants;
+import su.nsk.iae.reflex.inv.Selection;
 import su.nsk.iae.reflex.inv.StructuralInvariants;
 import su.nsk.iae.reflex.inv.Tag;
 import su.nsk.iae.reflex.ir.Annotation;
-import su.nsk.iae.reflex.ir.IrExpr;
 import su.nsk.iae.reflex.ir.IrProgram;
-import su.nsk.iae.reflex.ir.TimeRef;
 import su.nsk.iae.reflex.term.Term;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 /**
- * Extra invariants: derived from the structure of the program, stated alongside the
- * engineer's, and proved like them.
+ * Every invariant a condition may rely on besides the ones it is proving: the annotation
+ * invariants, and those derived from the program's structure (extra-invariants.md).
  *
- * <p>{@link #analyse()} runs {@link StructuralInvariants} over the graph and keeps the
- * invariants the {@link Level} asks for. The overview (mainOverview.tex, "Auxiliary
- * lemmas") splits them into an <em>advanced</em> group used by default - the states a
- * process can be in, and the values variables hold in them - and an <em>optional</em> group
- * that has to be asked for, the transition conditions.
- *
- * <p>They reach the output three ways:
+ * <p>All of them live in one {@link ExtraInvariants} container, tagged, and reach the
+ * output by priority:
  * <ul>
- *   <li>Each is a definition in {@value VcWriter#EXTRA_THEORY}, and their conjunction is
- *       {@value #COMBINED}.</li>
- *   <li>{@link #process} gives a condition the ones that concern it as assumptions about
- *       its first state - those about the process states the path passes through, found
- *       by their tags, since a condition only ever meets a couple of states of each
- *       process.</li>
- *   <li>{@link #obligations} adds, for every cycle and for the base case, a condition
- *       showing that {@value #COMBINED} holds at its end. That is what makes assuming them
- *       sound: together with the main conditions it is the inductive step for the global
- *       invariant and the extra ones combined. Nothing is taken on trust from the
- *       analysis.</li>
+ *   <li><b>High</b> - the annotation invariants and the states each process can be in -
+ *       are part of {@code inv} itself: every condition assumes them at its first state
+ *       and every cycle proves them at its last, exactly as it always has for annotations.
+ *       No condition is added for them.</li>
+ *   <li><b>Mid</b> and <b>low</b>, when the {@link Selection} asks for them, are
+ *       conjoined into {@value #COMBINED}. {@link #process} gives each condition those
+ *       tagged with a state its path passes through, as assumptions about its first state;
+ *       {@link #obligations} adds, for every cycle and for the base case, a condition
+ *       showing {@value #COMBINED} holds at its end. With the main conditions that is the
+ *       induction for {@code inv} and {@value #COMBINED} together: nothing is taken on
+ *       trust from the analysis.</li>
  * </ul>
  *
- * <p>The default level is {@link Level#NONE}, which leaves the output exactly as it was.
- * Every hook can still be overridden, which is how further analyses or post-processing of
- * conditions get added without re-plumbing the generator.
+ * <p>Derived invariants are defined in {@value VcWriter#EXTRA_THEORY}; annotation
+ * invariants are written where they always were. Every hook can be overridden, and
+ * {@link #addSource} plugs in another way of finding invariants without touching the rest.
  */
 public class ExtraInvariantGenerator {
 
-    /** The predicate holding every extra invariant in use. */
+    /** The predicate holding every mid and low invariant in use. */
     public static final String COMBINED = "extraInv";
-
-    /** Which extra invariants the conditions are given. */
-    public enum Level {
-        /** None: nothing is generated, and the output is as without this stage. */
-        NONE,
-        /** The advanced group: process states, and defined and stabilized variables. */
-        ADVANCED,
-        /** Both groups: the transition conditions as well. */
-        ALL
-    }
 
     private final IrProgram program;
     private final Cfg cfg;
     private final AnnotationBinder annotations;
-    private final Level level;
+    private final Selection selection;
+    private final List<CandidateSource<?>> sources = new ArrayList<>();
+    private final ExtraInvariants invariants = new ExtraInvariants();
+    private List<String> diagnostics = List.of();
+    private int annotationCount;
 
-    private ExtraInvariants invariants = new ExtraInvariants();
-    private List<ExtraInvariant> selected = List.of();
-
+    /** At the default selection: the high priority only. */
     public ExtraInvariantGenerator(IrProgram program, Cfg cfg, AnnotationBinder annotations) {
-        this(program, cfg, annotations, Level.NONE);
+        this(program, cfg, annotations, Selection.high());
     }
 
     public ExtraInvariantGenerator(IrProgram program, Cfg cfg, AnnotationBinder annotations,
-                                   Level level) {
+                                   Selection selection) {
         this.program = program;
         this.cfg = cfg;
         this.annotations = annotations;
-        this.level = level;
+        this.selection = selection;
     }
 
     protected IrProgram getProgram() {
@@ -90,8 +75,8 @@ public class ExtraInvariantGenerator {
         return cfg;
     }
 
-    public Level getLevel() {
-        return level;
+    public Selection getSelection() {
+        return selection;
     }
 
     /** Annotations found in the source, whether or not they were bound to a construct. */
@@ -110,45 +95,100 @@ public class ExtraInvariantGenerator {
         return matching;
     }
 
-    /**
-     * Every invariant the analysis found, tagged, whether or not the level uses it. Empty
-     * until {@link #analyse()} has run.
-     */
+    /** Plugs in another source of candidates; it runs whatever the selection says. */
+    public void addSource(CandidateSource<?> source) {
+        sources.add(source);
+    }
+
+    // ------------------------------------------------------------------ the container
+
+    /** Every invariant known: the annotations registered, and what the analysis found. */
     public ExtraInvariants getInvariants() {
         return invariants;
     }
 
-    /** The invariants the conditions are given, in the order they are written. */
-    public List<ExtraInvariant> selectedInvariants() {
-        return selected;
-    }
-
-    /** Whether anything is in use - whether there is a theory to write and import at all. */
-    public boolean isEnabled() {
-        return !selected.isEmpty();
-    }
-
-    /** Derives the extra invariants, run once before conditions are generated. */
-    public void analyse() {
-        if (level == Level.NONE) {
-            return;
+    /**
+     * Records an invariant written on the program, a process or a state, already
+     * translated. It becomes part of {@code inv}, where it always was.
+     */
+    public ExtraInvariant registerAnnotationInvariant(Annotation annotation, Term formula,
+                                                      String process, String state) {
+        List<Tag> tags = new ArrayList<>();
+        if (process != null) {
+            tags.add(Tag.process(process));
         }
-        IsabelleRenderer renderer = new IsabelleRenderer();
-        invariants = new StructuralInvariants(program, cfg, new ExpressionRendering() {
-            @Override
-            public String expression(IrExpr expression, String state) {
-                return renderer.renderExpression(expression, state);
-            }
-
-            @Override
-            public String duration(TimeRef duration, String state) {
-                return renderer.renderDuration(duration, state);
-            }
-        }).generate();
-        selected = level == Level.ALL
-                ? invariants.all()
-                : invariants.find(Tag.group(ExtraInvariant.Group.ADVANCED));
+        if (state != null) {
+            tags.add(Tag.state(process, state));
+        }
+        String text = annotation == null ? "" : annotation.getText();
+        return invariants.add(new ExtraInvariant("annotation_" + annotationCount++,
+                ExtraInvariant.Kind.ANNOTATION, formula, text), tags);
     }
+
+    /**
+     * Records the invariant written on a loop, already translated against the loop's entry
+     * and the state it is stated at. It is written to the loop invariant theory, as always.
+     */
+    public ExtraInvariant registerLoopInvariant(String name, Annotation annotation, Term formula) {
+        return invariants.add(new ExtraInvariant(name, ExtraInvariant.Kind.LOOP_INVARIANT, formula,
+                annotation == null ? "" : annotation.getText()), Tag.loop(name));
+    }
+
+    /** Derives the structural invariants the selection asks for; run once, before generation. */
+    public void analyse() {
+        IsabelleRenderer renderer = new IsabelleRenderer();
+        StructuralInvariants analysis = new StructuralInvariants(program, cfg, renderer::renderExpression);
+        sources.forEach(analysis::addSource);
+        analysis.generate(selection, invariants);
+        diagnostics = analysis.getDiagnostics();
+    }
+
+    /** What the analysis found worth reporting, such as static-analysis claims it could not confirm. */
+    public List<String> getDiagnostics() {
+        return diagnostics;
+    }
+
+    /** Derived invariants that go into {@code inv}: the high priority. */
+    public List<ExtraInvariant> invariantsInInv() {
+        List<ExtraInvariant> high = new ArrayList<>();
+        for (ExtraInvariant invariant : invariants) {
+            if (invariant.kind().isDerived() && invariant.kind() != ExtraInvariant.Kind.CUSTOM
+                    && invariant.priority() == ExtraInvariant.Priority.HIGH) {
+                high.add(invariant);
+            }
+        }
+        return high;
+    }
+
+    /** Derived invariants that go into {@value #COMBINED}: mid, low, and anything plugged in. */
+    public List<ExtraInvariant> selectedInvariants() {
+        List<ExtraInvariant> extra = new ArrayList<>();
+        for (ExtraInvariant invariant : invariants) {
+            if (invariant.kind().isDerived() && !invariantsInInv().contains(invariant)) {
+                extra.add(invariant);
+            }
+        }
+        return extra;
+    }
+
+    /** Whether there is anything for {@value VcWriter#EXTRA_THEORY} to hold. */
+    public boolean hasTheory() {
+        return !invariantsInInv().isEmpty() || !selectedInvariants().isEmpty();
+    }
+
+    /** Whether conditions get extra assumptions and obligations: whether {@value #COMBINED} says anything. */
+    public boolean isEnabled() {
+        return !selectedInvariants().isEmpty();
+    }
+
+    /** What the writer needs to write the extra-invariant theory, or null when there is none. */
+    public VcWriter.ExtraTheory theory() {
+        return hasTheory()
+                ? new VcWriter.ExtraTheory(invariants, invariantsInInv(), selectedInvariants(), COMBINED)
+                : null;
+    }
+
+    // ------------------------------------------------------------------ hooks
 
     /**
      * Definitions to write into the requirements theory, after the invariant. The extra
@@ -159,8 +199,8 @@ public class ExtraInvariantGenerator {
     }
 
     /**
-     * Gives a condition the extra invariants that concern it, as assumptions about the
-     * state it starts from. Returns the condition to write; returning null drops it.
+     * Gives a condition the mid and low invariants that concern it, as assumptions about
+     * the state it starts from. Returns the condition to write; returning null drops it.
      *
      * <p>Only a condition that assumes the global invariant gets them: the two are
      * established together, and a condition inside a loop body assumes neither, the
@@ -182,9 +222,9 @@ public class ExtraInvariantGenerator {
     }
 
     /**
-     * The conditions showing the extra invariants are kept: one for each cycle, and one
-     * for the base case. Each assumes all of them where it starts - not only the relevant
-     * ones - since that is the induction hypothesis.
+     * The conditions showing the mid and low invariants are kept: one for each cycle, and
+     * one for the base case. Each assumes all of them where it starts - not only the
+     * relevant ones - since that is the induction hypothesis.
      */
     public List<VerificationCondition> obligations(VerificationCondition condition) {
         if (!isEnabled() || condition.getKind() != VerificationCondition.Kind.MAIN
@@ -207,26 +247,29 @@ public class ExtraInvariantGenerator {
     }
 
     /**
-     * The selected invariants concerning a condition: which states each process can be
-     * in, and those about a state some process is in, or moved to, on the path.
+     * The mid and low invariants concerning a condition: those not tied to a state, and
+     * those tied to a state some process is in, or moved to, on the path. A condition only
+     * ever meets a couple of states of each process, so this is what keeps its context
+     * small (mainOverview.tex, "Auxiliary lemmas").
      */
     protected List<ExtraInvariant> relevantTo(VerificationCondition condition) {
-        Set<ExtraInvariant> relevant = new LinkedHashSet<>(
-                invariants.find(Tag.kind(ExtraInvariant.Kind.PROCESS_STATES)));
+        Set<Tag> onPath = new java.util.LinkedHashSet<>();
         for (VcStatement statement : condition.getStatements()) {
             if (statement instanceof VcStatement.ProcessInState inState) {
-                relevant.addAll(invariants.find(Tag.state(inState.process(), inState.pstate())));
+                onPath.add(Tag.state(inState.process(), inState.pstate()));
             } else if (statement instanceof VcStatement.SetProcessState moved) {
-                relevant.addAll(invariants.find(Tag.state(moved.process(), moved.pstate())));
+                onPath.add(Tag.state(moved.process(), moved.pstate()));
             }
         }
-        List<ExtraInvariant> inUse = new ArrayList<>();
-        for (ExtraInvariant invariant : selected) {
-            if (relevant.contains(invariant)) {
-                inUse.add(invariant);
+        List<ExtraInvariant> relevant = new ArrayList<>();
+        for (ExtraInvariant invariant : selectedInvariants()) {
+            List<Tag> states = invariants.tagsOf(invariant).stream()
+                    .filter(tag -> tag.key().equals("state")).toList();
+            if (states.isEmpty() || states.stream().anyMatch(onPath::contains)) {
+                relevant.add(invariant);
             }
         }
-        return inUse;
+        return relevant;
     }
 
     private static int invariantPosition(VerificationCondition condition) {

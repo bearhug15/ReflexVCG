@@ -32,10 +32,11 @@ class ExtraInvariantsTest {
     }
 
     @Test
-    void kindAndGroupAreTaggedWithoutBeingAskedFor() {
-        assertEquals(List.of(pumpStates, pumpOn, pumpOnStable, valveOpen),
-                container.find(Tag.group(ExtraInvariant.Group.ADVANCED)));
-        assertEquals(List.of(pumpOnEntry), container.find(Tag.group(ExtraInvariant.Group.OPTIONAL)));
+    void kindAndPriorityAreTaggedWithoutBeingAskedFor() {
+        assertEquals(List.of(pumpStates), container.find(Tag.priority(ExtraInvariant.Priority.HIGH)));
+        assertEquals(List.of(pumpOn, pumpOnStable, valveOpen),
+                container.find(Tag.priority(ExtraInvariant.Priority.MID)));
+        assertEquals(List.of(pumpOnEntry), container.find(Tag.priority(ExtraInvariant.Priority.LOW)));
         assertEquals(List.of(pumpOn, valveOpen),
                 container.find(Tag.kind(ExtraInvariant.Kind.DEFINED_VARIABLES)));
     }
@@ -44,7 +45,7 @@ class ExtraInvariantsTest {
     void findReturnsWhatCarriesEveryTag() {
         assertEquals(List.of(pumpOn, pumpOnStable, pumpOnEntry), container.find(Tag.state("Pump", "on")));
         assertEquals(List.of(pumpOn, pumpOnStable), container.find(Tag.state("Pump", "on"),
-                Tag.group(ExtraInvariant.Group.ADVANCED)));
+                Tag.priority(ExtraInvariant.Priority.MID)));
         assertEquals(List.of(pumpOn, valveOpen), container.find(Tag.variable("x")));
         assertEquals(List.of(pumpOn), container.find(Tag.variable("x"), Tag.process("Pump")));
         assertTrue(container.find(Tag.variable("x"), Tag.state("Pump", "off")).isEmpty());

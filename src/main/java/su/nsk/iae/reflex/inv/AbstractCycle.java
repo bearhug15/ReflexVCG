@@ -1,8 +1,8 @@
 package su.nsk.iae.reflex.inv;
 
 import su.nsk.iae.reflex.cfg.CfgNode;
+import su.nsk.iae.reflex.inv.EntryCollector.Fact;
 import su.nsk.iae.reflex.ir.IrExpr;
-import su.nsk.iae.reflex.term.Term;
 import su.nsk.iae.reflex.term.Terms;
 import su.nsk.iae.reflex.vc.IsabelleRenderer;
 
@@ -25,104 +25,58 @@ import java.util.function.Predicate;
  * process began when it reaches that process's {@link CfgNode.InState}: every path passes
  * exactly one per process.
  *
- * <p>It also carries what the transition analysis needs: the guards passed since the
- * running process's body began, dropped as soon as something they read is written, and
- * each {@code set state} met, to be judged when the path is known to be possible.
+ * <p>Alongside that it keeps a strict upper bound on each process's {@code ltime}, the
+ * order of every write and state change - which is what says whether a variable was
+ * written since a process last changed state - and, for the transition analysis, what still
+ * holds of the running process's body and each state change met.
  *
  * <p>Copied at every branch, so the two sides of a branch never see each other's effects.
  */
-final class AbstractCycle {
+final class AbstractCycle implements Boundary, CycleStart {
 
-    /** A constant value: a bool, or a number of whichever HOL sort the variable has. */
-    record Const(boolean isBool, BigInteger number) {
-        static Const of(boolean value) {
-            return new Const(true, value ? BigInteger.ONE : BigInteger.ZERO);
-        }
-
-        static Const of(BigInteger value) {
-            return new Const(false, value);
-        }
-
-        boolean truth() {
-            return number.signum() != 0;
-        }
-
-        Term term() {
-            if (isBool) {
-                return truth() ? Terms.TRUE : Terms.FALSE;
-            }
-            return number.signum() < 0
-                    ? new Term.Prefix("-", new Term.Var(number.negate().toString()))
-                    : new Term.Var(number.toString());
-        }
-
-        @Override
-        public String toString() {
-            return isBool ? Boolean.toString(truth()) : number.toString();
-        }
+    /** A process's state at some point: known, unknown, or as it was when the cycle began. */
+    record PState(String process, String known, boolean initial) {
     }
 
-    /**
-     * A guard that held on the way through the running process's body, stated about the
-     * state {@link StructuralInvariants#TRANSITION_STATE} names.
-     *
-     * @param reads     the variables it reads, any write to which invalidates it
-     * @param processes the processes whose state it reads
-     * @param timerOf   the process whose timer it compares against, or null
-     * @param timed     whether it says a timeout has been reached
-     */
-    record Fact(Term term, Set<String> reads, Set<String> processes, String timerOf,
-                boolean timed) {
+    /** A state change, and where it fell among the writes. */
+    private record PstateEvent(String process, String target, PState before, int position) {
     }
 
-    /**
-     * A {@code set state} met on the path, kept until the path is known to be possible.
-     *
-     * @param before    the target's state just before it
-     * @param executing the process whose body the statement is in, and its state
-     */
+    /** A state change met on the path, kept until the path is known to be possible. */
     record PendingEntry(String process, String state, PState before,
                         String executing, PState executingState, List<Fact> facts) {
     }
 
-    /** A process's state at some point: known, unknown, or as it was when the cycle began. */
-    record PState(String process, String known, boolean initial) {
-        static final boolean INITIAL = true;
-    }
-
-    // ------------------------------------------------------------------ state
-
+    private final AnalysisContext context;
     /**
      * True for a walk starting somewhere nothing is known about: the body of a loop, which
      * starts mid-cycle. Then "as the cycle began" means unknown.
      */
     private final boolean opaqueStart;
 
-    /** Variables known to hold a constant. */
-    private final Map<String, Const> values;
-    /** Variables written with something not known. Neither here nor above: as at the start. */
+    private final Map<String, Value> values;
     private final Set<String> unknownValues;
-    /** Processes whose state is known. */
     private final Map<String, String> pstates;
-    /** Processes whose state is not known. Neither here nor above: as at the start. */
     private final Set<String> unknownPstates;
-    /** The state each process was in when the cycle began, once its body is reached. */
     private final Map<String, String> initialPstates;
-    /**
-     * The state each process was in at the last boundary passed - the start of the cycle,
-     * or the state past a loop. Absent means as at the start.
-     */
     private final Map<String, String> boundaryPstates;
     private final Set<String> boundaryUnknown;
-    /** What the induction hypothesis says the variables held when the cycle began. */
-    private final Map<String, Const> startValues;
+    private final Map<String, Value> startValues;
+    /** Every variable written, in order. */
+    private final List<String> writes;
+    private final List<PstateEvent> events;
+    /** Bounds on ltime: absent means as at the start, a null value unknown. */
+    private final Map<String, Long> timers;
+    /** Bounds on ltime as it was at the start of the cycle. */
+    private final Map<String, Long> startTimers;
 
     private String executing;
     private final List<Fact> facts;
     private final List<PendingEntry> pending;
     private boolean impossible;
 
-    AbstractCycle(boolean opaqueStart) {
+    AbstractCycle(AnalysisContext context, boolean opaqueStart) {
+        this.context = context;
         this.opaqueStart = opaqueStart;
         this.values = new LinkedHashMap<>();
         this.unknownValues = new LinkedHashSet<>();
@@ -132,11 +86,16 @@ final class AbstractCycle {
         this.boundaryPstates = new LinkedHashMap<>();
         this.boundaryUnknown = new LinkedHashSet<>();
         this.startValues = new LinkedHashMap<>();
+        this.writes = new ArrayList<>();
+        this.events = new ArrayList<>();
+        this.timers = new LinkedHashMap<>();
+        this.startTimers = new LinkedHashMap<>();
         this.facts = new ArrayList<>();
         this.pending = new ArrayList<>();
     }
 
     private AbstractCycle(AbstractCycle other) {
+        this.context = other.context;
         this.opaqueStart = other.opaqueStart;
         this.values = new LinkedHashMap<>(other.values);
         this.unknownValues = new LinkedHashSet<>(other.unknownValues);
@@ -146,6 +105,10 @@ final class AbstractCycle {
         this.boundaryPstates = new LinkedHashMap<>(other.boundaryPstates);
         this.boundaryUnknown = new LinkedHashSet<>(other.boundaryUnknown);
         this.startValues = new LinkedHashMap<>(other.startValues);
+        this.writes = new ArrayList<>(other.writes);
+        this.events = new ArrayList<>(other.events);
+        this.timers = new LinkedHashMap<>(other.timers);
+        this.startTimers = new LinkedHashMap<>(other.startTimers);
         this.executing = other.executing;
         this.facts = new ArrayList<>(other.facts);
         this.pending = new ArrayList<>(other.pending);
@@ -164,6 +127,10 @@ final class AbstractCycle {
         impossible = true;
     }
 
+    boolean isInsideLoop() {
+        return opaqueStart;
+    }
+
     List<PendingEntry> pending() {
         return pending;
     }
@@ -172,40 +139,99 @@ final class AbstractCycle {
         return executing;
     }
 
-    // ------------------------------------------------------------------ reading
+    void setExecuting(String process) {
+        executing = process;
+    }
 
-    /** A variable's value now, or null when it is not known. */
-    Const valueOf(String variable, Map<String, Const> constants) {
+    // ------------------------------------------------------------------ Boundary
+
+    @Override
+    public String pstate(String process) {
+        return resolve(stateNow(process));
+    }
+
+    @Override
+    public String previousPstate(String process) {
+        if (boundaryUnknown.contains(process)) {
+            return null;
+        }
+        String known = boundaryPstates.get(process);
+        return known != null ? known : resolve(new PState(process, null, true));
+    }
+
+    @Override
+    public Value value(String variable) {
         if (unknownValues.contains(variable)) {
             return null;
         }
-        Const known = values.get(variable);
+        Value known = values.get(variable);
         if (known != null) {
             return known;
         }
         // Untouched since the cycle began. A constant has its declared value at every
         // boundary - the global invariant says so - and anything else has whatever the
         // induction hypothesis says it had.
-        Const constant = constants.get(variable);
+        Value constant = context.constants().get(variable);
         if (constant != null) {
             return constant;
         }
         return opaqueStart ? null : startValues.get(variable);
     }
 
-    /** A process's state now, or null when it is not known. */
-    String pstateOf(String process) {
-        return resolve(stateNow(process));
+    @Override
+    public Long timerBelow(String process) {
+        if (timers.containsKey(process)) {
+            return timers.get(process);
+        }
+        return opaqueStart ? null : startTimers.get(process);
     }
 
-    /** A process's state at the last boundary passed, or null when it is not known. */
-    String boundaryPstateOf(String process) {
-        if (boundaryUnknown.contains(process)) {
-            return null;
+    /**
+     * The window starts at the last state change of the process known to have changed its
+     * state - the one {@code prevProcState} stops at, or a later one. A change whose effect
+     * cannot be told is left out, which only makes the window longer than it has to be.
+     */
+    @Override
+    public boolean writtenSinceEntry(String process, String variable) {
+        int start = 0;
+        boolean lost = false;
+        for (PstateEvent event : events) {
+            if (!event.process().equals(process)) {
+                continue;
+            }
+            if (event.target() == null) {
+                // Moved inside a loop, past which prevProcState is not known at all.
+                lost = true;
+                continue;
+            }
+            String before = resolve(event.before());
+            if (before != null && !before.equals(event.target())) {
+                start = event.position();
+                lost = false;
+            }
         }
-        String known = boundaryPstates.get(process);
-        return known != null ? known : resolve(new PState(process, null, PState.INITIAL));
+        return lost || writes.subList(start, writes.size()).contains(variable);
     }
+
+    // ------------------------------------------------------------------ CycleStart
+
+    @Override
+    public String initialState(String process) {
+        return initialPstates.get(process);
+    }
+
+    @Override
+    public boolean assumeValue(String variable, Value value) {
+        Value previous = startValues.putIfAbsent(variable, value);
+        return previous == null || previous.equals(value);
+    }
+
+    @Override
+    public void assumeTimerBelow(String process, long bound) {
+        startTimers.merge(process, bound, Math::min);
+    }
+
+    // ------------------------------------------------------------------ reading
 
     PState stateNow(String process) {
         if (unknownPstates.contains(process)) {
@@ -214,11 +240,14 @@ final class AbstractCycle {
         String known = pstates.get(process);
         return known != null
                 ? new PState(process, known, false)
-                : new PState(process, null, PState.INITIAL);
+                : new PState(process, null, true);
     }
 
     /** What a recorded process state turned out to be, now more of the path is known. */
     String resolve(PState state) {
+        if (state == null) {
+            return null;
+        }
         if (state.known() != null) {
             return state.known();
         }
@@ -230,8 +259,8 @@ final class AbstractCycle {
 
     // ------------------------------------------------------------------ effects
 
-    /** Sets a variable, as the start of a cycle would have it. */
-    void setValue(String variable, Const value) {
+    /** A write: a known constant, or null for a value not known. */
+    void setValue(String variable, Value value) {
         if (value == null) {
             values.remove(variable);
             unknownValues.add(variable);
@@ -239,26 +268,74 @@ final class AbstractCycle {
             unknownValues.remove(variable);
             values.put(variable, value);
         }
+        writes.add(variable);
         facts.removeIf(fact -> fact.reads().contains(variable));
     }
 
+    /** A state change, or - with a null state - one the walk cannot see, inside a loop. */
     void setPstate(String process, String state) {
         if (state == null) {
+            events.add(new PstateEvent(process, null, null, writes.size()));
             pstates.remove(process);
             unknownPstates.add(process);
         } else {
+            events.add(new PstateEvent(process, state, stateNow(process), writes.size()));
             unknownPstates.remove(process);
             pstates.put(process, state);
+            // setPstate restarts the process's time in its state.
+            timers.put(process, 1L);
         }
-        // Moving a process also restarts its timer.
         facts.removeIf(fact -> fact.processes().contains(process) || process.equals(fact.timerOf()));
     }
 
     void resetTimer(String process) {
+        timers.put(process, 1L);
         facts.removeIf(fact -> process.equals(fact.timerOf()));
     }
 
-    /** Every timer has moved on: an environment step has happened. */
+    void setTimerBelow(String process, Long bound) {
+        timers.put(process, bound);
+    }
+
+    /**
+     * A timeout's check: whether the time in the state has reached {@code duration}.
+     *
+     * @return false when that contradicts what is known of the timer
+     */
+    boolean timeout(String process, Long duration, boolean reached) {
+        if (duration == null) {
+            return true;
+        }
+        Long below = timerBelow(process);
+        if (reached) {
+            return below == null || below > duration;
+        }
+        // Unchanged since it was last known, so what holds now holds from here on too.
+        timers.put(process, below == null ? duration : Math.min(below, duration));
+        return true;
+    }
+
+    /** An environment step: every process's time in its state grows by one tick. */
+    void advanceTimers() {
+        for (String process : context.processes()) {
+            Long below = timerBelow(process);
+            timers.put(process, below == null ? null : below + context.clock());
+        }
+    }
+
+    /**
+     * A loop has run, some unknown number of times: what its body writes is unknown, the
+     * processes it moves are in unknown states, and every timer has moved on by an unknown
+     * number of iterations, each of which ends in an environment step.
+     */
+    void loopRan(Set<String> written, Set<String> moved) {
+        written.forEach(variable -> setValue(variable, null));
+        moved.forEach(process -> setPstate(process, null));
+        context.processes().forEach(process -> timers.put(process, null));
+        timePasses();
+    }
+
+    /** Every timer has moved on: facts about them no longer hold. */
     void timePasses() {
         facts.removeIf(fact -> fact.timerOf() != null);
     }
@@ -270,7 +347,7 @@ final class AbstractCycle {
      *
      * @return false when this contradicts what is already known
      */
-    boolean enter(String process, String state, Predicate<String> onLearnt) {
+    boolean enter(String process, String state, Predicate<AbstractCycle> onLearnt) {
         executing = process;
         facts.clear();
         if (unknownPstates.contains(process)) {
@@ -287,22 +364,32 @@ final class AbstractCycle {
             return true;
         }
         initialPstates.put(process, state);
-        return onLearnt.test(state);
+        return onLearnt.test(this);
     }
 
     /**
-     * The hypothesis says {@code variable} held {@code value} when the cycle began.
-     *
-     * @return false when it already said something else
+     * Whether the process is still as it began the cycle, without the walk knowing where
+     * that was - so a state change now would hide it for good.
      */
-    boolean assumeAtStart(String variable, Const value) {
-        Const previous = startValues.putIfAbsent(variable, value);
-        return previous == null || previous.equals(value);
+    boolean startUnseen(String process) {
+        return !opaqueStart && !unknownPstates.contains(process) && !pstates.containsKey(process)
+                && !initialPstates.containsKey(process);
     }
 
-    /** The state reached is a boundary, so what comes next measures from it. */
-    void boundaryPassed(Iterable<String> processes) {
-        for (String process : processes) {
+    /**
+     * The process began the cycle in {@code state}, which brings the hypotheses about that
+     * state into play; its state now is still that one.
+     *
+     * @return false when that contradicts what is already known
+     */
+    boolean learnStart(String process, String state, Predicate<AbstractCycle> onLearnt) {
+        initialPstates.put(process, state);
+        return onLearnt.test(this);
+    }
+
+    /** The state reached is a boundary, so the next one's {@code predEnv} is this one. */
+    void boundaryPassed() {
+        for (String process : context.processes()) {
             PState now = stateNow(process);
             if (now.known() != null) {
                 boundaryUnknown.remove(process);
@@ -313,10 +400,6 @@ final class AbstractCycle {
             }
             // As at the start: the boundary state is where it began, which it still reads.
         }
-    }
-
-    void setExecuting(String process) {
-        executing = process;
     }
 
     void addFact(Fact fact) {
@@ -337,48 +420,46 @@ final class AbstractCycle {
      * <p>Follows the HOL reading the renderer gives the expression, not C: numbers are
      * unbounded, and a subtraction whose result is a nat stops at zero.
      */
-    Const evaluate(IrExpr expr, Map<String, Const> constants) {
+    Value evaluate(IrExpr expr) {
         if (expr instanceof IrExpr.Literal literal) {
             return switch (literal.getKind()) {
-                case BOOL -> Const.of(literal.getText().equals("true"));
-                case INTEGER -> Const.of(BigInteger.valueOf(
-                        IsabelleRenderer.parseInteger(literal.getText())));
-                case TIME -> Const.of(BigInteger.valueOf(
-                        IsabelleRenderer.parseTimeMillis(literal.getText())));
+                case BOOL -> Value.of(literal.getText().equals("true"));
+                case INTEGER -> Value.of(IsabelleRenderer.parseInteger(literal.getText()));
+                case TIME -> Value.of(IsabelleRenderer.parseTimeMillis(literal.getText()));
                 case FLOAT -> null;
             };
         }
         if (expr instanceof IrExpr.VarRef ref) {
-            return ref.getAccesses().isEmpty() ? valueOf(ref.getName(), constants) : null;
+            return ref.getAccesses().isEmpty() ? value(ref.getName()) : null;
         }
         if (expr instanceof IrExpr.Cast cast) {
-            return convert(evaluate(cast.getOperand(), constants),
+            return convert(evaluate(cast.getOperand()),
                     Terms.sortOf(cast.getPreType()), Terms.sortOf(cast.getTargetType()));
         }
         if (expr instanceof IrExpr.Unary unary) {
-            Const operand = evaluate(unary.getOperand(), constants);
+            Value operand = evaluate(unary.getOperand());
             if (operand == null) {
                 return null;
             }
             return switch (unary.getOp()) {
-                case NOT -> Const.of(!operand.truth());
+                case NOT -> Value.of(!operand.truth());
                 case PLUS -> operand;
                 case NEG -> Terms.sortOf(unary.getResultType()) == Terms.Sort.INT
-                        ? Const.of(operand.number().negate()) : null;
+                        ? Value.of(operand.number().negate()) : null;
                 case BIT_NOT -> null;
             };
         }
         if (expr instanceof IrExpr.Binary binary) {
-            return evaluateBinary(binary, constants);
+            return evaluateBinary(binary);
         }
         if (expr instanceof IrExpr.CheckState check) {
-            String state = pstateOf(check.getProcess());
+            String state = pstate(check.getProcess());
             if (state == null) {
                 return null;
             }
             boolean stopped = state.equals("stop");
             boolean failed = state.equals("error");
-            return Const.of(switch (check.getStatus()) {
+            return Value.of(switch (check.getStatus()) {
                 case STOP -> stopped;
                 case ERROR -> failed;
                 case INACTIVE -> stopped || failed;
@@ -389,20 +470,20 @@ final class AbstractCycle {
         return null;
     }
 
-    private Const evaluateBinary(IrExpr.Binary binary, Map<String, Const> constants) {
-        Const left = evaluate(binary.getLeft(), constants);
-        Const right = evaluate(binary.getRight(), constants);
+    private Value evaluateBinary(IrExpr.Binary binary) {
+        Value left = evaluate(binary.getLeft());
+        Value right = evaluate(binary.getRight());
         switch (binary.getOp()) {
             case AND:
                 if ((left != null && !left.truth()) || (right != null && !right.truth())) {
-                    return Const.of(false);
+                    return Value.of(false);
                 }
-                return left == null || right == null ? null : Const.of(true);
+                return left == null || right == null ? null : Value.of(true);
             case OR:
                 if ((left != null && left.truth()) || (right != null && right.truth())) {
-                    return Const.of(true);
+                    return Value.of(true);
                 }
-                return left == null || right == null ? null : Const.of(false);
+                return left == null || right == null ? null : Value.of(false);
             default:
                 break;
         }
@@ -412,19 +493,19 @@ final class AbstractCycle {
         BigInteger a = left.number();
         BigInteger b = right.number();
         return switch (binary.getOp()) {
-            case ADD -> Const.of(a.add(b));
-            case MUL -> Const.of(a.multiply(b));
+            case ADD -> Value.of(a.add(b));
+            case MUL -> Value.of(a.multiply(b));
             case SUB -> {
                 BigInteger difference = a.subtract(b);
-                yield Const.of(Terms.sortOf(binary.getResultType()) == Terms.Sort.NAT
+                yield Value.of(Terms.sortOf(binary.getResultType()) == Terms.Sort.NAT
                         && difference.signum() < 0 ? BigInteger.ZERO : difference);
             }
-            case LT -> Const.of(a.compareTo(b) < 0);
-            case LE -> Const.of(a.compareTo(b) <= 0);
-            case GT -> Const.of(a.compareTo(b) > 0);
-            case GE -> Const.of(a.compareTo(b) >= 0);
-            case EQ -> Const.of(a.equals(b));
-            case NE -> Const.of(!a.equals(b));
+            case LT -> Value.of(a.compareTo(b) < 0);
+            case LE -> Value.of(a.compareTo(b) <= 0);
+            case GT -> Value.of(a.compareTo(b) > 0);
+            case GE -> Value.of(a.compareTo(b) >= 0);
+            case EQ -> Value.of(a.equals(b));
+            case NE -> Value.of(!a.equals(b));
             // Division rounds differently in HOL and C, and the bitwise operators are not
             // modelled; neither matters for the constants invariants are made of.
             default -> null;
@@ -432,7 +513,7 @@ final class AbstractCycle {
     }
 
     /** The conversions {@link Terms#cast} makes, on values. */
-    static Const convert(Const value, Terms.Sort from, Terms.Sort to) {
+    static Value convert(Value value, Terms.Sort from, Terms.Sort to) {
         if (value == null || to == Terms.Sort.REAL || from == Terms.Sort.REAL) {
             return null;
         }
@@ -440,9 +521,9 @@ final class AbstractCycle {
             return value;
         }
         return switch (to) {
-            case BOOL -> Const.of(value.truth());
-            case INT -> Const.of(value.number());
-            case NAT -> Const.of(value.number().signum() < 0 ? BigInteger.ZERO : value.number());
+            case BOOL -> Value.of(value.truth());
+            case INT -> Value.of(value.number());
+            case NAT -> Value.of(value.number().signum() < 0 ? BigInteger.ZERO : value.number());
             case REAL -> null;
         };
     }
