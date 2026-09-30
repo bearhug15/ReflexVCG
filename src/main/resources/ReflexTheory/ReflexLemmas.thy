@@ -171,7 +171,45 @@ lemma substate_eq_or_predEnv:
          apply(auto)
   done
 
-lemma substate_total: 
+(* The wrap every invariant carries, the engineer's and the derived ones alike -
+   \<forall> s1. toEnvP s1 \<and> substate s1 s \<and> scope s1 \<longrightarrow> body s1 - carried across one cycle:
+   it holds up to the cycle's end if it held up to the boundary before it, and the body
+   holds at the end itself where the scope does. With a scope (a process or a state
+   invariant) and without one (a program invariant). *)
+lemma wrapped_step:
+  assumes "predEnv sf = s0"
+      and "\<forall> s1. (toEnvP s1 \<and> substate s1 s0) \<and> G s1 \<longrightarrow> Q s1"
+      and "toEnvP sf \<Longrightarrow> G sf \<Longrightarrow> Q sf"
+  shows "\<forall> s1. (toEnvP s1 \<and> substate s1 sf) \<and> G s1 \<longrightarrow> Q s1"
+  using assms substate_eq_or_predEnv by blast
+
+lemma wrapped_step_unscoped:
+  assumes "predEnv sf = s0"
+      and "\<forall> s1. toEnvP s1 \<and> substate s1 s0 \<longrightarrow> Q s1"
+      and "toEnvP sf \<Longrightarrow> Q sf"
+  shows "\<forall> s1. toEnvP s1 \<and> substate s1 sf \<longrightarrow> Q s1"
+  using assms substate_eq_or_predEnv by blast
+
+(* Below emptyState there is no boundary, so every wrap holds there: the base case's
+   hypothesis. *)
+lemma wrapped_empty:
+  "\<forall> s1. (toEnvP s1 \<and> substate s1 emptyState) \<and> G s1 \<longrightarrow> Q s1"
+  by simp
+
+lemma wrapped_empty_unscoped:
+  "\<forall> s1. toEnvP s1 \<and> substate s1 emptyState \<longrightarrow> Q s1"
+  by simp
+
+(* The same wrap, read at the boundary it is stated about. *)
+lemma wrapped_here:
+  "\<forall> s1. (toEnvP s1 \<and> substate s1 s) \<and> G s1 \<longrightarrow> Q s1 \<Longrightarrow> toEnvP s \<Longrightarrow> G s \<longrightarrow> Q s"
+  using substate_refl by blast
+
+lemma wrapped_here_unscoped:
+  "\<forall> s1. toEnvP s1 \<and> substate s1 s \<longrightarrow> Q s1 \<Longrightarrow> toEnvP s \<Longrightarrow> Q s"
+  using substate_refl by blast
+
+lemma substate_total:
 "substate s1 s \<and> substate s2 s \<longrightarrow>
  substate s1 s2 \<or> substate s2 s1"
   apply(induction s)

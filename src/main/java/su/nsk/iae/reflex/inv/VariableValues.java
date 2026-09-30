@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.inv;
 
+import su.nsk.iae.reflex.ann.AnnTranslator;
 import su.nsk.iae.reflex.cfg.CfgNode;
 import su.nsk.iae.reflex.term.Term;
 import su.nsk.iae.reflex.term.Terms;
@@ -152,18 +153,18 @@ public final class VariableValues implements CandidateSource<VariableValues.Hold
         if (values.isEmpty()) {
             return;
         }
-        List<Term> premises = new ArrayList<>(List.of(Terms.pstateCompare(s, process, state)));
+        Term body = Terms.conjunction(values);
         String prefix = "extra_vars_";
         String when = "whenever " + process + " is in " + state;
         if (kind == ExtraInvariant.Kind.STABILIZED_VARIABLES) {
-            premises.add(Terms.pstateCompare(new Term.App("predEnv", List.of(s)), process, state));
+            body = Terms.implication(Terms.pstateCompare(new Term.App("predEnv", List.of(s)), process, state), body);
             prefix = "extra_stable_";
             when = "once " + process + " has been in " + state + " for two boundaries running";
         }
-        into.add(new ExtraInvariant(
+        into.add(ExtraInvariant.wrapped(
                 AnalysisContext.uniqueName(into, prefix + AnalysisContext.identifier(process) + "_"
                         + AnalysisContext.identifier(state)),
-                kind, Terms.implication(Terms.conjunction(premises), Terms.conjunction(values)),
+                kind, AnnTranslator.Scale.PSTATE, process, state, body,
                 String.join(", ", described) + " " + when), tags);
     }
 

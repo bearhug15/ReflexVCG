@@ -64,15 +64,36 @@ recorded_proof() {
 EXTRA=""
 [ -f "$GEN/ExtraInvariants.thy" ] && EXTRA="ExtraInvariants"
 
-# @structural: the one proof that closes the conditions about extra invariants - every
-# derived invariant's definition unfolded along with inv, and the chain of states computed.
+# @structural: the proof for conditions about wrapped invariants - every invariant's
+# definition unfolded along with inv, each wrapped goal carried across the cycle by
+# wrapped_step from the hypothesis at st0 (read at st0 by wrapped_here), and the rest computed
+# along the chain of states. The base case, which starts from emptyState, has no hypothesis:
+# nothing below emptyState is a boundary.
+STRUCTURAL=""
 if [ "$PROOF" = "@structural" ]; then
+  STRUCTURAL=1
   DEFS=""
   if [ -n "$EXTRA" ]; then
     DEFS="extraInv_def $(grep -o '^definition extra_[A-Za-z0-9_]*' "$GEN/ExtraInvariants.thy" \
       | sed 's/^definition //; s/$/_def/' | tr '\n' ' ')"
   fi
-  PROOF="using assms by (auto simp add: setVarVal_def constants_def inv_def Let_def $DEFS)"
+  STEP="rule wrapped_step[OF pred] wrapped_step_unscoped[OF pred]"
+  CYCLE_PROOF="proof -
+    have pred: \"predEnv st_final = st0\" using assms by (simp add: setVarVal_def)
+    show ?thesis
+      using assms unfolding inv_def constants_def $DEFS
+      apply ((elim conjE)?)
+      apply ((intro conjI)?; ((($STEP), assumption)?, ((drule wrapped_here[OF _ st0_boundary] wrapped_here_unscoped[OF _ st0_boundary])+)?, auto simp add: setVarVal_def Let_def))
+      done
+  qed"
+  BASE_PROOF="proof -
+    have pred: \"predEnv st_final = emptyState\" using assms by (simp add: setVarVal_def)
+    show ?thesis
+      using assms unfolding inv_def constants_def $DEFS
+      apply ((intro conjI)?; ((rule wrapped_step[OF pred wrapped_empty] wrapped_step_unscoped[OF pred wrapped_empty_unscoped])?, auto simp add: setVarVal_def Let_def))
+      done
+  qed"
+  PROOF="@structural"
 fi
 
 cat > "$GEN/ROOT" <<EOF
@@ -93,6 +114,9 @@ for f in "$GEN"/${PREFIX}_*.thy; do
   if [ -n "$PROOF_FILE" ]; then
     PROOF=$(recorded_proof "$short")
     [ -n "$PROOF" ] || continue
+  fi
+  if [ -n "$STRUCTURAL" ]; then
+    if grep -q '=emptyState' "$f"; then PROOF="$BASE_PROOF"; else PROOF="$CYCLE_PROOF"; fi
   fi
   mkdir -p "$WORK/$short"
   sed -e '/^  sorry$/d' -e '/^end$/d' \
@@ -143,6 +167,7 @@ echo
 if [ -n "$PROOF_FILE" ]; then
   echo "proved $proved of ${#sessions[@]} recorded in $PROOF_FILE"
 else
+  [ -n "$STRUCTURAL" ] && PROOF="@structural"
   echo "proved $proved of ${#sessions[@]} with: $PROOF"
 fi
 echo "log: $WORK/build.out"

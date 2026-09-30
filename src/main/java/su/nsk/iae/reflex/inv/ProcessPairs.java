@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.inv;
 
+import su.nsk.iae.reflex.ann.AnnTranslator;
 import su.nsk.iae.reflex.term.Term;
 import su.nsk.iae.reflex.term.Terms;
 
@@ -96,11 +97,10 @@ public final class ProcessPairs implements CandidateSource<ProcessPairs.Excluded
                 if (constraints.isEmpty()) {
                     continue;
                 }
-                into.add(new ExtraInvariant(
+                into.add(ExtraInvariant.wrapped(
                         AnalysisContext.uniqueName(into, "extra_pairs_" + AnalysisContext.identifier(first)
                                 + "_" + AnalysisContext.identifier(a)),
-                        ExtraInvariant.Kind.PROCESS_PAIRS,
-                        Terms.implication(Terms.pstateCompare(s, first, a), Terms.conjunction(constraints)),
+                        ExtraInvariant.Kind.PROCESS_PAIRS, AnnTranslator.Scale.PSTATE, first, a, Terms.conjunction(constraints),
                         "while " + first + " is in " + a + ": " + String.join(", ", described)), tags);
             }
         }

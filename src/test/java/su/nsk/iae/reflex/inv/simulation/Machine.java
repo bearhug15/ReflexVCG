@@ -145,16 +145,19 @@ final class Machine {
             state = state.toEnv();
             atBoundary.accept(state);
         } else if (node instanceof CfgNode.LoopCut cut) {
+            // Each iteration ends in an environment step, which the model makes a boundary.
             int iterations = 0;
             while (cut.getCondition() == null || (Boolean) evaluate(cut.getCondition(), state)) {
-                run(cut.getBodyEntry(), s -> { });
+                run(cut.getBodyEntry(), atBoundary);
                 state = state.toEnv();
+                atBoundary.accept(state);
                 if (++iterations > MAX_ITERATIONS) {
                     throw new IllegalStateException("a loop ran more than " + MAX_ITERATIONS + " times");
                 }
             }
             if (iterations == 0) {
                 state = state.toEnv();
+                atBoundary.accept(state);
             }
         } else if (node instanceof CfgNode.Unsupported unsupported) {
             throw new UnsupportedOperationException(unsupported.getConstruct());

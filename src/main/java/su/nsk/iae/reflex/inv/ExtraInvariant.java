@@ -1,6 +1,8 @@
 package su.nsk.iae.reflex.inv;
 
+import su.nsk.iae.reflex.ann.AnnTranslator;
 import su.nsk.iae.reflex.term.Term;
+import su.nsk.iae.reflex.term.Terms;
 
 import java.util.Objects;
 
@@ -8,11 +10,12 @@ import java.util.Objects;
  * One invariant a condition may rely on: written by the engineer as an annotation, or
  * derived from the structure of the program.
  *
- * <p>The formula is a predicate over {@link #STATE}. A derived invariant speaks about that
- * state alone - it is a claim about every reachable cycle boundary, established by
- * induction over cycles - while an annotation invariant keeps the shape the annotation
- * translator gives it. {@link #at} instantiates the formula elsewhere. Held as a
- * {@link Term}, so nothing here knows Isabelle.
+ * <p>The formula is a predicate over {@link #STATE}. Every invariant, annotated or derived,
+ * is written in the annotation invariants' wrap: its body stated at every boundary at or
+ * below {@link #STATE} that its scale covers. A derived invariant also keeps its
+ * {@link #claim}, the same statement about one boundary, which is what the analysis
+ * establishes boundary by boundary. {@link #at} instantiates the formula elsewhere. Held as
+ * a {@link Term}, so nothing here knows Isabelle.
  *
  * <p>What an invariant is about - its process, state, variables - is not part of it: those
  * are tags, held by the {@link ExtraInvariants} container, so a caller can attach its own
@@ -23,11 +26,30 @@ import java.util.Objects;
  * @param priority    how far it reaches into generation; see {@link Priority}
  * @param description a sentence saying what it claims, for the comment above it
  */
-public record ExtraInvariant(String name, Kind kind, Priority priority, Term formula,
+public record ExtraInvariant(String name, Kind kind, Priority priority, Term formula, Term claim,
                              String description) {
 
     /** The state the formula is stated about. */
     public static final Term STATE = new Term.Var("s");
+
+    /** The boundary a wrapped formula quantifies over. */
+    public static final Term BOUND = new Term.Var("s1");
+
+    /**
+     * A derived invariant, wrapped exactly as an annotation invariant of the same scale is
+     * ({@link AnnTranslator#invariantWrapper}): {@code body} is what it says about one
+     * boundary, and the formula says it of every boundary at or below {@link #STATE} that
+     * the scale covers. The claim is the same statement about {@link #STATE} alone, guard
+     * included - what the formula requires at each boundary.
+     *
+     * @param body a formula about {@link #STATE}
+     */
+    public static ExtraInvariant wrapped(String name, Kind kind, AnnTranslator.Scale scale,
+                                         String process, String state, Term body, String description) {
+        Term formula = AnnTranslator.invariantWrapper(body, STATE, STATE, BOUND, scale, process, state);
+        Term claim = Terms.implication(AnnTranslator.scopeGuard(STATE, scale, process, state), body);
+        return new ExtraInvariant(name, kind, kind.priority(), formula, claim, description);
+    }
 
     /**
      * How far an invariant reaches, decided by how hard it is to prove against how often a
@@ -117,9 +139,22 @@ public record ExtraInvariant(String name, Kind kind, Priority priority, Term for
         Objects.requireNonNull(formula, "formula");
     }
 
-    /** An invariant at the priority its kind has. */
+    /** An invariant at the priority its kind has, with no claim of its own. */
     public ExtraInvariant(String name, Kind kind, Term formula, String description) {
-        this(name, kind, kind.priority(), formula, description);
+        this(name, kind, kind.priority(), formula, null, description);
+    }
+
+    /** An invariant with no claim of its own: an annotation, or one plugged in as it stands. */
+    public ExtraInvariant(String name, Kind kind, Priority priority, Term formula, String description) {
+        this(name, kind, priority, formula, null, description);
+    }
+
+    /**
+     * What the invariant requires of one boundary: the claim, or the formula itself for an
+     * invariant built without one.
+     */
+    public Term claimOrFormula() {
+        return claim != null ? claim : formula;
     }
 
     /** The formula stated about {@code state} instead of {@link #STATE}. */

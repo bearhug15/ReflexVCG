@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.inv;
 
+import su.nsk.iae.reflex.ann.AnnTranslator;
 import su.nsk.iae.reflex.term.Term;
 import su.nsk.iae.reflex.term.TermRenderer;
 import su.nsk.iae.reflex.term.Terms;
@@ -106,12 +107,11 @@ public final class Transitions implements CandidateSource<Candidate>, EntryColle
                         tags.add(tag);
                     }
                 }
-                into.add(new ExtraInvariant(
+                into.add(ExtraInvariant.wrapped(
                         AnalysisContext.uniqueName(into, "extra_trans_" + AnalysisContext.identifier(process)
                                 + "_" + AnalysisContext.identifier(state)),
-                        ExtraInvariant.Kind.TRANSITION,
-                        Terms.implication(Terms.pstateCompare(s, process, state),
-                                UnchangedSinceEntry.sinceEntry(process, Terms.disjunction(disjuncts))),
+                        ExtraInvariant.Kind.TRANSITION, AnnTranslator.Scale.PSTATE, process, state,
+                        UnchangedSinceEntry.sinceEntry(process, Terms.disjunction(disjuncts)),
                         process + " can be in " + state + " only by " + found.size() + " way(s) in"), tags);
             }
         }

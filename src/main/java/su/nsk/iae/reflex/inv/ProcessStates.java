@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.inv;
 
+import su.nsk.iae.reflex.ann.AnnTranslator;
 import su.nsk.iae.reflex.term.Term;
 import su.nsk.iae.reflex.term.Terms;
 
@@ -70,9 +71,9 @@ public final class ProcessStates implements CandidateSource<ProcessStates.NotIn>
             List<String> reachable = reachable(process, survivors, context);
             List<Term> options = new ArrayList<>();
             reachable.forEach(state -> options.add(Terms.pstateCompare(ExtraInvariant.STATE, process, state)));
-            into.add(new ExtraInvariant(
+            into.add(ExtraInvariant.wrapped(
                             AnalysisContext.uniqueName(into, "extra_states_" + AnalysisContext.identifier(process)),
-                            ExtraInvariant.Kind.PROCESS_STATES, Terms.disjunction(options),
+                            ExtraInvariant.Kind.PROCESS_STATES, AnnTranslator.Scale.PROGRAM, null, null, Terms.disjunction(options),
                             process + " is only ever found in " + String.join(", ", reachable)),
                     Tag.process(process));
         }

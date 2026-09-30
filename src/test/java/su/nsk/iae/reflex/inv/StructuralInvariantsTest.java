@@ -84,8 +84,9 @@ class StructuralInvariantsTest {
     void aConstantWrittenOnEveryPassIsStabilized() throws IOException {
         ExtraInvariant lit = only(analyse(LAMP, Selection.mid()), ExtraInvariant.Kind.STABILIZED_VARIABLES,
                 Tag.state("Switch", "lit"));
-        assertEquals("((((getPstate s ''Switch'') = ''lit'') \\<and> ((getPstate (predEnv s) ''Switch'') = ''lit''))"
-                + " \\<longrightarrow> (theBool (getVarVal s ''outp_0'' [])))", render(lit));
+        assertEquals("(((getPstate s ''Switch'') = ''lit'') \\<longrightarrow> "
+                + "(((getPstate (predEnv s) ''Switch'') = ''lit'') \\<longrightarrow> (theBool (getVarVal s ''outp_0'' []))))",
+                render(lit));
     }
 
     /**
@@ -276,6 +277,61 @@ class StructuralInvariantsTest {
         assertTrue(analyse(program, Selection.low()).find(Tag.kind(ExtraInvariant.Kind.COPIED_ON_ENTRY)).isEmpty());
     }
 
+    // ------------------------------------------------------------------ the wrap
+
+    /**
+     * Every derived invariant is written in the wrap an annotation invariant of the same
+     * scale gets: at every boundary at or below s that its scope covers.
+     */
+    @Test
+    void everyDerivedInvariantIsWrappedLikeAnAnnotation() throws IOException {
+        ExtraInvariants found = analyse(LAMP, Selection.low());
+        String boundaries = "(\\<forall> s1. ((((toEnvP s1) \\<and> (substate s1 s))";
+        for (ExtraInvariant invariant : found) {
+            String formula = terms.render(invariant.formula());
+            if (invariant.kind() == ExtraInvariant.Kind.PROCESS_STATES) {
+                // A program-scale invariant: no scope beyond being a boundary.
+                assertTrue(formula.startsWith("(\\<forall> s1. (((toEnvP s1) \\<and> (substate s1 s)) \\<longrightarrow> "),
+                        formula);
+            } else {
+                String state = found.tagsOf(invariant).stream().filter(t -> t.key().equals("state"))
+                        .findFirst().orElseThrow().value().split("\\.")[1];
+                assertTrue(formula.startsWith(boundaries + " \\<and> ((getPstate s1 ''Switch'') = ''" + state
+                        + "'')) \\<longrightarrow> "), formula);
+            }
+        }
+    }
+
+    /** The wrap is the annotation translator's own, applied to the claim's body. */
+    @Test
+    void theWrapIsTheAnnotationWrapper() {
+        Term body = new Term.Infix("<", Terms.localTime(ExtraInvariant.STATE, "P"), new Term.Var("600"));
+        ExtraInvariant wrapped = ExtraInvariant.wrapped("t", ExtraInvariant.Kind.TIMER_BOUNDS,
+                su.nsk.iae.reflex.ann.AnnTranslator.Scale.PSTATE, "P", "busy", body, "");
+        assertEquals(su.nsk.iae.reflex.ann.AnnTranslator.invariantWrapper(body, ExtraInvariant.STATE,
+                ExtraInvariant.STATE, ExtraInvariant.BOUND, su.nsk.iae.reflex.ann.AnnTranslator.Scale.PSTATE,
+                "P", "busy"), wrapped.formula());
+        assertEquals("(((getPstate s ''P'') = ''busy'') \\<longrightarrow> ((ltime s ''P'') < 600))",
+                terms.render(wrapped.claim()));
+    }
+
+    // ------------------------------------------------------------------ the group attribute
+
+    /**
+     * groups.rcs: A may stop itself, B never stops, and the static analysis puts them in one
+     * group. The claim that they stop together is false - reported, not exported.
+     */
+    @Test
+    void aWrongGroupClaimIsReported() throws IOException {
+        StructuralInvariants analysis = analysis(ReflexVcg.load(Path.of("src/test/resources/programs-extra/groups.rcs")));
+        ExtraInvariants found = analysis.generate(Selection.of(ExtraInvariant.Kind.STATIC_ANALYSIS));
+        assertTrue(analysis.getDiagnostics().stream().anyMatch(d -> d.contains("group [A, B]") && d.contains("stop")),
+                analysis.getDiagnostics().toString());
+        // Neither ever fails, so "in error together" is true, and is all that is exported.
+        String exported = render(only(found, ExtraInvariant.Kind.STATIC_ANALYSIS, Tag.process("A"), Tag.process("B")));
+        assertEquals("(((getPstate s ''A'') = ''error'') = ((getPstate s ''B'') = ''error''))", exported);
+    }
+
     // ------------------------------------------------------------------ selection and sources
 
     @Test
@@ -379,8 +435,9 @@ class StructuralInvariantsTest {
         return file;
     }
 
+    /** What the invariant says about one boundary: the claim, without the wrap. */
     private String render(ExtraInvariant invariant) {
-        return terms.render(invariant.formula());
+        return terms.render(invariant.claimOrFormula());
     }
 
     private List<String> rendered(ExtraInvariants found, ExtraInvariant.Kind kind) {

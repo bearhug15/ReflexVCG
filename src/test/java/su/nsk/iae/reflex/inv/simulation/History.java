@@ -163,6 +163,11 @@ final class History {
         return nodes.get(0);
     }
 
+    /** Every state of the run so far, in order. */
+    List<Node> nodes() {
+        return List.copyOf(nodes);
+    }
+
     Node last() {
         return nodes.get(nodes.size() - 1);
     }

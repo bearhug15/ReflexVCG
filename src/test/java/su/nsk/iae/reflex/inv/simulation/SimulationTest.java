@@ -59,7 +59,8 @@ class SimulationTest {
                 java.util.function.Consumer<History.Node> check = state -> {
                     for (ExtraInvariant invariant : invariants) {
                         count[0]++;
-                        if (!evaluator.holds(invariant.formula(), "s", state)
+                        // The claim at every boundary is what the wrapped formula says at the last.
+                        if (!evaluator.holds(invariant.claimOrFormula(), "s", state)
                                 && failures.size() < 20) {
                             failures.add(program.getFileName() + " run " + seed + " cycle " + cycle[0] + ": "
                                     + invariant.name() + " = " + terms.render(invariant.formula()));
@@ -77,6 +78,38 @@ class SimulationTest {
                 System.out.printf("simulation %-22s %9d invariant checks%n", program, count));
         assertEquals(List.of(), failures);
         checked.forEach((program, count) -> assertTrue(count > 0, program + " checked nothing"));
+    }
+
+    /**
+     * The invariants as written - wrapped, quantifying over every boundary so far - hold
+     * too, and agree with their claims checked boundary by boundary.
+     */
+    @Test
+    void theWrappedInvariantsHoldAsWritten() throws IOException {
+        List<String> failures = new ArrayList<>();
+        for (String name : List.of("programs-extra/lamp.rcs", "programs-extra/crew.rcs",
+                "programs-new/newThermopot.rcs", "programs-new/loopSum.rcs")) {
+            ReflexVcg generator = ReflexVcg.load(Path.of("src/test/resources/" + name));
+            List<ExtraInvariant> invariants = new StructuralInvariants(generator.getProgram(), generator.getCfg(),
+                    new IsabelleRenderer()::renderExpression).generate(Selection.low()).all();
+            for (int run = 0; run < 4; run++) {
+                Machine machine = new Machine(generator.getProgram(), generator.getCfg(), new Random(run));
+                TermEvaluator evaluator = new TermEvaluator(machine.clock());
+                java.util.function.Consumer<History.Node> check = state -> {
+                    for (ExtraInvariant invariant : invariants) {
+                        boolean wrapped = evaluator.holds(invariant.formula(), "s", state);
+                        if (!wrapped || !evaluator.holds(invariant.claimOrFormula(), "s", state)) {
+                            failures.add(name + ": " + invariant.name());
+                        }
+                    }
+                };
+                machine.start(check);
+                for (int cycle = 0; cycle < 30; cycle++) {
+                    machine.cycle(check);
+                }
+            }
+        }
+        assertEquals(List.of(), failures);
     }
 
     /** The check can fail: a claim that is false is caught on the first runs. */

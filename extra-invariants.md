@@ -21,22 +21,35 @@ A claim that holds at every **cycle boundary** a run can reach: after initialisa
 cycle. It is found by the generator and trusted by nobody: generation emits the conditions that prove
 it, and it is only assumed where those conditions prove it.
 
-An invariant is stated about **one state**, `claim(s)`. It does not say `∀ s1 ≤ s. toEnvP s1 ⟶ claim(s1)`
-as the annotation invariants do. The paper's form is the global `∀s. toEnvP s ⟶ claim(s)`, and over
-reachable states the two say the same thing, since the induction runs over cycles. The difference
-matters in the proofs:
+Every derived invariant is written in **the same wrap as an annotation invariant**
+(`AnnTranslator.invariantWrapper`, used directly by `ExtraInvariant.wrapped`). It has a *scale* and a
+*body* `B(s)`:
 
-- A condition's path can pass a loop, and the boundaries the loop's iterations end in lie between the
-  cycle's first and last state. Nothing is known about them: the loop is cut, and only its frame and
-  invariant survive. A history-closed claim would have to hold there, and could not be proved. That
-  is exactly why the annotation invariants cannot be proved on paths through loops (CLAUDE.md, the
-  missing `toLoop` constructor). A state-local claim is only needed at the cycle's last state.
-- Nothing quantifies over substates, so Isabelle's simplifier just computes the claim along the
-  path. The first, history-closed version timed out under `auto` on every obligation; the state-local
-  one closes all of them with one line (section 4).
+```
+∀ s1. ((toEnvP s1 ∧ substate s1 s) ∧ scope(s1)) ⟶ B(s1)
+scope: program – none;  process P – P neither stopped nor in error;  state (P, q) – getPstate s1 P = q
+```
+
+So an invariant claims `scope ⟶ B` at every boundary at or below `s`. That per-boundary statement is
+the invariant's *claim* (`ExtraInvariant.claim`). The checker establishes the claim boundary by
+boundary; the concrete runs of the tests evaluate both the claim and the wrapped formula. This is also
+the paper's `∀s. toEnvP s ⟶ …`, restricted to the history of `s`.
+
+**Boundaries inside loops.** In the model a loop's iterations each end in `toEnv`, so their ends are
+boundaries too, and the wrap speaks about them. The checker therefore checks every candidate there
+as well, where what the loop body writes is unknown (1.2). An invariant that holds at cycle ends but
+not mid-loop is dropped: in loopSum, `total` has no fixed value at iteration ends.
+
+**Provability.** A wrapped goal at a cycle's end follows from the hypothesis at the boundary before
+it and the claim at the end: lemmas `wrapped_step`/`wrapped_step_unscoped` in `ReflexLemmas.thy`, with
+`wrapped_here` reading the hypothesis at `st0`, and `wrapped_empty` giving the base case's (nothing
+below `emptyState` is a boundary). On a path that passes a loop, the boundary before the
+end is the loop's opaque state, and nothing is known about the iteration ends between the loop's
+entry and it. A wrapped goal is not provable on such a path, exactly as for annotation invariants
+(the missing `toLoop` constructor, CLAUDE.md). Section 4 has the measurements.
 
 `predEnv s` (stabilized values) and `prevProcState s P` (transitions, values since entry) are
-functions of `s`, so the kinds that look back need no history either.
+functions of the state, so the bodies that look back stay simple.
 
 ### 1.2 Finding them: guess and check
 
@@ -72,8 +85,10 @@ Two details keep it precise:
   would never see which state it began the cycle in. So the walk splits over each state it could
   have begun in, and applies the hypotheses to each.
 - **A loop** is seen from outside, as the conditions see it. What its body writes becomes unknown,
-  the processes it moves are in unknown states, every timer is unknown, and the state past it is a
-  boundary for `predEnv`. A process moved inside a loop loses its `prevProcState` there.
+  the processes it moves are in unknown states, and every timer is unknown. Every candidate is
+  checked there, since the loop's iteration ends are boundaries, with the boundary before each
+  unknown. The state past the loop is a boundary for `predEnv`. A process moved inside a loop
+  loses its `prevProcState` there.
 
 ### 1.3 The stages
 
@@ -168,9 +183,18 @@ naming it in the key.
 
 ## 3. The approaches
 
-Each entry gives the formula shape (Isabelle, `s` the state it is stated about), how it is found, why
-it is provable, and how it is tested. Examples are from `src/test/resources/programs-extra/lamp.rcs`
-and `crew.rcs`, two programs small enough to work out by hand.
+Each entry gives the invariant's **claim** (Isabelle, `s` one boundary), how it is found, why it is
+provable, and how it is tested. The formula actually written is the claim's body in the annotation
+wrap (1.1), at **program** scale for process states and static-analysis claims, and at **state**
+scale `(P, q)` for everything else, the `getPstate s P = q ⟶` at the front of each claim being that
+scope. For example, 3.3's defined value is written
+
+```
+∀ s1. ((toEnvP s1 ∧ substate s1 s) ∧ getPstate s1 ''Switch'' = ''lit'') ⟶ theInt (getVarVal s1 ''#level'' []) = 5
+```
+
+Examples are from `src/test/resources/programs-extra/lamp.rcs` and `crew.rcs`, two programs small
+enough to work out by hand. `extra-invariants.tex` states every kind formally, with its algorithm.
 
 ### 3.1 Annotation invariants: high
 
@@ -334,7 +358,59 @@ written to `LoopInvariants.thy` as before. Neither is derived; both are the requ
   multi-process programs rests on are therefore inductive, though whether the pruning *uses* them
   correctly is a separate question.
 - **Provable because:** pure `getPstate`, as above.
-- **Tests:** `theStaticAnalysisGroupsAreConfirmedAndExported`, `anUnconfirmedClaimIsReported`.
+- **Tests:** `theStaticAnalysisGroupsAreConfirmedAndExported`, `anUnconfirmedClaimIsReported`,
+  `aWrongGroupClaimIsReported`.
+
+#### The `group` attribute does not mean what it should
+
+`StaticalAnalysis.tex` defines a group as processes that "start, stop and fail simultaneously";
+different groups mean nothing. **Neither the algorithm the specification gives nor its port
+guarantees that.** The group rule is therefore **not** added as an invariant of its own: only the
+group claims the check confirms are exported, as above.
+
+**The specification's algorithm** (`setsDiv`/`setsDivCore`/`groupStaticAnalysisPrepare`) starts
+from a split by `startS`. It then walks the whole program - each process, each state, each
+statement, branches included - and at each construct splits every group by six classes of the
+changes made so far (`nhpc = procChange ∪ hpc`): the processes {started, stopped, failed}, declared
+{before, after} the current one. A change the current process makes **to itself** is in none of
+them: `setsDivCore` files `pid == curPid` only for a `start` in the first state, and
+`attributePrepare(stopCurrentProcess)` gives `stop;` exactly the change `{curProc: "stop"}`. A
+process that stops or fails itself is never separated from the processes it was grouped with.
+
+*Example*, run through a faithful transcription of the specification's `setsDiv`:
+
+```
+process Starter { state begin { start A; start B; stop; } }
+process A       { state run   { stop; } }          -- or: if (x) { stop; }
+process B       { state run   { ; } }
+```
+
+`startS` puts `Starter` alone and `A`, `B` together. `Starter`'s `start A; start B` puts `A` and
+`B` in the same class (both started, both after it), so no split. `Starter`'s `stop` and `A`'s
+`stop` are changes to the process itself, so no split either. Result: groups `[Starter]`, `[A, B]`.
+But `A` stops at its first turn and `B` never does: after the first cycle `A` is stopped and `B`
+is running, which a concrete run reaches. The group rule `checkRule1` then discards every path on
+which one of `A` and `B` is asserted stopped and the other not. Of the 27 paths without pruning (36
+for the `if (x)` variant), the 3 with `A` stopped and `B` running are all feasible, and all pruned;
+their proof obligations are lost. The check reports "group [A, B]: A and B are in stop together –
+not confirmed". `programs-extra/groups.rcs` is the `if (x)` variant.
+
+**The port** (`ProcessFacts.computeGroups`) keeps that defect and adds one: `refine` reads only the
+definite changes of each *process* (`par` over its states), where the specification visits every
+statement, so a change made under a condition, or in some states only, splits nothing. On a chain
+where `Starter` starts `A` and `A`'s first state starts `B`, the specification separates `B` from
+`Starter`; the port groups them. On the four multi-process test programs the two give the same
+groups, and every group claim holds there.
+
+A third point, shared by both, only over-splits: `setStartS` counts a process as started by an
+earlier one only if that earlier one *begins stopped* (`prevStartS && procChange == "start"`), and
+`proc.active` is not defined anywhere.
+
+The check tests boundaries, and the static analysis compares process states *at each process's
+turn* within a cycle, so a reported claim is not always wrong by the analysis's own reading. In a
+chain where `Starter` starts `A` and `A` starts `B`, rule 2 ("B is never stopped") is false at the
+first boundary but true at every turn of `B`. The self-change defect produces claims false by
+either reading.
 
 ---
 
@@ -342,15 +418,16 @@ written to `LoopInvariants.thy` as before. Neither is derived; both are the requ
 
 ### 4.1 Isabelle
 
-`tools/check-with-isabelle.sh <dir> <Theory> @structural [filter] [timeout]` proves every condition
-with one line:
+`tools/check-with-isabelle.sh <dir> <Theory> @structural [filter] [timeout]` puts every condition
+through one structured proof, listing every `extra_*_def` itself:
 
-```
-using assms by (auto simp add: setVarVal_def constants_def inv_def Let_def extraInv_def extra_…_def …)
-```
+- **a cycle:** unfold `inv`, `constants` and every invariant; carry each wrapped goal across the
+  cycle with `wrapped_step[OF pred]`, where `pred: predEnv st_final = st0`, and the hypothesis at
+  `st0`; read the hypotheses at `st0` with `wrapped_here`; `auto` the rest along the path;
+- **the base case:** the same, with `wrapped_empty` as the hypothesis.
 
-The script lists every `extra_*_def` itself. Results at `-x low` (every kind), Isabelle2025-2, from
-2026-09-28:
+Results at `-x low` (every kind), wrapped as annotations are, Isabelle2025-2, 600 s per condition,
+2026-09-30:
 
 | Program | Conditions checked | Proved |
 |---|---|---|
@@ -362,38 +439,40 @@ The script lists every `extra_*_def` itself. Results at `-x low` (every kind), I
 | newBarrier | all | 64 / 64 |
 | ifTest1 | all | 6 / 6 |
 | switchTest1 | all | 8 / 8 |
-| loopSum | all | 10 / 10 (the two `LOOP` conditions also need `substate_refl loopInv0_def`, as always) |
-| annotatedTank | `EXTRA` (paths through a loop) | 6 / 6 |
-| palletStation | `EXTRA` (two loops in a row, one nested) | 15 / 15 |
+| loopSum | all | 6 / 10 |
+| annotatedTank | `EXTRA` | 4 / 6 |
+| palletStation | `EXTRA` (two loops in a row, one nested) | 5 / 15 |
+
+Every program without a loop is proved in full. On the loop programs, every condition that fails
+is either on a path through a loop - `VC1`/`EXTRA1` of loopSum, two of annotatedTank, ten of
+palletStation - or loopSum's `LOOPENTRY`/`LOOPSTEP`, which need `substate_refl loopInv0_def`, as
+they always have, and prove with them. The first group is the wrap's cost (1.1): the iteration
+ends between a loop's entry and its opaque state are boundaries the wrap speaks about, and the
+condition knows nothing of them. Before the wrap, the state-local form of the same invariants proved
+on all of those paths too.
 
 The main conditions of annotatedTank and palletStation were not put through `@structural`, because
 their `inv` also carries the engineer's requirements, which is a different question.
 `tools/palletStation.proofs` still replays 36 / 36 with process states in `inv` and the extended
 loop frame, so nothing recorded broke.
 
-Why it works:
-
-- every claim is about one state;
-- every function it mentions (`getPstate`, `getVarVal`, `predEnv`, `prevProcState`, `ltime`,
-  `toEnvNum`) is a `primrec`/`fun` the simplifier evaluates along a concrete chain of states;
-- the only open state, `st0`, is covered by the hypothesis;
-- the one opaque state per loop is covered by the frame.
-
 ### 4.2 Concrete runs
 
-`inv/simulation/SimulationTest` runs every test program (all 16) for 20 runs of 120 cycles with random
+`inv/simulation/SimulationTest` runs every test program (all 17) for 20 runs of 120 cycles with random
 inputs. It uses an interpreter over the same graph with a concrete ReflexBase state (`History`), and
-evaluates every derived invariant's formula, as rendered, at every boundary. About 450,000 checks
-pass in under two seconds. A deliberately false invariant is caught
+evaluates every derived invariant's claim, as rendered, at every boundary: cycle ends and loop
+iteration ends. `theWrappedInvariantsHoldAsWritten` evaluates the wrapped formulas themselves,
+quantifier and all, on shorter runs. A deliberately false invariant is caught
 (`aFalseInvariantIsCaught`). It runs in `mvn test`, so a wrong invariant is caught long before a
-proof fails on it.
+proof fails on it. It is what showed that, once wrapped, invariants must also be checked at loop
+iteration ends.
 
 ---
 
 ## 5. Deviations from `mainOverview.tex`
 
-- **State-local rather than `∀s. toEnvP s ⟶ …`:** section 1.1. Same meaning over reachable states;
-  provable through loops.
+- **The wrap** is the annotation invariants' (`∀ s1. toEnvP s1 ∧ substate s1 s ∧ scope ⟶ body`),
+  the paper's `∀s. toEnvP s ⟶ …` restricted to the history of `s`.
 - **`prevProcState`** is defined in `ReflexBase.thy`, and the paper's `let s2 = prevProcState s P in …`
   is kept literally.
 - **Initial transitions** use `toEnvNum emptyState s2 = 0`, not `s2 = emptyState`: initialisation
@@ -475,5 +554,10 @@ Ordered roughly by value against cost. The priority is where each would sit.
   loop does not move.
 - The abstract domain is constants. Any fact that depends on a range, not a value, is found only via
   the timer bound.
-- Every limit above costs invariants, never soundness. Soundness rests on the obligations generation
+- **Loops, because of the wrap.** A wrapped invariant speaks about loop iteration ends, so anything a
+  loop body writes has no fixed value there, and invariants about it drop out. On a path through a
+  loop, a wrapped goal is not provable at all (the iteration ends between the loop's entry and its
+  opaque state are unknown), as for annotation invariants. The `toLoop` constructor (CLAUDE.md) is
+  what would fix both.
+- Every limit above costs invariants or provability, never soundness. Soundness rests on the obligations generation
   emits, not on the analysis.

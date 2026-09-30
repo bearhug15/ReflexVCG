@@ -195,19 +195,42 @@ public final class AnnTranslator {
      * narrows the invariant to when the process is running, or in one state.
      */
     private Term wrapInvariant(Template template, Term reference) {
-        Term bound = freshState();
+        return invariantWrapper(template.body(), template.hole(), reference, freshState(),
+                scale, process, pstate);
+    }
+
+    /**
+     * {@code invariantWrapper} of the specification: {@code body}, a formula about the state
+     * {@code hole}, stated at every boundary at or below {@code reference} that its scale
+     * covers - {@code \<forall> bound. toEnvP bound \<and> substate bound reference \<and> scope
+     * \<longrightarrow> body[bound/hole]}.
+     *
+     * <p>Every invariant is wrapped by this, the engineer's and the derived ones alike, so
+     * they read, and are proved, the same way.
+     */
+    public static Term invariantWrapper(Term body, Term hole, Term reference, Term bound,
+                                        Scale scale, String process, String pstate) {
         List<Term> conditions = new ArrayList<>();
         conditions.add(Terms.toEnvP(bound));
         conditions.add(Terms.substate(bound, reference));
-
-        if (scale == Scale.PROCESS) {
-            conditions.add(Terms.processActivity(bound, process, "active"));
-        } else if (scale == Scale.PSTATE) {
-            conditions.add(Terms.pstateCompare(bound, process, pstate));
+        Term scope = scopeGuard(bound, scale, process, pstate);
+        if (!Terms.TRUE.equals(scope)) {
+            conditions.add(scope);
         }
+        return Terms.forall(bound, Terms.implication(Terms.conjunction(conditions),
+                Term.substitute(body, hole, bound)));
+    }
 
-        Term body = Term.substitute(template.body(), template.hole(), bound);
-        return Terms.forall(bound, Terms.implication(Terms.conjunction(conditions), body));
+    /**
+     * What a scale requires of a state for the invariant to speak about it: nothing for the
+     * program, the process running for a process, the process in the state for a state.
+     */
+    public static Term scopeGuard(Term state, Scale scale, String process, String pstate) {
+        return switch (scale) {
+            case PROCESS -> Terms.processActivity(state, process, "active");
+            case PSTATE -> Terms.pstateCompare(state, process, pstate);
+            default -> Terms.TRUE;
+        };
     }
 
     /**

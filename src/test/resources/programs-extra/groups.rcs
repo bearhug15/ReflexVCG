@@ -1,0 +1,22 @@
+// Starter starts A and B together. A may stop itself; B never stops.
+program Groups {
+	clock 100;
+	import IO { register inp }
+	node N { clock 100; }
+	bool x as (read = inp, bit = 0);
+	process Starter :: node N {
+		state begin {
+			start A;
+			start B;
+			stop;
+		}
+	}
+	process A :: node N {
+		state run {
+			if (x) { stop; }
+		}
+	}
+	process B :: node N {
+		state run { ; }
+	}
+}

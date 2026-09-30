@@ -59,6 +59,12 @@ final class TermEvaluator {
         if (term instanceof Term.App app) {
             return application(app, env);
         }
+        if (term instanceof Term.Forall forall) {
+            return quantify(forall.variables(), forall.body(), env, true);
+        }
+        if (term instanceof Term.Exists exists) {
+            return quantify(exists.variables(), exists.body(), env, false);
+        }
         if (term instanceof Term.ListTerm list) {
             if (!list.elements().isEmpty()) {
                 throw new UnsupportedOperationException("non-empty access path");
@@ -66,6 +72,28 @@ final class TermEvaluator {
             return List.of();
         }
         throw new UnsupportedOperationException(term.getClass().getSimpleName());
+    }
+
+    /**
+     * A quantifier over states, ranging over every state of the run. A state outside the
+     * run is never a substate of one in it, so where the formula bounds the variable by
+     * {@code substate} - as every wrapped invariant does - this is the whole range.
+     */
+    private Object quantify(List<String> variables, Term body, Map<String, Object> env, boolean all) {
+        if (variables.size() != 1) {
+            throw new UnsupportedOperationException("one variable at a time");
+        }
+        History history = env.values().stream().filter(v -> v instanceof History.Node)
+                .map(v -> ((History.Node) v).history()).findFirst().orElseThrow();
+        for (History.Node candidate : history.nodes()) {
+            Map<String, Object> inner = new HashMap<>(env);
+            inner.put(variables.get(0), candidate);
+            boolean holds = (Boolean) evaluate(body, inner);
+            if (all != holds) {
+                return !all;
+            }
+        }
+        return all;
     }
 
     private Object variable(String name, Map<String, Object> env) {
@@ -126,6 +154,8 @@ final class TermEvaluator {
             case "theNat" -> Val.theNat((Val) evaluate(args.get(0), env));
             case "theReal" -> Val.theReal((Val) evaluate(args.get(0), env));
             case "toEnvP" -> state(args.get(0), env).toEnvP();
+            // One run is a line, so a state is a substate of another when it comes first.
+            case "substate" -> state(args.get(0), env).position <= state(args.get(1), env).position;
             case "predEnv" -> state(args.get(0), env).predEnv();
             case "prevProcState" -> state(args.get(0), env).prevProcState((String) evaluate(args.get(1), env));
             case "ltime" -> state(args.get(0), env).ltime((String) evaluate(args.get(1), env), clock);

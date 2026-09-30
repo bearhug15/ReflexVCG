@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.inv;
 
+import su.nsk.iae.reflex.ann.AnnTranslator;
 import su.nsk.iae.reflex.analysis.ProcessFacts;
 import su.nsk.iae.reflex.analysis.StaticAnalysis;
 import su.nsk.iae.reflex.term.Term;
@@ -118,9 +119,9 @@ public final class StaticAnalysisClaims implements CandidateSource<Candidate> {
                 }
             }
             if (!never.isEmpty()) {
-                into.add(new ExtraInvariant(
+                into.add(ExtraInvariant.wrapped(
                                 AnalysisContext.uniqueName(into, "extra_static_" + AnalysisContext.identifier(process)),
-                                ExtraInvariant.Kind.STATIC_ANALYSIS, Terms.conjunction(never),
+                                ExtraInvariant.Kind.STATIC_ANALYSIS, AnnTranslator.Scale.PROGRAM, null, null, Terms.conjunction(never),
                                 "the static analysis's rules 1 and 2 for " + process),
                         Tag.process(process));
             }
@@ -148,9 +149,9 @@ public final class StaticAnalysisClaims implements CandidateSource<Candidate> {
                     tags.add(second);
                 }
             }
-            into.add(new ExtraInvariant(
+            into.add(ExtraInvariant.wrapped(
                     AnalysisContext.uniqueName(into, "extra_group_" + AnalysisContext.identifier(pairs.get(0).first())),
-                    ExtraInvariant.Kind.STATIC_ANALYSIS, Terms.conjunction(equivalences),
+                    ExtraInvariant.Kind.STATIC_ANALYSIS, AnnTranslator.Scale.PROGRAM, null, null, Terms.conjunction(equivalences),
                     "the static analysis's group rules: these processes stop and fail together"), tags);
         });
     }

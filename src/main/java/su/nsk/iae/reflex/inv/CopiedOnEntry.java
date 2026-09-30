@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.inv;
 
+import su.nsk.iae.reflex.ann.AnnTranslator;
 import su.nsk.iae.reflex.inv.UnchangedSinceEntry.Unchanged;
 import su.nsk.iae.reflex.term.Term;
 import su.nsk.iae.reflex.term.TermRenderer;
@@ -92,12 +93,11 @@ public final class CopiedOnEntry implements CandidateSource<Unchanged>, EntryCol
                 if (copies.isEmpty()) {
                     continue;
                 }
-                into.add(new ExtraInvariant(
+                into.add(ExtraInvariant.wrapped(
                         AnalysisContext.uniqueName(into, "extra_copied_" + AnalysisContext.identifier(process)
                                 + "_" + AnalysisContext.identifier(state)),
-                        ExtraInvariant.Kind.COPIED_ON_ENTRY,
-                        Terms.implication(Terms.pstateCompare(s, process, state),
-                                UnchangedSinceEntry.sinceEntry(process, Terms.conjunction(copies))),
+                        ExtraInvariant.Kind.COPIED_ON_ENTRY, AnnTranslator.Scale.PSTATE, process, state,
+                        UnchangedSinceEntry.sinceEntry(process, Terms.conjunction(copies)),
                         String.join(", ", names) + " hold what they were given on the way into " + state),
                         tags);
             }

@@ -36,10 +36,11 @@ import java.util.function.Consumer;
  * A candidate it keeps is meant to be provable from those conditions, and generation still
  * emits the obligations that prove it.
  *
- * <p>Candidates are checked at the end of a cycle only. Invariants are claims about cycle
- * boundaries, and a cycle's conditions start at one and end at the next; the boundaries a
- * loop's iterations end in lie in between, and a loop is only ever seen from outside, as
- * what its body cannot change.
+ * <p>Candidates are checked at every boundary: the end of a cycle, and the ends of a loop's
+ * iterations, which the model marks with an environment step as well. An invariant is
+ * written in the wrap, which speaks about every boundary below the state it is stated at,
+ * those inside loops included. A loop is only ever seen from outside, as what its body
+ * cannot change, so what is checked at its iterations is what holds whatever the body did.
  */
 final class InvariantChecker {
 
@@ -251,6 +252,12 @@ final class InvariantChecker {
         } else if (node instanceof CfgNode.LoopCut cut) {
             LoopEffects effects = effectsOf(cut);
             cycle.loopRan(effects.written(), effects.moved());
+            // Every iteration ends in an environment step, so the ends of iterations are
+            // boundaries too, and a wrapped invariant speaks about them. They are where the
+            // state after the loop is: what the body writes unknown, and the boundary before
+            // each - the previous iteration's, or the last before the loop - unknown too.
+            cycle.boundaryUnknown();
+            walk.atBoundary().accept(cycle);
             // The state past a loop is a boundary: predEnv of what follows reaches it.
             cycle.boundaryPassed();
             if (walk.collecting() && walk.walkedBodies().add(cut)) {

@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.inv;
 
+import su.nsk.iae.reflex.ann.AnnTranslator;
 import su.nsk.iae.reflex.ir.IrState;
 import su.nsk.iae.reflex.term.Term;
 import su.nsk.iae.reflex.term.Terms;
@@ -74,13 +75,12 @@ public final class TimerBounds implements CandidateSource<TimerBounds.Below> {
     public void build(List<Below> survivors, AnalysisContext context, ExtraInvariants into) {
         Term s = ExtraInvariant.STATE;
         for (Below bound : survivors) {
-            into.add(new ExtraInvariant(
+            into.add(ExtraInvariant.wrapped(
                             AnalysisContext.uniqueName(into, "extra_timer_" + AnalysisContext.identifier(bound.process())
                                     + "_" + AnalysisContext.identifier(bound.state())),
-                            ExtraInvariant.Kind.TIMER_BOUNDS,
-                            Terms.implication(Terms.pstateCompare(s, bound.process(), bound.state()),
-                                    new Term.Infix("<", Terms.localTime(s, bound.process()),
-                                            new Term.Var(Long.toString(bound.bound())))),
+                            ExtraInvariant.Kind.TIMER_BOUNDS, AnnTranslator.Scale.PSTATE, bound.process(), bound.state(),
+                            new Term.Infix("<", Terms.localTime(s, bound.process()),
+                                    new Term.Var(Long.toString(bound.bound()))),
                             bound.process() + " spends less than " + bound.bound() + " in " + bound.state()
                                     + ": its timeout moves it on"),
                     Tag.process(bound.process()), Tag.state(bound.process(), bound.state()));

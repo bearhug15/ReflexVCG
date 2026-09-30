@@ -185,8 +185,11 @@ exactly one place, at the very end.
 - **Extra invariants** (`extra-invariants.md` describes every approach, its priority and why it is
   provable; code in `inv/`, wiring in `vc/ExtraInvariantGenerator`). Invariants beyond the engineer's,
   found by guessing candidates and keeping the inductive ones (`InvariantChecker`, Houdini over the
-  cycle graph with an abstract state, `AbstractCycle`). Each is a claim about *one* state - never
-  `∀s1 ≤ s` - so a loop's opaque interior does not matter and `auto` proves it along the path.
+  cycle graph with an abstract state, `AbstractCycle`). Each is written in the annotation wrap
+  (`AnnTranslator.invariantWrapper`, via `ExtraInvariant.wrapped`) at program or state scale, and
+  keeps its per-boundary *claim* beside it. Because the wrap covers every boundary below `s`, loop
+  iteration ends included, the checker checks candidates there too; and like annotation invariants,
+  a wrapped goal cannot be proved on a path through a loop (the `toLoop` gap).
   - *Sources* (`CandidateSource`, pluggable): process states, process pairs, static-analysis claims,
     defined and stabilized values, values unchanged since entry, timer bounds - all guessed -
     and transitions and values copied on entry, collected from every state change on every path
@@ -201,9 +204,14 @@ exactly one place, at the very end.
     `priority`, `process`, `state` (`P.q`), `variable`, `transition`, `loop`; `find`/`findAny` by a set.
   - `prevProcState` is in `ReflexBase.thy`, and a loop's frame now also keeps `prevProcState` for the
     processes it never moves.
-  - *Proved*: `tools/check-with-isabelle.sh <dir> <Theory> @structural` closes every condition of
-    every test program without annotation requirements at `-x low`, and every `EXTRA` of the annotated
-    ones, loops included (table in extra-invariants.md). `palletStation.proofs` still replays 36/36.
+  - *Proved*: `tools/check-with-isabelle.sh <dir> <Theory> @structural` - a structured proof per
+    condition: `wrapped_step`/`wrapped_here` from `ReflexLemmas` carry each wrapped goal across the
+    cycle, then `auto` computes the path. Results in extra-invariants.md, section 4.
+  - *The static analysis's `group` attribute* does not mean "start, stop and fail together" - not
+    in the algorithm `StaticalAnalysis.tex` gives, which never splits a group on a process stopping
+    or failing *itself*, and not in the port, which also splits only on definite process-level
+    changes. The pruning drops feasible paths on it (`programs-extra/groups.rcs`). Only group claims
+    the check confirms are exported; the rest are reported. Details in extra-invariants.md, 3.10.
   - *Checked on runs*: `inv/simulation/SimulationTest` interprets every test program with random inputs
     and evaluates every derived invariant at every boundary, ~450k checks in `mvn test`.
     `StructuralInvariantsTest` pins each rule on `programs-extra/lamp.rcs` and `crew.rcs`.
@@ -270,6 +278,9 @@ exactly one place, at the very end.
 
 - **The pruned counts for the four multi-process programs are unconfirmed.** They differ from the old
   pipeline, whose grouping was the non-deterministic part, so matching it is not evidence either way.
+  The group computation is known to be wrong in general (see **Extra invariants**): on those four
+  programs every group claim happens to hold, but a program with a process that stops itself, or is
+  stopped conditionally, loses conditions to it.
 - **What the extra-invariant analysis does not see.** Only scalar bool, integer and time variables
   have tracked values - not reals, arrays or structs - and only values that evaluate to constants;
   the abstract domain has no ranges. A process moved inside a loop body loses its `prevProcState`

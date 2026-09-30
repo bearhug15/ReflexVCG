@@ -1,5 +1,6 @@
 package su.nsk.iae.reflex.inv;
 
+import su.nsk.iae.reflex.ann.AnnTranslator;
 import su.nsk.iae.reflex.term.Term;
 import su.nsk.iae.reflex.term.Terms;
 
@@ -94,12 +95,11 @@ public final class UnchangedSinceEntry implements CandidateSource<UnchangedSince
                 tags.add(Tag.variable(fact.variable()));
                 names.add(fact.variable());
             }
-            into.add(new ExtraInvariant(
+            into.add(ExtraInvariant.wrapped(
                     AnalysisContext.uniqueName(into, "extra_unchanged_" + AnalysisContext.identifier(process)
                             + "_" + AnalysisContext.identifier(state)),
-                    ExtraInvariant.Kind.UNCHANGED_SINCE_ENTRY,
-                    Terms.implication(Terms.pstateCompare(s, process, state),
-                            sinceEntry(process, Terms.conjunction(equalities))),
+                    ExtraInvariant.Kind.UNCHANGED_SINCE_ENTRY, AnnTranslator.Scale.PSTATE, process, state,
+                    sinceEntry(process, Terms.conjunction(equalities)),
                     String.join(", ", names) + " keep the value they had when " + process + " entered " + state),
                     tags);
         });

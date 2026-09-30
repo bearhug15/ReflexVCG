@@ -387,6 +387,14 @@ final class AbstractCycle implements Boundary, CycleStart {
         return onLearnt.test(this);
     }
 
+    /** The boundary before this one is not known, for any process. */
+    void boundaryUnknown() {
+        for (String process : context.processes()) {
+            boundaryPstates.remove(process);
+            boundaryUnknown.add(process);
+        }
+    }
+
     /** The state reached is a boundary, so the next one's {@code predEnv} is this one. */
     void boundaryPassed() {
         for (String process : context.processes()) {
