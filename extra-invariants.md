@@ -392,8 +392,12 @@ But `A` stops at its first turn and `B` never does: after the first cycle `A` is
 is running, which a concrete run reaches. The group rule `checkRule1` then discards every path on
 which one of `A` and `B` is asserted stopped and the other not. Of the 27 paths without pruning (36
 for the `if (x)` variant), the 3 with `A` stopped and `B` running are all feasible, and all pruned;
-their proof obligations are lost. The check reports "group [A, B]: A and B are in stop together –
-not confirmed". `programs-extra/groups.rcs` is the `if (x)` variant.
+their proof obligations are lost. Among them is `Starter=stop, A=stop, B=open`, the cycle the
+program performs forever after the first, so its steady state is never verified. The check reports
+"group [A, B]: A and B are in stop together – not confirmed". `programs-extra/groupRule.rcs` is this
+program, and `programs-extra/groups.rcs` its `if (x)` variant. `group-rule-counterexample.tex`
+(local, not committed) traces it attribute by attribute through the specification's own
+definitions.
 
 **The port** (`ProcessFacts.computeGroups`) keeps that defect and adds one: `refine` reads only the
 definite changes of each *process* (`par` over its states), where the specification visits every

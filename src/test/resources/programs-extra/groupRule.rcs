@@ -1,0 +1,30 @@
+// The smallest program on which the group rule of StaticalAnalysis.tex breaks.
+//
+// The rule: processes in one group start, stop and fail simultaneously.
+//
+// Starter starts A and B, then stops itself. A does one cycle of work and stops itself.
+// B runs forever. The group computation puts A and B in one group, because the only
+// change that tells them apart - A stopping - is a change A makes to itself, and those
+// never split a group. From the second cycle on A is stopped and B is running, and the
+// group rule discards exactly the paths that describe that.
+program GroupRule {
+	clock 100;
+	node N { clock 100; }
+	process Starter :: node N {
+		state begin {
+			start A;
+			start B;
+			stop;
+		}
+	}
+	process A :: node N {
+		state run {
+			stop;
+		}
+	}
+	process B :: node N {
+		state open {
+			;
+		}
+	}
+}
