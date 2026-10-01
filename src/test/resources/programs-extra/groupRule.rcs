@@ -1,4 +1,5 @@
-// The smallest program on which the group rule of StaticalAnalysis.tex breaks.
+// The smallest program on which the group rule of the static analysis breaks - both the
+// algorithm of StaticalAnalysis.tex and Algorithm 6 of the IVMEM 2026 paper.
 //
 // The rule: processes in one group start, stop and fail simultaneously.
 //

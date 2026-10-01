@@ -1,0 +1,90 @@
+// Every way the group computation can tell processes apart, driven by random inputs.
+//
+// Boss starts and stops all four of L1, L2, R1, R2 together. Mid, declared between the L
+// and R processes, stops all four at once: the L pair has already run this cycle and the R
+// pair has not, so the two pairs must end up in different groups while each pair stays
+// together. Mid also stops the L pair only to start it again, which leaves it running.
+// SelfErr fails Before and then itself in one go - a change to itself filed with a change
+// to a process before it, which may share its group.
+program GroupStress {
+	clock 100;
+	import IO { register inp }
+	node N { clock 100; }
+	bool x as (read = inp, bit = 0);
+	bool y as (read = inp, bit = 1);
+	bool z as (read = inp, bit = 2);
+	bool w as (read = inp, bit = 3);
+	process Boss :: node N {
+		state begin {
+			start L1;
+			start L2;
+			start Before;
+			start SelfErr;
+			start Mid;
+			start R1;
+			start R2;
+			set next state;
+		}
+		state work {
+			if (x) {
+				stop L1;
+				stop L2;
+				stop R1;
+				stop R2;
+			} else {
+				if (y) {
+					start L1;
+					start L2;
+					start R1;
+					start R2;
+				}
+			}
+			if (z) {
+				start Before;
+				start SelfErr;
+			}
+		}
+	}
+	process L1 :: node N {
+		state a { ; }
+	}
+	process L2 :: node N {
+		state a {
+			if (w) { set next state; }
+		}
+		state b { ; }
+	}
+	process Before :: node N {
+		state a { ; }
+	}
+	process SelfErr :: node N {
+		state a {
+			if (w) {
+				error Before;
+				error;
+			}
+		}
+	}
+	process Mid :: node N {
+		state a {
+			if (x && y) {
+				stop L1;
+				stop L2;
+				stop R1;
+				stop R2;
+			}
+			if (z) {
+				stop L1;
+				stop L2;
+				start L1;
+				start L2;
+			}
+		}
+	}
+	process R1 :: node N {
+		state a { ; }
+	}
+	process R2 :: node N {
+		state a { ; }
+	}
+}

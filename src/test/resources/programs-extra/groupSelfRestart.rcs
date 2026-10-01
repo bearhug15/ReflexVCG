@@ -1,0 +1,36 @@
+// Why a group repair must file a process's restart of itself, not only its stop.
+//
+// Starter starts P and Q together. In its second state Q may stop P and itself, and then
+// restart itself. Filing Q's stop of itself with its stop of P, but not its restart, keeps
+// P and Q in one group - yet after x and y, P is stopped and Q is running again.
+program GroupSelfRestart {
+	clock 100;
+	import IO { register inp }
+	node N { clock 100; }
+	bool x as (read = inp, bit = 0);
+	bool y as (read = inp, bit = 1);
+	process Starter :: node N {
+		state begin {
+			start P;
+			start Q;
+			stop;
+		}
+	}
+	process P :: node N {
+		state run { ; }
+	}
+	process Q :: node N {
+		state one {
+			set next state;
+		}
+		state two {
+			if (x) {
+				stop P;
+				stop;
+			}
+			if (y) {
+				restart;
+			}
+		}
+	}
+}

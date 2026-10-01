@@ -208,10 +208,13 @@ exactly one place, at the very end.
     condition: `wrapped_step`/`wrapped_here` from `ReflexLemmas` carry each wrapped goal across the
     cycle, then `auto` computes the path. Results in extra-invariants.md, section 4.
   - *The static analysis's `group` attribute* does not mean "start, stop and fail together" - not
-    in the algorithm `StaticalAnalysis.tex` gives, which never splits a group on a process stopping
-    or failing *itself*, and not in the port, which also splits only on definite process-level
-    changes. The pruning drops feasible paths on it (`programs-extra/groups.rcs`). Only group claims
-    the check confirms are exported; the rest are reported. Details in extra-invariants.md, 3.10.
+    in Algorithm 6 of the IVMEM 2026 static analysis paper, which never splits a group on a process
+    stopping or failing *itself*, and not in the port, which also splits only on definite
+    process-level changes. The pruning drops feasible paths on it (`programs-extra/groupRule.rcs`,
+    `groups.rcs`). Filing every change a process makes to itself - restarts included - with its
+    predecessors repairs it; `GroupRuleSimulationTest` checks each grouping on runs. Only group
+    claims the check confirms are exported; the rest are reported. Details in extra-invariants.md,
+    3.10.
   - *Checked on runs*: `inv/simulation/SimulationTest` interprets every test program with random inputs
     and evaluates every derived invariant at every boundary, ~450k checks in `mvn test`.
     `StructuralInvariantsTest` pins each rule on `programs-extra/lamp.rcs` and `crew.rcs`.
@@ -280,7 +283,8 @@ exactly one place, at the very end.
   pipeline, whose grouping was the non-deterministic part, so matching it is not evidence either way.
   The group computation is known to be wrong in general (see **Extra invariants**): on those four
   programs every group claim happens to hold, but a program with a process that stops itself, or is
-  stopped conditionally, loses conditions to it.
+  stopped conditionally, loses conditions to it. The port follows an earlier description, not the
+  IVMEM paper's Algorithms 5 and 6, and neither has the repair yet.
 - **What the extra-invariant analysis does not see.** Only scalar bool, integer and time variables
   have tracked values - not reals, arrays or structs - and only values that evaluate to constants;
   the abstract domain has no ranges. A process moved inside a loop body loses its `prevProcState`

@@ -45,6 +45,7 @@ final class Machine {
     private final List<BigInteger> interesting = new ArrayList<>();
     private final History history = new History();
     private History.Node state = history.empty();
+    private Consumer<CfgNode.InState> onActivation = inState -> { };
 
     Machine(IrProgram program, Cfg cfg, Random random) {
         this.program = program;
@@ -54,6 +55,11 @@ final class Machine {
                 ? IsabelleRenderer.parseTimeMillis(program.getClock().getText())
                 : IsabelleRenderer.parseInteger(program.getClock().getText());
         collectInterestingNumbers();
+    }
+
+    /** Told of each process as it is dispatched on the state it is found in. */
+    void onActivation(Consumer<CfgNode.InState> observer) {
+        this.onActivation = observer;
     }
 
     long clock() {
@@ -135,6 +141,8 @@ final class Machine {
     private void apply(CfgNode node, Consumer<History.Node> atBoundary) {
         if (node instanceof CfgNode.Assign assign) {
             assign(assign.getTarget(), assign.getValue());
+        } else if (node instanceof CfgNode.InState inState) {
+            onActivation.accept(inState);
         } else if (node instanceof CfgNode.InputChoice input) {
             state = state.setVar(input.getVariable(), Val.wrap(randomValue(input.getType()), input.getType()));
         } else if (node instanceof CfgNode.SetState set) {
