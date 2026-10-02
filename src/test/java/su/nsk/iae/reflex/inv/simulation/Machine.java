@@ -46,6 +46,8 @@ final class Machine {
     private final History history = new History();
     private History.Node state = history.empty();
     private Consumer<CfgNode.InState> onActivation = inState -> { };
+    private Consumer<CfgNode> onStep = node -> { };
+    private int loopDepth;
 
     Machine(IrProgram program, Cfg cfg, Random random) {
         this.program = program;
@@ -60,6 +62,14 @@ final class Machine {
     /** Told of each process as it is dispatched on the state it is found in. */
     void onActivation(Consumer<CfgNode.InState> observer) {
         this.onActivation = observer;
+    }
+
+    /**
+     * Told of every node a cycle passes outside loop bodies, in order - the path through the
+     * graph the conditions are enumerated over, where a loop is its cut.
+     */
+    void onStep(Consumer<CfgNode> observer) {
+        this.onStep = observer;
     }
 
     long clock() {
@@ -95,6 +105,9 @@ final class Machine {
     private void run(CfgNode entry, Consumer<History.Node> atBoundary) {
         CfgNode node = entry;
         while (true) {
+            if (loopDepth == 0) {
+                onStep.accept(node);
+            }
             apply(node, atBoundary);
             List<CfgNode> successors = node.getSuccessors();
             if (successors.isEmpty()) {
@@ -156,7 +169,9 @@ final class Machine {
             // Each iteration ends in an environment step, which the model makes a boundary.
             int iterations = 0;
             while (cut.getCondition() == null || (Boolean) evaluate(cut.getCondition(), state)) {
+                loopDepth++;
                 run(cut.getBodyEntry(), atBoundary);
+                loopDepth--;
                 state = state.toEnv();
                 atBoundary.accept(state);
                 if (++iterations > MAX_ITERATIONS) {

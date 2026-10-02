@@ -43,7 +43,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * corrected {@code ResolveStartStates} ({@code p'.startS = false}); as printed with its
  * literal {@code p'.startS = true}; with a process's stop and error of <em>itself</em> filed
  * with the processes declared before it, which is not enough; with every change a process
- * makes to itself filed so, restarts included, which is the repair; and the port's own groups.
+ * makes to itself filed so, restarts included, which is the repair; and the analysis's own
+ * groups ({@code ProcessFacts}), which implement the repair.
  */
 class GroupRuleSimulationTest {
 
@@ -78,26 +79,45 @@ class GroupRuleSimulationTest {
         });
 
         // As printed, the rule discards feasible paths - and the start-state reading does not matter.
-        for (Variant printed : List.of(Variant.PRINTED, Variant.PRINTED_LITERAL_STARTS, Variant.PORT)) {
+        for (Variant printed : List.of(Variant.PRINTED, Variant.PRINTED_LITERAL_STARTS)) {
             assertTrue(broken.get(printed).containsKey("groupRule.rcs"), printed.toString());
             assertTrue(broken.get(printed).containsKey("groups.rcs"), printed.toString());
         }
         // Filing only stops and errors of itself leaves a restart that undoes one unseen.
         assertEquals(Set.of("groupSelfRestart.rcs"), broken.get(Variant.SELF_STOP_ERROR_AS_PREDECESSOR).keySet());
-        // Filing every change a process makes to itself with its predecessors is enough.
+        // Filing every change a process makes to itself with its predecessors is enough, and
+        // it is what the analysis implements.
         assertEquals(Map.of(), broken.get(Variant.SELF_AS_PREDECESSOR));
+        assertEquals(Map.of(), broken.get(Variant.PORT));
     }
 
     @Test
     void onTheExampleEveryPrintedVariantGroupsAWithB() throws IOException {
         IrProgram program = ReflexVcg.load(Path.of("src/test/resources/programs-extra/groupRule.rcs")).getProgram();
-        for (Variant variant : List.of(Variant.PRINTED, Variant.PRINTED_LITERAL_STARTS, Variant.PORT)) {
+        for (Variant variant : List.of(Variant.PRINTED, Variant.PRINTED_LITERAL_STARTS)) {
             Map<String, Integer> groups = groups(program, variant);
             assertEquals(groups.get("A"), groups.get("B"), variant.toString());
             assertFalse(groups.get("A").equals(groups.get("Starter")), variant.toString());
         }
         Map<String, Integer> repaired = groups(program, Variant.SELF_AS_PREDECESSOR);
         assertEquals(3, Set.copyOf(repaired.values()).size());
+        assertEquals(3, Set.copyOf(groups(program, Variant.PORT).values()).size());
+    }
+
+    /** The analysis's own groups are the repaired Algorithm 6's, on every test program. */
+    @Test
+    void theAnalysisGroupsAsTheRepairedAlgorithm() throws IOException {
+        for (Path path : programs()) {
+            IrProgram program = ReflexVcg.load(path).getProgram();
+            assertEquals(partition(groups(program, Variant.SELF_AS_PREDECESSOR)),
+                    partition(groups(program, Variant.PORT)), path.toString());
+        }
+    }
+
+    private static Set<Set<String>> partition(Map<String, Integer> groups) {
+        Map<Integer, Set<String>> members = new LinkedHashMap<>();
+        groups.forEach((process, group) -> members.computeIfAbsent(group, g -> new LinkedHashSet<>()).add(process));
+        return Set.copyOf(members.values());
     }
 
     /** The runs of groupStress reach what it was written to exercise, so passing means something. */

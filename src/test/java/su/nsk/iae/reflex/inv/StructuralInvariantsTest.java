@@ -318,18 +318,20 @@ class StructuralInvariantsTest {
     // ------------------------------------------------------------------ the group attribute
 
     /**
-     * groups.rcs: A may stop itself, B never stops, and the static analysis puts them in one
-     * group. The claim that they stop together is false - reported, not exported.
+     * groups.rcs: A may stop itself, B never stops. As printed, the static analysis's group
+     * computation put them in one group, and the claim that they stop together was false.
+     * The repaired computation keeps them apart, so nothing about the two is claimed, and
+     * every claim the analysis does make is confirmed.
      */
     @Test
-    void aWrongGroupClaimIsReported() throws IOException {
-        StructuralInvariants analysis = analysis(ReflexVcg.load(Path.of("src/test/resources/programs-extra/groups.rcs")));
-        ExtraInvariants found = analysis.generate(Selection.of(ExtraInvariant.Kind.STATIC_ANALYSIS));
-        assertTrue(analysis.getDiagnostics().stream().anyMatch(d -> d.contains("group [A, B]") && d.contains("stop")),
-                analysis.getDiagnostics().toString());
-        // Neither ever fails, so "in error together" is true, and is all that is exported.
-        String exported = render(only(found, ExtraInvariant.Kind.STATIC_ANALYSIS, Tag.process("A"), Tag.process("B")));
-        assertEquals("(((getPstate s ''A'') = ''error'') = ((getPstate s ''B'') = ''error''))", exported);
+    void theRepairedGroupsMakeNoWrongClaim() throws IOException {
+        for (String name : List.of("groups.rcs", "groupRule.rcs", "groupSelfRestart.rcs", "groupStress.rcs")) {
+            StructuralInvariants analysis = analysis(ReflexVcg.load(Path.of("src/test/resources/programs-extra/" + name)));
+            ExtraInvariants found = analysis.generate(Selection.of(ExtraInvariant.Kind.STATIC_ANALYSIS));
+            assertEquals(List.of(), analysis.getDiagnostics(), name);
+            assertTrue(found.find(Set.of(Tag.kind(ExtraInvariant.Kind.STATIC_ANALYSIS), Tag.process("A"),
+                    Tag.process("B"))).isEmpty(), name);
+        }
     }
 
     // ------------------------------------------------------------------ selection and sources

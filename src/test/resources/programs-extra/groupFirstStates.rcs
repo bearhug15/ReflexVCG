@@ -1,0 +1,53 @@
+// Group rules 4.7.3 and 4.7.4 (static-analysis.md): a process found in a first state it always
+// leaves was just started, and so was every process of its group.
+//
+// A and B are started and stopped together; A always leaves its first state, B may stay in
+// its own. C and D are started and failed together; both leave their first states, C by
+// either branch of an if. Random inputs move all four through every combination.
+program GroupFirstStates {
+	clock 100;
+	import IO { register inp }
+	node N { clock 100; }
+	bool x as (read = inp, bit = 0);
+	bool y as (read = inp, bit = 1);
+	bool z as (read = inp, bit = 2);
+	bool a;
+	process Starter :: node N {
+		state s1 {
+			start A;
+			start B;
+			start C;
+			start D;
+			set next state;
+		}
+		state s2 {
+			if (x) { stop A; stop B; }
+			if (y) { start A; start B; }
+			if (z) { start C; start D; }
+			if (x && z) { error C; error D; }
+		}
+	}
+	process A :: node N {
+		state a1 { set next state; }
+		state a2 { a = !a; }
+	}
+	process B :: node N {
+		state b1 {
+			if (y) { set next state; }
+		}
+		state b2 { a = !a; }
+	}
+	process C :: node N {
+		state c1 {
+			if (x) { set next state; } else { set next state; }
+		}
+		state c2 { a = !a; }
+	}
+	process D :: node N {
+		state d1 {
+			a = !a;
+			if (z) { set next state; } else { set state d2; }
+		}
+		state d2 { ; }
+	}
+}

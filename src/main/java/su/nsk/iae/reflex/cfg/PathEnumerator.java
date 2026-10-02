@@ -1,9 +1,7 @@
 package su.nsk.iae.reflex.cfg;
 
-import su.nsk.iae.reflex.analysis.Event;
 import su.nsk.iae.reflex.analysis.PathState;
 import su.nsk.iae.reflex.analysis.StaticAnalysis;
-import su.nsk.iae.reflex.analysis.Term;
 import su.nsk.iae.reflex.ann.AnnTranslator;
 import su.nsk.iae.reflex.ir.Annotation;
 import su.nsk.iae.reflex.ir.IrCopier;
@@ -109,12 +107,11 @@ public final class PathEnumerator {
 
         // Checked before descending, so an impossible path costs nothing beyond the node
         // that made it impossible - the whole subtree below is skipped.
-        PathState next = admit(node, state);
+        PathState next = analysis == null ? state : analysis.step(state, node);
         if (next == null) {
             pruned++;
             return;
         }
-        next = next.andThen(node.getAttributes());
 
         path.add(node);
         if (node.isTerminal()) {
@@ -128,40 +125,6 @@ public final class PathEnumerator {
             }
         }
         path.remove(path.size() - 1);
-    }
-
-    /**
-     * The path state after passing {@code node}, or null when the analysis shows the path
-     * cannot happen.
-     */
-    private PathState admit(CfgNode node, PathState state) {
-        if (node instanceof CfgNode.InState inState) {
-            if (analysis != null
-                    && !analysis.allowsState(state, inState.getProcess(), inState.getState())) {
-                return null;
-            }
-            return state.asserting(new Event.StateAsserted(inState.getProcess(), inState.getState()));
-        }
-        if (node instanceof CfgNode.Guard guard) {
-            List<Term> asserted = Term.assertedBy(guard.getCondition());
-            if (analysis != null && !analysis.allowsActivities(state, asserted)) {
-                return null;
-            }
-            List<Event> events = new ArrayList<>();
-            for (Term term : asserted) {
-                if (term instanceof Term.ProcessActivity activity) {
-                    events.add(new Event.StatusAsserted(activity.process(), activity.activity()));
-                }
-            }
-            return state.asserting(events);
-        }
-        if (node instanceof CfgNode.TimeoutGuard timeout) {
-            if (analysis != null && !analysis.allowsTimeout(
-                    state, timeout.isExceeded(), timeout.getDuration())) {
-                return null;
-            }
-        }
-        return state;
     }
 
     // ------------------------------------------------------------------ conditions

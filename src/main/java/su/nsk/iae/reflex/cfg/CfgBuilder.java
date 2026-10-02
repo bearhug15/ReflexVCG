@@ -283,6 +283,11 @@ public final class CfgBuilder {
         CfgNode.LoopCut cut = new CfgNode.LoopCut(invariant, annotationOf(forStmt,
                 Annotation.Kind.VARIANT), invariantName, forStmt.getCondition(), body.entry(),
                 frameOf(body.entry()));
+        // The main path does not walk the body, so the cut carries what the body may do to
+        // processes - for the static analysis, a change that may or may not have happened.
+        if (attributes != null) {
+            cut.setAttributes(attributes.of(forStmt));
+        }
         current.addSuccessor(cut);
         return new Fragment(entry, cut);
     }

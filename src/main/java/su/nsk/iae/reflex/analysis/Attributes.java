@@ -6,8 +6,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * What executing a construct does to the processes of a program, as defined by the
- * attribute section of StaticalAnalysis.tex.
+ * What executing a construct does to the processes of a program: the basic attributes of
+ * static-analysis.md, section 2.
  *
  * <p>Immutable. The specification is written against persistent data - it clones an
  * attribute set and mutates the copy - and a record gives that for free: every operation

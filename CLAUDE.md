@@ -69,7 +69,7 @@ exactly one place, at the very end.
    several successors, each starting with a guard. `cfg/ExprLowering` evaluates an expression into the
    ways it can run (see **C expression semantics** below). Nodes carry IR, never rendered text.
 5. **Enumerate** — `cfg/PathEnumerator` walks paths depth-first; each becomes a `VerificationCondition`
-   of symbolic `VcStatement`s. `analysis/StaticAnalysis` (spec: `StaticalAnalysis.tex`) discards a path
+   of symbolic `VcStatement`s. `analysis/StaticAnalysis` (spec: `static-analysis.md`) discards a path
    at the node that makes it impossible, so the subtree below is never explored. A path may produce more
    than one condition: an annotation on it contributes the obligation discharging it, and a loop
    contributes its entry and preservation conditions. Inline C becomes an `Unsupported` node and
@@ -82,12 +82,18 @@ exactly one place, at the very end.
 
 ## Key points
 
-- **The static analysis readings are provisional.** `StaticalAnalysis.tex` was never verified and is
-  internally inconsistent in about ten places; every reading taken is marked `SPEC` in `analysis/`.
-  `IvReadings2026.pdf` states the rules precisely and is the better reference. Every single-process
-  program now reproduces the old pruned counts exactly; the four multi-process ones differ, in the
-  grouping rules. Over-pruning silently drops proof obligations, so treat those four as unconfirmed.
-  `StaticAnalysisMeasurementTest` prints the table; `StaticAnalysisRulesTest` covers rules one by one.
+- **The static analysis is specified by `static-analysis.md`.** It is the IVMEM 2026 paper's
+  analysis (Algorithms 1-6, rules 4.1-4.7) with its misprints corrected and the corrections agreed
+  with its authors: a repaired group computation, a status rule per process over the set of
+  statuses still possible, timer resets that zero only the process they belong to, loops as
+  possible changes. Section 7 there lists every difference. Over-pruning silently drops proof
+  obligations, so soundness is what is tested: `inv/simulation/StaticAnalysisSoundnessTest`
+  replays every cycle of random runs of every test program through `StaticAnalysis.step` and fails
+  on any it rejects. `StaticAnalysisRulesTest` has, per rule, a path it discards and a look-alike
+  it keeps; `AttributeTest`, `ProcessFactsTest`, `PathStateTest` cover the parts;
+  `StaticAnalysisMeasurementTest` prints the counts. The single-process programs match the old
+  pipeline exactly, newBarrier and newThermopot now do too, and newSmartLighting and newTurnstile
+  keep fewer than it did - the old grouping was the non-deterministic part.
 - **Inputs are free.** A physical variable bound with no `write =` is read from hardware and never
   written by the program, so every cycle begins by giving it the value of a *free* Isabelle variable
   named after it — `st1 = setVarVal st0 ''inp_1'' [] (ValBool inp_1)`. A lemma leaves those universally
@@ -207,14 +213,13 @@ exactly one place, at the very end.
   - *Proved*: `tools/check-with-isabelle.sh <dir> <Theory> @structural` - a structured proof per
     condition: `wrapped_step`/`wrapped_here` from `ReflexLemmas` carry each wrapped goal across the
     cycle, then `auto` computes the path. Results in extra-invariants.md, section 4.
-  - *The static analysis's `group` attribute* does not mean "start, stop and fail together" - not
-    in Algorithm 6 of the IVMEM 2026 static analysis paper, which never splits a group on a process
-    stopping or failing *itself*, and not in the port, which also splits only on definite
-    process-level changes. The pruning drops feasible paths on it (`programs-extra/groupRule.rcs`,
-    `groups.rcs`). Filing every change a process makes to itself - restarts included - with its
-    predecessors repairs it; `GroupRuleSimulationTest` checks each grouping on runs. Only group
-    claims the check confirms are exported; the rest are reported. Details in extra-invariants.md,
-    3.10.
+  - *The static analysis's `group` attribute* did not mean "start, stop and fail together" as the
+    IVMEM paper printed Algorithm 6: a process stopping or failing *itself* never split a group
+    (`programs-extra/groupRule.rcs`, `groups.rcs`). The analysis now implements the repair - every
+    change a process makes to itself, restarts included, filed with its predecessors - and
+    `GroupRuleSimulationTest` checks each grouping on runs. Its claims are exported only where the
+    check confirms them; rule 4.1.2 holds at a process's turn, not at the first boundary, so it is
+    exported for the first process only. Details in extra-invariants.md, 3.10.
   - *Checked on runs*: `inv/simulation/SimulationTest` interprets every test program with random inputs
     and evaluates every derived invariant at every boundary, ~450k checks in `mvn test`.
     `StructuralInvariantsTest` pins each rule on `programs-extra/lamp.rcs` and `crew.rcs`.
@@ -279,12 +284,9 @@ exactly one place, at the very end.
 
 ## Not done yet
 
-- **The pruned counts for the four multi-process programs are unconfirmed.** They differ from the old
-  pipeline, whose grouping was the non-deterministic part, so matching it is not evidence either way.
-  The group computation is known to be wrong in general (see **Extra invariants**): on those four
-  programs every group claim happens to hold, but a program with a process that stops itself, or is
-  stopped conditionally, loses conditions to it. The port follows an earlier description, not the
-  IVMEM paper's Algorithms 5 and 6, and neither has the repair yet.
+- **The static analysis has no machine-checked proof.** Each rule has an argument in
+  `static-analysis.md` and is checked on random runs, which shows it discards no cycle those runs
+  reach - not that it never could. Section 9 there lists what it does not use.
 - **What the extra-invariant analysis does not see.** Only scalar bool, integer and time variables
   have tracked values - not reals, arrays or structs - and only values that evaluate to constants;
   the abstract domain has no ranges. A process moved inside a loop body loses its `prevProcState`

@@ -17,11 +17,17 @@ import java.util.Set;
  * (priority mid).
  *
  * <p>{@link StaticAnalysis} discards paths on the strength of per-process facts -
- * StaticalAnalysis.tex rules 1 and 2, that a process which can never fail is never in
- * error and one which can never be stopped and does not begin stopped is never stopped,
- * and the group rules, that processes in one group stop and fail together. Those are
- * claims about every boundary, and a discarded path drops its conditions with it, so a
- * wrong claim silently loses proof obligations. The readings are provisional (CLAUDE.md).
+ * static-analysis.md rules 4.1.1 and 4.1.2, that a process which can never fail is never in
+ * error and one which can never be stopped and is never found stopped in the first cycle is
+ * never stopped, and the group rules 4.7.1 and 4.7.2, that processes in one group stop and
+ * fail together. A discarded path drops its conditions with it, so a wrong claim silently
+ * loses proof obligations.
+ *
+ * <p>The analysis states these facts at each process's turn; an invariant states them at
+ * boundaries. They agree except for rule 4.1.2 at the very first boundary: a process started
+ * in the first cycle before its turn is never found stopped at its turn, but it is stopped
+ * when the program begins. So rule 4.1.2 is exported only for the first process, the one
+ * running from the start.
  *
  * <p>So each claim is put through the same check as any other candidate. The ones that
  * survive become invariants, and so something Isabelle proves; the ones that do not are
@@ -72,7 +78,7 @@ public final class StaticAnalysisClaims implements CandidateSource<Candidate> {
                 claims.put(new ProcessStates.NotIn(process, "error"),
                         "rule 1: " + process + " can never fail, so is never in error");
             }
-            if (!of.reachS() && !of.startS()) {
+            if (!of.reachS() && context.processes().indexOf(process) == 0) {
                 claims.put(new ProcessStates.NotIn(process, "stop"),
                         "rule 2: " + process + " can never be stopped and does not begin stopped");
             }

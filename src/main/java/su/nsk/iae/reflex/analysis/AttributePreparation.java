@@ -14,8 +14,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Computes the attributes of every construct, bottom up - {@code attributePrepare} of
- * StaticalAnalysis.tex.
+ * Computes the attributes of every construct, bottom up: Algorithms 1-3 of
+ * static-analysis.md, section 2.
  *
  * <p>Runs on canonical IR rather than on the source tree, which is a deliberate
  * difference: by this point switch fall-through has been expanded and {@code wait} and
@@ -94,7 +94,9 @@ public final class AttributePreparation {
             return Attributes.justReset();
         }
         if (statement instanceof IrStmt.SetState setState) {
-            return Attributes.of(Map.of(), Set.of(), true, true,
+            // Algorithm 1: the timer is reset either way, but only a different state is a
+            // change of state.
+            return Attributes.of(Map.of(), Set.of(), true, !setState.getState().equals(currentState),
                     Set.of(setState.getState()), false);
         }
         if (statement instanceof IrStmt.ProcessControl control) {
@@ -161,14 +163,14 @@ public final class AttributePreparation {
     }
 
     /**
-     * Restarting the enclosing process moves it to its first state - unless it is already
-     * there, in which case nothing about its state changes.
+     * Restarting the enclosing process moves it to its first state. Written in the first
+     * state it is no change of state, but the first state is still where the process ends
+     * up - an earlier {@code set state} in the same activation may have moved it away.
      */
     private Attributes restartSelf(String target) {
         String firstState = firstStateOf(target);
         boolean moves = !firstState.equals(currentState);
-        return Attributes.change(target, Change.START, true, moves,
-                moves ? Set.of(firstState) : Set.of());
+        return Attributes.change(target, Change.START, true, moves, Set.of(firstState));
     }
 
     private Attributes startOther(String target) {

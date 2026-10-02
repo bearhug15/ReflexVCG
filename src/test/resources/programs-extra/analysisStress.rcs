@@ -1,0 +1,81 @@
+// Every rule of the static analysis, driven by random inputs (static-analysis.md, section 4).
+//
+// Boss starts, stops and fails the others under conditions; Watcher checks Worker's status
+// every way the language allows and may stop it from inside a loop; Worker stops itself and
+// restarts itself in one activation, starts Late and may fail; Late is started by processes
+// declared before it, which zeroes its local time, and checks Worker in turn. Timeouts sit
+// in states whose timers are reset on some paths and not on others.
+program AnalysisStress {
+	clock 100;
+	import IO { register inp }
+	node N { clock 100; }
+	bool x as (read = inp, bit = 0);
+	bool y as (read = inp, bit = 1);
+	bool z as (read = inp, bit = 2);
+	int32 i;
+	const int32 D = 200;
+	process Boss :: node N {
+		state begin {
+			start Worker;
+			start Watcher;
+			set next state;
+		}
+		state run {
+			if (x && y) { stop Worker; }
+			if (z) { start Worker; }
+			if (!x && !y) { error Watcher; }
+			if (process Watcher in state error) {
+				if (y) { start Watcher; }
+			}
+			timeout 0t500ms {
+				reset timer;
+				if (x) { start Late; }
+			}
+		}
+	}
+	process Watcher :: node N {
+		state watch {
+			if (process Worker in state active) {
+				if (!(process Worker in state error)) {
+					if (z) {
+						for (i = 0; i < 2; i = i + 1) { stop Worker; }
+					}
+				}
+			} else {
+				if (process Worker in state inactive) {
+					if (x) { start Worker; }
+				}
+			}
+			timeout D {
+				if (y) { set next state; }
+			}
+		}
+		state alarm {
+			if (x) { restart; } else { stop; }
+		}
+	}
+	process Worker :: node N {
+		state one {
+			if (y) { set next state; }
+			timeout 0t200ms { stop; }
+		}
+		state two {
+			if (x) {
+				stop;
+				start Late;
+				restart;
+			}
+			if (z) { error; }
+			timeout 0t300ms { set state one; }
+		}
+	}
+	process Late :: node N {
+		state l {
+			if (process Worker in state stop) { start Worker; }
+			if (!(process Worker in state stop)) {
+				if (!(process Worker in state error)) { ; }
+			}
+			timeout 0t100ms { stop; }
+		}
+	}
+}

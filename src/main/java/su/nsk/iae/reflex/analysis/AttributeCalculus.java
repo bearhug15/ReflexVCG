@@ -9,30 +9,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Combines attribute sets, as StaticalAnalysis.tex defines: {@code consAttributes} for
- * constructs executed one after another, {@code parAttributes} for alternatives of which
- * exactly one runs.
+ * Combines attribute sets: Algorithm 2 of static-analysis.md for constructs executed one after
+ * another ({@link #cons}), Algorithm 3 for alternatives of which exactly one runs ({@link #par}).
  *
- * <p>Several readings were needed where the specification is inconsistent; each is marked
- * SPEC below and listed in the class comment so they can be checked in one place:
- *
- * <ul>
- *   <li>{@code addConsAttributes} computes {@code newChangesTo} and never assigns it, so
- *       changesTo would never propagate. Taken as assigning it.</li>
- *   <li>The same function selects {@code procs} using
- *       {@code definedProcChange(newAttr.potProcessChange)} - definedProcChange takes a
- *       map, potProcessChange is a list. Read as: processes the new construct
- *       <em>might</em> change but does not <em>definitely</em> change.</li>
- *   <li>Its conflict checks then test the <em>old</em> potential changes, which cannot
- *       invalidate old definite knowledge. Read as testing the new ones: knowledge
- *       survives only if what might have happened since agrees with it.</li>
- *   <li>{@code addParAttributes} has {@code if (newAttr.reset == null) newAttr.reset =
- *       null}, which does nothing, and likewise for stateChanged. Read as conjunction:
- *       something is definite after a choice only if it is definite in every branch.</li>
- *   <li>{@code setsInter} unions a set of processes into a collection of sets. Read as
- *       adding the intersection and the difference as two elements, which is what the
- *       previous implementation did.</li>
- * </ul>
+ * <p>What both preserve is the property every rule rests on: if a construct definitely changes
+ * a process, every path through it changes the process, and the last change is that one.
  */
 public final class AttributeCalculus {
 
@@ -45,14 +26,13 @@ public final class AttributeCalculus {
     public static Attributes cons(Attributes first, Attributes second) {
         Map<String, Change> definite = Attributes.mutableCopy(first.processChange());
 
-        // SPEC: processes the second construct might change, but does not definitely
-        // change. Definite knowledge about those may no longer hold.
+        // Processes the second construct might change, but does not definitely change. Definite knowledge about those may no longer hold.
         Set<String> uncertain = new LinkedHashSet<>(first.definitelyChanged());
         uncertain.retainAll(second.potentiallyChanged());
         uncertain.removeAll(second.definitelyChanged());
 
         for (String process : uncertain) {
-            // SPEC: tested against the second construct's potential changes. A definite
+            // Tested against the second construct's potential changes. A definite
             // "started" survives a construct that might only start it again, but not one
             // that might have stopped it.
             boolean mayStart = second.mayChange(process, Change.START);
@@ -81,9 +61,9 @@ public final class AttributeCalculus {
         if (!second.changesTo().isEmpty() || second.mayStay()) {
             if (second.mayStay()) {
                 // The second construct might not move; the first one's targets remain
-                // possible.
+                // possible, and so does staying put if the first one may not move either.
                 changesTo = union(second.changesTo(), first.changesTo());
-                mayStay = first.mayStay();
+                mayStay = first.mayStay() || first.changesTo().isEmpty();
             } else {
                 // The second construct always moves, so it decides where.
                 changesTo = second.changesTo();
@@ -132,7 +112,7 @@ public final class AttributeCalculus {
         }
 
         return Attributes.of(definite, potential,
-                // SPEC: definite only if definite in every branch.
+                // Definite only if definite in every branch.
                 first.reset() && second.reset(),
                 first.stateChanged() && second.stateChanged(),
                 changesTo, mayStay);

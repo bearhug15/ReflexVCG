@@ -348,39 +348,30 @@ written to `LoopInvariants.thy` as before. Neither is derived; both are the requ
   ∧ (getPstate s ''Worker'' = ''error'') = (getPstate s ''Helper'' = ''error'')
 ```
 
-- **Found:** `StaticAnalysis` discards paths on per-process facts (StaticalAnalysis.tex rules 1–2 and
-  the group rules). Those are claims about every boundary, and CLAUDE.md marks them provisional,
-  because a wrong one silently drops proof obligations. Each claim is put through the same check.
-  Survivors become invariants and so something Isabelle proves. Claims that do not survive are
-  reported (`-x mid` prints them; `ReflexVcg.getExtraInvariantDiagnostics`).
-- **Result:** every claim for newThermopot, newTurnstile, newSmartLighting and newBarrier is
-  confirmed (`theMultiProcessProgramsClaimsAreAllConfirmed`). The facts the pruning of the four
-  multi-process programs rests on are therefore inductive, though whether the pruning *uses* them
-  correctly is a separate question.
+- **Found:** `StaticAnalysis` discards paths on per-process facts (static-analysis.md, rules 4.1
+  and the group rules 4.7.1-2). A wrong one silently drops proof obligations, so each claim is put
+  through the same check as any candidate. Survivors become invariants and so something Isabelle
+  proves; claims that do not survive are reported (`-x mid` prints them;
+  `ReflexVcg.getExtraInvariantDiagnostics`).
+- **Where they hold:** the analysis states its facts at each process's turn; an invariant states
+  them at boundaries. Rule 4.1.2 ("never stopped") is the one that differs: a process started in the
+  first cycle before its turn is never found stopped at its turn, but is stopped when the program
+  begins. It is exported for the first process only. Rule 4.1.1 and the group claims hold at
+  boundaries too: group mates are changed alike by every activation (static-analysis.md, 3.4).
+- **Result:** every claim for every test program is confirmed
+  (`theMultiProcessProgramsClaimsAreAllConfirmed`, `theRepairedGroupsMakeNoWrongClaim`).
 - **Provable because:** pure `getPstate`, as above.
 - **Tests:** `theStaticAnalysisGroupsAreConfirmedAndExported`, `anUnconfirmedClaimIsReported`,
-  `aWrongGroupClaimIsReported`.
+  `theRepairedGroupsMakeNoWrongClaim`.
 
-#### The `group` attribute does not mean what it should
+#### The `group` attribute, and why it had to be repaired
 
-The static analysis paper (IVMEM 2026, Ishchenko and Anureev, section 3) defines a group as
-processes that "are always started, stopped or failed within one iteration of the control cycle";
-different groups mean nothing. Rules 1 and 2 of its section 4.7 discard a path on which two
-processes of a group disagree, at their turns in one cycle, on being in `error` or in `stop`. (The
-paper prints those rules as `¬(p.s = stop ⊕ p'.s' = stop)`; the prose, and every implementation,
-discard on disagreement, i.e. without the `¬`.) **Neither the paper's algorithm nor the port
-guarantees what the rules assume.** The group rule is therefore **not** added as an invariant of
-its own: only the group claims the check confirms are exported, as above.
-
-**The paper's algorithm** (Algorithm 5 `ResolveStartStates`, read with `p'.startS = false` as its
-authors confirm, and Algorithm 6 `BuildGroups`/`SetsDiv`/`SetsInter`) starts from a split by
-`startS`. It then walks the whole program - each process, each state, each statement, branches
-included - and at each construct splits every group by six classes of the changes in force there
-(`nhPC = st.procChange ∪ hPC`): the processes {started, stopped, failed}, declared {before, after}
-the current one. A change the current process makes **to itself** is in none of them, except a
-restart in its first state: `stopPpred`/`stopPsucc` and `errorPpred`/`errorPsucc` test `p'.id <
-pcur.id` and `p'.id > pcur.id`. So a process that stops or fails itself is never separated from
-the processes it was grouped with.
+The static analysis paper (IVMEM 2026, Ishchenko and Anureev) defines a group as processes that
+"are always started, stopped or failed within one iteration of the control cycle". Rules 4.7.1-2
+discard a path on which two processes of a group disagree, at their turns in one cycle, on being in
+`error` or in `stop`. As the paper prints Algorithm 6, a change a process makes **to itself** is
+filed in none of its six classes, except a restart in its first state. So a process stopping or
+failing itself is never separated from its group.
 
 *Example*, `programs-extra/groupRule.rcs`:
 
@@ -390,28 +381,18 @@ process A       { state run   { stop; } }          -- groups.rcs: if (x) { stop;
 process B       { state open  { ; } }
 ```
 
-`startS` is false for all three (`Starter` starts `A` and `B` in its first state, and `A`'s first
-state cannot stop `B`). `Starter`'s `start A; start B` puts `A` and `B` in `startPsucc`, which splits
-`Starter` off. `A`'s `stop` is a change to itself: no class, no split. Result: groups `[A, B]`,
-`[Starter]` - the same as the port's, and the same with the printed `p'.startS = true`. But `A`
-stops at its first turn and `B` never does: from the second cycle on `A` is stopped and `B` is
-running. Rule 2 then discards every path on which one of them is asserted stopped and the other
-not. Of the 27 paths without pruning (36 for the `if (x)` variant), the 3 with `A` stopped and `B`
-running are all feasible, and all pruned; their proof obligations are lost. Among them is
-`Starter=stop, A=stop, B=open`, the cycle the program performs forever after the first, so its
-steady state is never verified. The check reports "group [A, B]: A and B are in stop together – not
-confirmed". `group-rule-counterexample.tex` (local, not committed) traces it attribute by attribute
-through Algorithms 1-6.
+As printed, the groups are `[A, B]`, `[Starter]`, with either reading of `startS`. But `A` stops at
+its first turn and `B` never does. Rule 4.7.2 then discarded the 3 feasible paths with `A`
+stopped and `B` running, among them `Starter=stop, A=stop, B=open`: the cycle the program performs
+forever after the first, whose condition was therefore never generated.
+`group-rule-counterexample.tex` (local, not committed) traces it attribute by attribute.
 
-**The repair** files every change a process makes to itself - start, stop and error - with the
-processes declared before it (`p'.id ≤ pcur.id` in the three `Ppred` classes), and drops the
-first-state case of `startPsucc`: the process has had its turn this cycle, so it shows the change
-at its next turn, like a predecessor. Filing only stops and errors that way is not enough:
-in `programs-extra/groupSelfRestart.rcs` a process stops a predecessor and itself and then
-restarts itself, which as printed is filed nowhere outside the first state, so the two stay grouped
-while one is stopped and the other running. With the full repair, rules 1 and 2 discard no feasible
-path; `group-rule-counterexample.tex` proves it (an activation that changes one process of a group
-changes the other last to the same value, on the same side of the actor).
+**The repair**, which `ProcessFacts` now implements, files every change a process makes to itself
+(start, stop and error) with the processes declared before it, and drops the first-state case.
+The process has had its turn this cycle, so it shows the change at its next turn, like a
+predecessor. Filing only stops and errors that way is not enough: `programs-extra/groupSelfRestart.rcs`
+stops a predecessor and itself and then restarts itself. With the full repair rules 4.7.1-2 discard
+no feasible path (static-analysis.md 3.4; the proof is in the `.tex`).
 
 `inv/simulation/GroupRuleSimulationTest` implements Algorithms 5 and 6 as printed and checks every
 grouping on random runs of every test program, comparing processes at their turns:
@@ -421,25 +402,11 @@ grouping on random runs of every test program, comparing processes at their turn
 | as printed (either `startS` reading) | `groupRule`, `groups` |
 | only stops and errors of itself filed with predecessors | `groupSelfRestart` |
 | every change to itself filed with predecessors (the repair) | none |
-| the port | `groupRule`, `groups`, `groupSelfRestart`, `groupStress` |
+| the analysis (`ProcessFacts`) | none - it is the repair, on every program |
 
-`programs-extra/groupStress.rcs` exercises the rest: pairs split by a process declared between
-them, a stop undone by a restart in the same activation, a process failing a predecessor and itself.
-
-**The port** (`ProcessFacts`) has the self-change defect and three differences from the paper:
-`computeStartS` uses the misprinted `p'.startS = true` and checks the processes in between for a
-`stop` in any state rather than a `stop` or `error` in the first; `refine` reads only the definite
-changes of each *process* (`par` over its states), where the paper visits every statement, so a
-change made under a condition, or in some states only, splits nothing - on `groupStress` it leaves
-seven processes in one group; and it files any self-restart as a successor, not only one in the
-first state. On every program in `programs-new` every grouping above agrees with
-the runs.
-
-The check tests boundaries, and the static analysis compares process states *at each process's
-turn* within a cycle, so a reported claim is not always wrong by the analysis's own reading. In a
-chain where `Starter` starts `A` and `A` starts `B`, rule 2 ("B is never stopped") is false at the
-first boundary but true at every turn of `B`. The self-change defect produces claims false by
-either reading.
+Before the repair the port also read only the definite changes of whole processes, where the paper
+visits every statement. On `groupStress.rcs` that left seven processes in one group, which a run
+refuted in cycle 2.
 
 ---
 

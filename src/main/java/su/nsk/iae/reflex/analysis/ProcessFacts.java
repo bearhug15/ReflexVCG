@@ -6,27 +6,20 @@ import su.nsk.iae.reflex.ir.IrNode;
 import su.nsk.iae.reflex.ir.IrProcess;
 import su.nsk.iae.reflex.ir.IrProgram;
 import su.nsk.iae.reflex.ir.IrState;
+import su.nsk.iae.reflex.ir.IrStmt;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
- * The per-process facts of StaticalAnalysis.tex: whether a process can reach stop or
- * error, whether it begins stopped, and which processes are started and stopped together.
- *
- * <p>Two readings were needed, both marked SPEC below:
- * <ul>
- *   <li>{@code setReachE} assigns {@code reachS} rather than {@code reachE}. Taken as a
- *       slip: left as written, reachE is never true and rule 1 would discard every path
- *       through an error state, dropping real obligations.</li>
- *   <li>{@code setStartS} tests {@code proc.active}, which is not defined anywhere. Taken
- *       as the previous implementation had it: the first declared process starts running,
- *       every other starts stopped.</li>
- * </ul>
+ * The derived per-process attributes of static-analysis.md, section 3: whether a process can
+ * reach stop or error (Algorithm 4), whether it can be found stopped in the first cycle
+ * (Algorithm 5) and which processes are started, stopped and failed together (Algorithm 6).
  */
 public final class ProcessFacts {
 
@@ -60,42 +53,33 @@ public final class ProcessFacts {
     // ------------------------------------------------------------------ computation
 
     private void compute() {
-        Map<String, Boolean> reachS = new LinkedHashMap<>();
-        Map<String, Boolean> reachE = new LinkedHashMap<>();
-        Map<String, Boolean> startS = new LinkedHashMap<>();
-
-        // Any process that some process might stop can reach stop, as can one that moves
-        // itself there.
         Set<String> mayBeStopped = processesMentionedWith(Change.STOP);
         Set<String> mayBeErrored = processesMentionedWith(Change.ERROR);
 
+        Map<String, Boolean> reachS = new LinkedHashMap<>();
+        Map<String, Boolean> reachE = new LinkedHashMap<>();
         for (IrProcess process : program.getProcesses()) {
-            Attributes processAttributes = attributes.getOrDefault(process, Attributes.EMPTY);
+            // Algorithm 4: some state of the process moves it there, or some process may
+            // put it there. A process stopping itself is both.
+            Attributes processAttributes = of(process);
             reachS.put(process.getName(),
                     processAttributes.changesTo().contains("stop") || mayBeStopped.contains(process.getName()));
-            // SPEC: setReachE writes reachS; read as reachE.
             reachE.put(process.getName(),
                     processAttributes.changesTo().contains("error") || mayBeErrored.contains(process.getName()));
         }
 
-        computeStartS(startS);
-
-        Map<String, Integer> groups = computeGroups(startS);
+        Map<String, Boolean> startS = computeStartS();
+        Map<String, Integer> groups = new Grouping(startS).build();
         for (IrProcess process : program.getProcesses()) {
             String name = process.getName();
-            facts.put(name, new Facts(
-                    reachS.getOrDefault(name, false),
-                    startS.getOrDefault(name, false),
-                    reachE.getOrDefault(name, false),
-                    groups.getOrDefault(name, processId(name))));
+            facts.put(name, new Facts(reachS.get(name), startS.get(name), reachE.get(name), groups.get(name)));
         }
     }
 
     private Set<String> processesMentionedWith(Change change) {
         Set<String> mentioned = new LinkedHashSet<>();
         for (IrProcess process : program.getProcesses()) {
-            Attributes processAttributes = attributes.getOrDefault(process, Attributes.EMPTY);
-            for (ProcessChange potential : processAttributes.potProcessChange()) {
+            for (ProcessChange potential : of(process).potProcessChange()) {
                 if (potential.change() == change) {
                     mentioned.add(potential.process());
                 }
@@ -105,42 +89,33 @@ public final class ProcessFacts {
     }
 
     /**
-     * Whether a process is stopped when the program begins. SPEC: the first declared
-     * process runs from the start; the rest begin stopped. A process then loses startS if
-     * an earlier process starts it from its own first state and nothing in between could
-     * stop it again.
+     * Algorithm 5, {@code ResolveStartStates}: whether a process may be found stopped at its
+     * turn in the first cycle. The first process runs from the start; every other begins
+     * stopped. A process {@code p} is nonetheless never found stopped in the first cycle if a
+     * process {@code p'} declared before it, itself never found stopped then, starts it in its
+     * first state, and no process declared between them may stop or fail it in <em>its</em>
+     * first state. Every process running in the first cycle is in its first state, so those
+     * are the only states that matter.
+     *
+     * <p>The paper prints {@code p'.startS = true}; its authors confirm {@code false} is meant.
      */
-    private void computeStartS(Map<String, Boolean> startS) {
+    private Map<String, Boolean> computeStartS() {
         List<IrProcess> processes = program.getProcesses();
+        Map<String, Boolean> startS = new LinkedHashMap<>();
         for (int i = 0; i < processes.size(); i++) {
             startS.put(processes.get(i).getName(), i != 0);
         }
-
-        for (IrProcess current : processes) {
-            String name = current.getName();
-            List<IrProcess> earlier = processes.subList(0, processes.indexOf(current));
-
-            for (int i = 0; i < earlier.size(); i++) {
-                IrProcess previous = earlier.get(i);
-                if (!startS.getOrDefault(previous.getName(), false)) {
+        for (int id = 1; id < processes.size(); id++) {
+            String name = processes.get(id).getName();
+            for (int starter = 0; starter < id; starter++) {
+                IrProcess candidate = processes.get(starter);
+                if (startS.get(candidate.getName()) || firstOf(candidate).changeFor(name) != Change.START) {
                     continue;
                 }
-                IrState firstState = previous.getStartState();
-                if (firstState == null) {
-                    continue;
-                }
-                Attributes stateAttributes = attributes.getOrDefault(firstState, Attributes.EMPTY);
-                if (stateAttributes.changeFor(name) != Change.START) {
-                    continue;
-                }
-                // Nothing declared between them may stop it again.
                 boolean blocked = false;
-                for (IrProcess between : earlier.subList(i + 1, earlier.size())) {
-                    Attributes betweenAttributes = attributes.getOrDefault(between, Attributes.EMPTY);
-                    if (betweenAttributes.mayChange(name, Change.STOP)) {
-                        blocked = true;
-                        break;
-                    }
+                for (int between = starter + 1; between < id && !blocked; between++) {
+                    Attributes first = firstOf(processes.get(between));
+                    blocked = first.mayChange(name, Change.STOP) || first.mayChange(name, Change.ERROR);
                 }
                 if (!blocked) {
                     startS.put(name, false);
@@ -148,90 +123,95 @@ public final class ProcessFacts {
                 }
             }
         }
+        return startS;
+    }
+
+    private Attributes firstOf(IrProcess process) {
+        return process.getStartState() == null ? Attributes.EMPTY : of(process.getStartState());
+    }
+
+    private Attributes of(IrNode node) {
+        return attributes.getOrDefault(node, Attributes.EMPTY);
     }
 
     /**
-     * Partitions processes into groups that are started, stopped and failed together.
-     * Refines an initial split - those that begin stopped and those that do not - by the
-     * changes each process makes, distinguishing processes declared before the acting one
-     * from those declared after, since a change to an earlier process takes effect in the
-     * same cycle and a change to a later one does not.
+     * Algorithm 6, {@code BuildGroups}, with the repair of static-analysis.md, section 3.4.
+     *
+     * <p>Starts from the split by {@code startS} and walks every construct of every process -
+     * the process, its states, every statement, branches and loop bodies included. At each
+     * construct it takes the changes in force there, {@code nhPC} (the construct's own
+     * definite changes and those of the constructs enclosing it), and splits every group by
+     * six classes: processes started, stopped and failed, each on one side of the acting
+     * process. The sides say when a process shows the change: one declared after the actor
+     * in this cycle, one declared before it - <em>or the actor itself</em>, which has already
+     * had its turn - in the next. As printed, the paper files a change of the actor to
+     * itself only for a restart in its first state, so a process stopping or failing itself
+     * never splits a group; that is the repair.
      */
-    private Map<String, Integer> computeGroups(Map<String, Boolean> startS) {
-        Set<String> begins = new LinkedHashSet<>();
-        Set<String> doesNotBegin = new LinkedHashSet<>();
-        for (IrProcess process : program.getProcesses()) {
-            (startS.getOrDefault(process.getName(), false) ? begins : doesNotBegin)
-                    .add(process.getName());
+    private final class Grouping {
+        private final Map<String, Boolean> startS;
+        private int actor;
+
+        Grouping(Map<String, Boolean> startS) {
+            this.startS = startS;
         }
 
-        List<Set<String>> partition = new ArrayList<>();
-        partition.add(doesNotBegin);
-        partition.add(begins);
+        Map<String, Integer> build() {
+            Set<String> neverStopped = new LinkedHashSet<>();
+            Set<String> mayBeStopped = new LinkedHashSet<>();
+            startS.forEach((process, value) -> (value ? mayBeStopped : neverStopped).add(process));
+            List<Set<String>> sets = new ArrayList<>(List.of(neverStopped, mayBeStopped));
+            sets.removeIf(Set::isEmpty);
 
-        for (IrProcess process : program.getProcesses()) {
-            Attributes processAttributes = attributes.getOrDefault(process, Attributes.EMPTY);
-            partition = refine(partition, processAttributes, process.getName(),
-                    process.getStartState() == null ? null : process.getStartState().getName());
-        }
-
-        Map<String, Integer> groups = new LinkedHashMap<>();
-        int index = 0;
-        for (Set<String> part : partition) {
-            for (String member : part) {
-                groups.put(member, index);
+            for (IrProcess process : program.getProcesses()) {
+                actor = processId(process.getName());
+                sets = divide(sets, Map.of(), process);
             }
-            index++;
-        }
-        return groups;
-    }
 
-    /** One refinement step: splits every part by each of the six change classes. */
-    private List<Set<String>> refine(List<Set<String>> partition, Attributes attributes,
-                                     String actingProcess, String actingFirstState) {
-        int actingId = processId(actingProcess);
-
-        List<Set<String>> classes = new ArrayList<>();
-        for (Change change : Change.values()) {
-            Set<String> earlier = new LinkedHashSet<>();
-            Set<String> later = new LinkedHashSet<>();
-            for (Map.Entry<String, Change> entry : attributes.processChange().entrySet()) {
-                if (entry.getValue() != change) {
-                    continue;
-                }
-                int id = processId(entry.getKey());
-                if (id < actingId) {
-                    earlier.add(entry.getKey());
-                } else if (id > actingId
-                        || change == Change.START && actingFirstState != null) {
-                    later.add(entry.getKey());
+            Map<String, Integer> groups = new LinkedHashMap<>();
+            for (int i = 0; i < sets.size(); i++) {
+                for (String member : sets.get(i)) {
+                    groups.put(member, i);
                 }
             }
-            classes.add(earlier);
-            classes.add(later);
+            return groups;
         }
 
-        List<Set<String>> refined = partition;
-        for (Set<String> splitter : classes) {
-            refined = split(refined, splitter);
+        /** {@code SetsDiv}. */
+        private List<Set<String>> divide(List<Set<String>> sets, Map<String, Change> enclosing, IrNode construct) {
+            // nhPC := st.procChange u hPC. Where both define a process the enclosing value is
+            // kept; the grouping is sound either way (static-analysis.md, section 3.4).
+            Map<String, Change> inForce = new LinkedHashMap<>(of(construct).processChange());
+            inForce.putAll(enclosing);
+
+            for (Change change : Change.values()) {
+                Set<String> declaredBefore = new LinkedHashSet<>();
+                Set<String> declaredAfter = new LinkedHashSet<>();
+                inForce.forEach((process, value) -> {
+                    if (value == change) {
+                        (processId(process) <= actor ? declaredBefore : declaredAfter).add(process);
+                    }
+                });
+                sets = intersect(sets, declaredBefore);
+                sets = intersect(sets, declaredAfter);
+            }
+            for (IrNode line : lines(construct)) {
+                sets = divide(sets, inForce, line);
+            }
+            return sets;
         }
-        return refined;
     }
 
-    /**
-     * SPEC: setsInter unions a set of processes into a collection of sets. Read as
-     * splitting every part into the members inside {@code splitter} and those outside,
-     * which is what the previous implementation did.
-     */
-    private static List<Set<String>> split(List<Set<String>> partition, Set<String> splitter) {
+    /** {@code SetsInter}: every set split into its part inside {@code splitter} and the rest. */
+    private static List<Set<String>> intersect(List<Set<String>> sets, Set<String> splitter) {
         if (splitter.isEmpty()) {
-            return partition;
+            return sets;
         }
         List<Set<String>> result = new ArrayList<>();
-        for (Set<String> part : partition) {
-            Set<String> inside = new LinkedHashSet<>(part);
+        for (Set<String> set : sets) {
+            Set<String> inside = new LinkedHashSet<>(set);
             inside.retainAll(splitter);
-            Set<String> outside = new LinkedHashSet<>(part);
+            Set<String> outside = new LinkedHashSet<>(set);
             outside.removeAll(splitter);
             if (!inside.isEmpty()) {
                 result.add(inside);
@@ -241,5 +221,31 @@ public final class ProcessFacts {
             }
         }
         return result;
+    }
+
+    /** {@code lines}: the constructs directly inside one. */
+    static List<IrNode> lines(IrNode construct) {
+        List<IrNode> lines = new ArrayList<>();
+        if (construct instanceof IrProcess process) {
+            lines.addAll(process.getStates());
+        } else if (construct instanceof IrState state) {
+            lines.addAll(state.getStatements());
+            lines.add(state.getTimeout());
+        } else if (construct instanceof IrState.Timeout timeout) {
+            lines.add(timeout.getBody());
+        } else if (construct instanceof IrStmt.Block block) {
+            lines.addAll(block.getStatements());
+        } else if (construct instanceof IrStmt.If ifStmt) {
+            lines.add(ifStmt.getThenBranch());
+            lines.add(ifStmt.getElseBranch());
+        } else if (construct instanceof IrStmt.Switch switchStmt) {
+            lines.addAll(switchStmt.getCases());
+        } else if (construct instanceof IrStmt.SwitchCase clause) {
+            lines.addAll(clause.getStatements());
+        } else if (construct instanceof IrStmt.For forStmt) {
+            lines.add(forStmt.getBody());
+        }
+        lines.removeIf(Objects::isNull);
+        return lines;
     }
 }
