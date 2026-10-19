@@ -35,7 +35,7 @@ public class ExpressionVisitor2 extends ReflexBaseVisitor<ArrayList<ExprGenRes2>
     @Override
     public ArrayList<ExprGenRes2> visitCheckStateExpression(ReflexParser.CheckStateExpressionContext ctx) {
         String process = ctx.processId.getText();
-        String processState = ctx.qual.getText();
+        String processState = ctx.stateQual().getText();
         if(isProcessExpr){
             ExprGenRes2 trueRes = new ExprGenRes2(creator,new ConstantExpression(creator.True(),new BoolType()),state,Boolean.TRUE);
             ExprGenRes2 falseRes = new ExprGenRes2(creator,new ConstantExpression(creator.False(),new BoolType()),state,Boolean.FALSE);

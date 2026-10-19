@@ -6,6 +6,7 @@ import su.nsk.iae.reflex.ProgramGraph.GraphRepr.GraphNodes.ChangeType;
 
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Set;
 
 public interface IAttributed {
     IReflexNode getAttributedNode();
@@ -27,6 +28,10 @@ public interface IAttributed {
     //void addPotProcChange(ProcessNode ctx, PotChange change);
 
     Map<String,ProcessStatus> getProcStatuses();
+
+    // reachTo: the states a path through the construct may leave the current process in. It
+    // contains the current state itself when some path may leave the process where it was.
+    Set<String> getReachTo();
 
     ArrayList<IAttributed> getAttributes();
     //void setAttributes(ArrayList<IAttributed> attributes);

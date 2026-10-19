@@ -1,4 +1,4 @@
-// Generated from C:/Users/iarte/IdeaProjects/ReflexVCG/src/main/java/su/nsk/iae/reflex/antlr/Reflex.g4 by ANTLR 4.13.1
+// Generated from C:/Users/iarte/Projects/ReflexVCG/src/main/java/su/nsk/iae/reflex/antlr/Reflex.g4 by ANTLR 4.13.1
 package su.nsk.iae.reflex.antlr;
 import org.antlr.v4.runtime.atn.*;
 import org.antlr.v4.runtime.dfa.DFA;
@@ -227,6 +227,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_program; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterProgram(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitProgram(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitProgram(this);
 			else return visitor.visitChildren(this);
@@ -358,6 +366,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_clockDefinition; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterClockDefinition(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitClockDefinition(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitClockDefinition(this);
 			else return visitor.visitChildren(this);
@@ -445,6 +461,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_process; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterProcess(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitProcess(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitProcess(this);
@@ -594,6 +618,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_state; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterState(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitState(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitState(this);
 			else return visitor.visitChildren(this);
@@ -739,6 +771,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_annotation; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterAnnotation(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitAnnotation(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitAnnotation(this);
 			else return visitor.visitChildren(this);
@@ -793,6 +833,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_annotationKey; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterAnnotationKey(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitAnnotationKey(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitAnnotationKey(this);
@@ -851,6 +899,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_importedVariableList; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterImportedVariableList(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitImportedVariableList(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitImportedVariableList(this);
@@ -922,6 +978,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_processVariable; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterProcessVariable(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitProcessVariable(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitProcessVariable(this);
 			else return visitor.visitChildren(this);
@@ -987,6 +1051,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_globalVariable; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterGlobalVariable(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitGlobalVariable(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitGlobalVariable(this);
 			else return visitor.visitChildren(this);
@@ -1047,6 +1119,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_physicalVariable; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterPhysicalVariable(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitPhysicalVariable(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitPhysicalVariable(this);
 			else return visitor.visitChildren(this);
@@ -1090,6 +1170,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_portMapping; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterPortMapping(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitPortMapping(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitPortMapping(this);
@@ -1148,6 +1236,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_programVariable; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterProgramVariable(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitProgramVariable(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitProgramVariable(this);
@@ -1271,6 +1367,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_timeoutFunction; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterTimeoutFunction(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitTimeoutFunction(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitTimeoutFunction(this);
 			else return visitor.visitChildren(this);
@@ -1337,6 +1441,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_timeAmountOrRef; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterTimeAmountOrRef(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitTimeAmountOrRef(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitTimeAmountOrRef(this);
 			else return visitor.visitChildren(this);
@@ -1401,6 +1513,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_functionDecl; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterFunctionDecl(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitFunctionDecl(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitFunctionDecl(this);
@@ -1472,6 +1592,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_port; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterPort(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitPort(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitPort(this);
 			else return visitor.visitChildren(this);
@@ -1526,6 +1654,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_const; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterConst(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitConst(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitConst(this);
 			else return visitor.visitChildren(this);
@@ -1579,6 +1715,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_enum; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterEnum(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitEnum(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitEnum(this);
@@ -1635,6 +1779,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_enumMember; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterEnumMember(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitEnumMember(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitEnumMember(this);
@@ -1805,6 +1957,14 @@ public class ReflexParser extends Parser {
 		}
 		public CompoundStContext(StatementContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterCompoundSt(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitCompoundSt(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitCompoundSt(this);
 			else return visitor.visitChildren(this);
@@ -1816,6 +1976,14 @@ public class ReflexParser extends Parser {
 			return getRuleContext(IfElseStatContext.class,0);
 		}
 		public IfElseStContext(StatementContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterIfElseSt(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitIfElseSt(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitIfElseSt(this);
@@ -1829,6 +1997,14 @@ public class ReflexParser extends Parser {
 		}
 		public SwitchStContext(StatementContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterSwitchSt(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitSwitchSt(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitSwitchSt(this);
 			else return visitor.visitChildren(this);
@@ -1837,6 +2013,14 @@ public class ReflexParser extends Parser {
 	@SuppressWarnings("CheckReturnValue")
 	public static class EmptyStContext extends StatementContext {
 		public EmptyStContext(StatementContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterEmptySt(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitEmptySt(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitEmptySt(this);
@@ -1850,6 +2034,14 @@ public class ReflexParser extends Parser {
 		}
 		public ErrorProcessStContext(StatementContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterErrorProcessSt(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitErrorProcessSt(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitErrorProcessSt(this);
 			else return visitor.visitChildren(this);
@@ -1861,6 +2053,14 @@ public class ReflexParser extends Parser {
 			return getRuleContext(StopProcStatContext.class,0);
 		}
 		public StopProcessStContext(StatementContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterStopProcessSt(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitStopProcessSt(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitStopProcessSt(this);
@@ -1874,6 +2074,14 @@ public class ReflexParser extends Parser {
 		}
 		public ExprStContext(StatementContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterExprSt(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitExprSt(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitExprSt(this);
 			else return visitor.visitChildren(this);
@@ -1885,6 +2093,14 @@ public class ReflexParser extends Parser {
 			return getRuleContext(StartProcStatContext.class,0);
 		}
 		public StartProcessStContext(StatementContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterStartProcessSt(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitStartProcessSt(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitStartProcessSt(this);
@@ -1898,6 +2114,14 @@ public class ReflexParser extends Parser {
 		}
 		public ResetStContext(StatementContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterResetSt(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitResetSt(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitResetSt(this);
 			else return visitor.visitChildren(this);
@@ -1910,6 +2134,14 @@ public class ReflexParser extends Parser {
 		}
 		public SetStateStContext(StatementContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterSetStateSt(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitSetStateSt(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitSetStateSt(this);
 			else return visitor.visitChildren(this);
@@ -1921,6 +2153,14 @@ public class ReflexParser extends Parser {
 			return getRuleContext(RestartStatContext.class,0);
 		}
 		public RestartStContext(StatementContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterRestartSt(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitRestartSt(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitRestartSt(this);
@@ -2066,6 +2306,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_statementSeq; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterStatementSeq(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitStatementSeq(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitStatementSeq(this);
 			else return visitor.visitChildren(this);
@@ -2121,6 +2369,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_compoundStatement; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterCompoundStatement(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitCompoundStatement(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitCompoundStatement(this);
@@ -2185,6 +2441,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_ifElseStat; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterIfElseStat(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitIfElseStat(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitIfElseStat(this);
@@ -2255,6 +2519,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_switchStat; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterSwitchStat(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitSwitchStat(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitSwitchStat(this);
@@ -2333,6 +2605,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_caseStat; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterCaseStat(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitCaseStat(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitCaseStat(this);
 			else return visitor.visitChildren(this);
@@ -2394,6 +2674,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_defaultStat; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterDefaultStat(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitDefaultStat(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitDefaultStat(this);
 			else return visitor.visitChildren(this);
@@ -2445,6 +2733,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_switchOptionStatSeq; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterSwitchOptionStatSeq(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitSwitchOptionStatSeq(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitSwitchOptionStatSeq(this);
@@ -2506,6 +2802,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_startProcStat; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterStartProcStat(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitStartProcStat(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitStartProcStat(this);
 			else return visitor.visitChildren(this);
@@ -2543,6 +2847,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_stopProcStat; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterStopProcStat(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitStopProcStat(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitStopProcStat(this);
@@ -2590,6 +2902,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_errorProcStat; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterErrorProcStat(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitErrorProcStat(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitErrorProcStat(this);
 			else return visitor.visitChildren(this);
@@ -2634,6 +2954,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_restartStat; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterRestartStat(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitRestartStat(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitRestartStat(this);
 			else return visitor.visitChildren(this);
@@ -2669,6 +2997,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_resetStat; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterResetStat(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitResetStat(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitResetStat(this);
@@ -2709,6 +3045,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_setStateStat; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterSetStateStat(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitSetStateStat(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitSetStateStat(this);
@@ -2776,6 +3120,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_functionCall; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterFunctionCall(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitFunctionCall(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitFunctionCall(this);
 			else return visitor.visitChildren(this);
@@ -2841,6 +3193,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_checkStateExpression; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterCheckStateExpression(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitCheckStateExpression(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitCheckStateExpression(this);
 			else return visitor.visitChildren(this);
@@ -2861,8 +3221,59 @@ public class ReflexParser extends Parser {
 			match(T__38);
 			setState(452);
 			match(T__8);
-			setState(453);
-			((CheckStateExpressionContext)_localctx).stateId = match(STATE_QUAL);
+			setState(409);
+			((CheckStateExpressionContext)_localctx).qual = stateQual();
+			}
+		}
+		catch (RecognitionException re) {
+			_localctx.exception = re;
+			_errHandler.reportError(this, re);
+			_errHandler.recover(this, re);
+		}
+		finally {
+			exitRule();
+		}
+		return _localctx;
+	}
+
+	@SuppressWarnings("CheckReturnValue")
+	public static class StateQualContext extends ParserRuleContext {
+		public StateQualContext(ParserRuleContext parent, int invokingState) {
+			super(parent, invokingState);
+		}
+		@Override public int getRuleIndex() { return RULE_stateQual; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterStateQual(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitStateQual(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitStateQual(this);
+			else return visitor.visitChildren(this);
+		}
+	}
+
+	public final StateQualContext stateQual() throws RecognitionException {
+		StateQualContext _localctx = new StateQualContext(_ctx, getState());
+		enterRule(_localctx, 70, RULE_stateQual);
+		int _la;
+		try {
+			enterOuterAlt(_localctx, 1);
+			{
+			setState(411);
+			_la = _input.LA(1);
+			if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 206963736576L) != 0)) ) {
+			_errHandler.recoverInline(this);
+			}
+			else {
+				if ( _input.LA(1)==Token.EOF ) matchedEOF = true;
+				_errHandler.reportMatch(this);
+				consume();
+			}
 			}
 		}
 		catch (RecognitionException re) {
@@ -2887,6 +3298,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_infixOp; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterInfixOp(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitInfixOp(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitInfixOp(this);
@@ -2928,6 +3347,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_postfixOp; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterPostfixOp(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitPostfixOp(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitPostfixOp(this);
@@ -2971,9 +3398,36 @@ public class ReflexParser extends Parser {
 		}
 	}
 	@SuppressWarnings("CheckReturnValue")
+	public static class IntegerContext extends PrimaryExpressionContext {
+		public TerminalNode INTEGER() { return getToken(ReflexParser.INTEGER, 0); }
+		public TerminalNode UNSIGNED_INTEGER() { return getToken(ReflexParser.UNSIGNED_INTEGER, 0); }
+		public IntegerContext(PrimaryExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterInteger(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitInteger(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitInteger(this);
+			else return visitor.visitChildren(this);
+		}
+	}
+	@SuppressWarnings("CheckReturnValue")
 	public static class FloatContext extends PrimaryExpressionContext {
 		public TerminalNode FLOAT() { return getToken(ReflexParser.FLOAT, 0); }
 		public FloatContext(PrimaryExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterFloat(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitFloat(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitFloat(this);
@@ -2984,6 +3438,14 @@ public class ReflexParser extends Parser {
 	public static class BoolContext extends PrimaryExpressionContext {
 		public TerminalNode BOOL_VAL() { return getToken(ReflexParser.BOOL_VAL, 0); }
 		public BoolContext(PrimaryExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterBool(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitBool(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitBool(this);
@@ -2997,6 +3459,14 @@ public class ReflexParser extends Parser {
 		}
 		public ClosedExpressionContext(PrimaryExpressionContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterClosedExpression(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitClosedExpression(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitClosedExpression(this);
 			else return visitor.visitChildren(this);
@@ -3006,6 +3476,14 @@ public class ReflexParser extends Parser {
 	public static class TimeContext extends PrimaryExpressionContext {
 		public TerminalNode TIME() { return getToken(ReflexParser.TIME, 0); }
 		public TimeContext(PrimaryExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterTime(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitTime(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitTime(this);
@@ -3018,6 +3496,14 @@ public class ReflexParser extends Parser {
 			return getRuleContext(VariableContext.class,0);
 		}
 		public IdContext(PrimaryExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterId(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitId(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitId(this);
@@ -3132,6 +3618,14 @@ public class ReflexParser extends Parser {
 		}
 		public PostfixOpExprContext(UnaryExpressionContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterPostfixOpExpr(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitPostfixOpExpr(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitPostfixOpExpr(this);
 			else return visitor.visitChildren(this);
@@ -3143,6 +3637,14 @@ public class ReflexParser extends Parser {
 			return getRuleContext(PrimaryExpressionContext.class,0);
 		}
 		public PrimaryExprContext(UnaryExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterPrimaryExpr(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitPrimaryExpr(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitPrimaryExpr(this);
@@ -3160,6 +3662,14 @@ public class ReflexParser extends Parser {
 		}
 		public UnaryOpExprContext(UnaryExpressionContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterUnaryOpExpr(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitUnaryOpExpr(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitUnaryOpExpr(this);
 			else return visitor.visitChildren(this);
@@ -3172,6 +3682,14 @@ public class ReflexParser extends Parser {
 		}
 		public InfixOpExprContext(UnaryExpressionContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterInfixOpExpr(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitInfixOpExpr(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitInfixOpExpr(this);
 			else return visitor.visitChildren(this);
@@ -3183,6 +3701,14 @@ public class ReflexParser extends Parser {
 			return getRuleContext(FunctionCallContext.class,0);
 		}
 		public FuncCallExprContext(UnaryExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterFuncCallExpr(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitFuncCallExpr(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitFuncCallExpr(this);
@@ -3275,6 +3801,14 @@ public class ReflexParser extends Parser {
 		}
 		public CastContext(ExpressionContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterCast(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitCast(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitCast(this);
 			else return visitor.visitChildren(this);
@@ -3294,6 +3828,14 @@ public class ReflexParser extends Parser {
 		}
 		public AddContext(ExpressionContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterAdd(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitAdd(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitAdd(this);
 			else return visitor.visitChildren(this);
@@ -3311,6 +3853,14 @@ public class ReflexParser extends Parser {
 		public TerminalNode SHIFT_OP() { return getToken(ReflexParser.SHIFT_OP, 0); }
 		public ShiftContext(ExpressionContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterShift(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitShift(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitShift(this);
 			else return visitor.visitChildren(this);
@@ -3327,6 +3877,14 @@ public class ReflexParser extends Parser {
 		public TerminalNode BIT_OR_OP() { return getToken(ReflexParser.BIT_OR_OP, 0); }
 		public BitOrContext(ExpressionContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterBitOr(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitBitOr(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitBitOr(this);
 			else return visitor.visitChildren(this);
@@ -3342,6 +3900,14 @@ public class ReflexParser extends Parser {
 		}
 		public TerminalNode OR_OP() { return getToken(ReflexParser.OR_OP, 0); }
 		public OrContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterOr(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitOr(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitOr(this);
@@ -3360,6 +3926,14 @@ public class ReflexParser extends Parser {
 		public TerminalNode MUL_OP() { return getToken(ReflexParser.MUL_OP, 0); }
 		public MulContext(ExpressionContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterMul(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitMul(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitMul(this);
 			else return visitor.visitChildren(this);
@@ -3372,6 +3946,14 @@ public class ReflexParser extends Parser {
 		}
 		public CheckStateContext(ExpressionContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterCheckState(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitCheckState(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitCheckState(this);
 			else return visitor.visitChildren(this);
@@ -3383,6 +3965,14 @@ public class ReflexParser extends Parser {
 			return getRuleContext(UnaryExpressionContext.class,0);
 		}
 		public UnaryContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterUnary(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitUnary(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitUnary(this);
@@ -3399,6 +3989,14 @@ public class ReflexParser extends Parser {
 		}
 		public TerminalNode BIT_XOR_OP() { return getToken(ReflexParser.BIT_XOR_OP, 0); }
 		public BitXorContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterBitXor(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitBitXor(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitBitXor(this);
@@ -3417,6 +4015,14 @@ public class ReflexParser extends Parser {
 		public TerminalNode EQ_OP() { return getToken(ReflexParser.EQ_OP, 0); }
 		public EqualContext(ExpressionContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterEqual(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitEqual(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitEqual(this);
 			else return visitor.visitChildren(this);
@@ -3433,6 +4039,14 @@ public class ReflexParser extends Parser {
 		public TerminalNode AND_OP() { return getToken(ReflexParser.AND_OP, 0); }
 		public AndContext(ExpressionContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterAnd(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitAnd(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitAnd(this);
 			else return visitor.visitChildren(this);
@@ -3448,6 +4062,14 @@ public class ReflexParser extends Parser {
 		}
 		public TerminalNode BIT_AND_OP() { return getToken(ReflexParser.BIT_AND_OP, 0); }
 		public BitAndContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterBitAnd(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitBitAnd(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitBitAnd(this);
@@ -3467,6 +4089,14 @@ public class ReflexParser extends Parser {
 		}
 		public AssignContext(ExpressionContext ctx) { copyFrom(ctx); }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterAssign(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitAssign(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitAssign(this);
 			else return visitor.visitChildren(this);
@@ -3483,6 +4113,14 @@ public class ReflexParser extends Parser {
 		}
 		public TerminalNode COMP_OP() { return getToken(ReflexParser.COMP_OP, 0); }
 		public CompareContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterCompare(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitCompare(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitCompare(this);
@@ -3792,6 +4430,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_unaryOp; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterUnaryOp(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitUnaryOp(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitUnaryOp(this);
 			else return visitor.visitChildren(this);
@@ -3834,6 +4480,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_addOp; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterAddOp(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitAddOp(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitAddOp(this);
@@ -3878,6 +4532,14 @@ public class ReflexParser extends Parser {
 		}
 		@Override public int getRuleIndex() { return RULE_assignOp; }
 		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterAssignOp(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitAssignOp(this);
+		}
+		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitAssignOp(this);
 			else return visitor.visitChildren(this);
@@ -3920,6 +4582,14 @@ public class ReflexParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_type; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).enterType(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof ReflexListener ) ((ReflexListener)listener).exitType(this);
+		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
 			if ( visitor instanceof ReflexVisitor ) return ((ReflexVisitor<? extends T>)visitor).visitType(this);

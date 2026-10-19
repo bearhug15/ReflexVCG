@@ -15,6 +15,7 @@ public class IfElseCore extends BranchingFragment {
         this.attributedNode = attributedNode;
         rootProcess = process;
         rootState = state;
+        stayState = state.getStateName();
     }
 
     public ProcessNode getRootProcess() {

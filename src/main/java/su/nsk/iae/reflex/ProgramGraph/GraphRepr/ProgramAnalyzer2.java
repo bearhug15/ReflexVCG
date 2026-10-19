@@ -62,16 +62,21 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
     void additionalAttributeArrangement(){
         List<IReflexNode> processes = collector.getAttributeMap().keySet().stream()
                 .filter(iAttributed -> iAttributed instanceof ProcessNode)
-                .sorted(Comparator.comparingInt(IReflexNode::getBranchNum))
+                // Declaration order: Algorithm 5 compares p'.id < p.id.
+                .sorted(Comparator.comparingInt(node -> metaData.getProcessId(((ProcessNode) node).getProcessName())))
                 .toList();
+        // Algorithm 5: p.startS := false if some p' declared before p, itself running in the
+        // first cycle (p'.startS = false), definitely starts p in its first state, and no
+        // process declared between them may stop or fail p in its first state.
         for(IReflexNode node1: processes){
-            for(IReflexNode node2: processes){
+            for(int j = 0; j < processes.size(); j++){
+                IReflexNode node2 = processes.get(j);
                 if(node1.equals(node2))break;
                 ProcessAttributes attr1 = (ProcessAttributes)collector.getAttributes(node1);
                 ProcessAttributes attr2 = (ProcessAttributes)collector.getAttributes(node2);
                 if(!attr2.isStartS()){
                     ChangeType changes = ((StateAttributes)collector.getAttributes(getFistState((ProcessNode) node2))).getProcChange().get(node1);
-                    if(changes!=null && changes.equals(ChangeType.Start)){
+                    if(changes!=null && changes.equals(ChangeType.Start) && !stoppedBetween(processes, j, (ProcessNode) node1)){
                         attr1.setStartS(false);
                         break;
                     }
@@ -96,6 +101,19 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         }*/
         return;
     }
+    // Whether a process declared after processes[from] and before p may stop or fail p in its
+    // first state.
+    private boolean stoppedBetween(List<IReflexNode> processes, int from, ProcessNode p){
+        for(int k = from + 1; k < processes.size() && !processes.get(k).equals(p); k++){
+            Map<Map.Entry<ProcessNode,ChangeType>,Boolean> pot =
+                    collector.getAttributes(getFistState((ProcessNode) processes.get(k))).getPotProcChange();
+            if(pot.getOrDefault(new AbstractMap.SimpleImmutableEntry<>(p,ChangeType.Stop),false)
+                    || pot.getOrDefault(new AbstractMap.SimpleImmutableEntry<>(p,ChangeType.Error),false))
+                return true;
+        }
+        return false;
+    }
+
     private StateNode getFistState(ProcessNode node){
         return (StateNode) graph.getOutgoingNeighbours(node).stream().min(Comparator.comparingInt(IReflexNode::getBranchNum)).get();
     }
@@ -122,20 +140,20 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
         nhPC.putAll(st.getProcChange());
         int currentId = metaData.getProcessId(currentProcess.getProcessName());
 
+        // A change shows at the changed process's next turn: this cycle for one declared after
+        // the current process, the next cycle for one declared before it, and for the current
+        // process itself, whose turn this is. So a change of a process to itself is filed with
+        // its predecessors (<=), restarts included.
         Set<ProcessNode> startPpred = nhPC.entrySet().stream()
                 .filter(entry->{
-                    return entry.getValue().equals(ChangeType.Start) && metaData.getProcessId(entry.getKey().getProcessName()) < currentId;
+                    return entry.getValue().equals(ChangeType.Start) && metaData.getProcessId(entry.getKey().getProcessName()) <= currentId;
                 })
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toSet());
         setsSet = setsInter(setsSet,startPpred);
         Set<ProcessNode> startPsucc = nhPC.entrySet().stream()
                 .filter(entry->{
-                    if(entry.getValue().equals(ChangeType.Start)){
-                        int anotherId = metaData.getProcessId(entry.getKey().getProcessName());
-                        return anotherId > currentId || (anotherId == currentId && metaData.firstState(currentProcess.getProcessName()).equals(currentState.getStateName()));
-                    }
-                    return false;
+                    return entry.getValue().equals(ChangeType.Start) && metaData.getProcessId(entry.getKey().getProcessName()) > currentId;
                 })
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toSet());
@@ -143,14 +161,14 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
 
         Set<ProcessNode> stopPpred = nhPC.entrySet().stream()
                 .filter(entry->{
-                    return entry.getValue().equals(ChangeType.Stop) && metaData.getProcessId(entry.getKey().getProcessName()) < currentId;
+                    return entry.getValue().equals(ChangeType.Stop) && metaData.getProcessId(entry.getKey().getProcessName()) <= currentId;
                 })
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toSet());
         setsSet = setsInter(setsSet,stopPpred);
         Set<ProcessNode> stopPsucc = nhPC.entrySet().stream()
                 .filter(entry->{
-                    return entry.getValue().equals(ChangeType.Stop) && metaData.getProcessId(entry.getKey().getProcessName()) >= currentId;
+                    return entry.getValue().equals(ChangeType.Stop) && metaData.getProcessId(entry.getKey().getProcessName()) > currentId;
                 })
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toSet());
@@ -158,14 +176,14 @@ public class ProgramAnalyzer2 extends ReflexBaseVisitor<Void> {
 
         Set<ProcessNode> errorPpred = nhPC.entrySet().stream()
                 .filter(entry->{
-                    return entry.getValue().equals(ChangeType.Error) && metaData.getProcessId(entry.getKey().getProcessName()) < currentId;
+                    return entry.getValue().equals(ChangeType.Error) && metaData.getProcessId(entry.getKey().getProcessName()) <= currentId;
                 })
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toSet());
         setsSet = setsInter(setsSet,errorPpred);
         Set<ProcessNode> errorPsucc = nhPC.entrySet().stream()
                 .filter(entry->{
-                    return entry.getValue().equals(ChangeType.Error) && metaData.getProcessId(entry.getKey().getProcessName()) >= currentId;
+                    return entry.getValue().equals(ChangeType.Error) && metaData.getProcessId(entry.getKey().getProcessName()) > currentId;
                 })
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toSet());
