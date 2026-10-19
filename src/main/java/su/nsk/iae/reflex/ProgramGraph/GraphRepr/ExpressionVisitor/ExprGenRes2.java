@@ -370,7 +370,7 @@ public class ExprGenRes2 implements ExprRes {
                 case 65:newProcessStatuses.put(inter,ProcessStatus.Stop);break;
 
                 case 49:newProcessStatuses.put(inter,ProcessStatus.NonStop);break;
-                case 77:newProcessStatuses.put(inter,ProcessStatus.NonError);break;
+                case 77:newProcessStatuses.put(inter,ProcessStatus.Error);break;
                 case 91:newProcessStatuses.put(inter,ProcessStatus.Active);break;
 
                 case 121:newProcessStatuses.put(inter,ProcessStatus.Error);break;
