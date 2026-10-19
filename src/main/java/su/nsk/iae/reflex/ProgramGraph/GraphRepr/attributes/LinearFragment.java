@@ -13,10 +13,20 @@ public abstract class LinearFragment implements IAttributed{
     boolean stateChanging = false;
     ArrayList<IAttributed> attributes = new ArrayList<>();
     Map<String,ProcessStatus> procStatuses = new HashMap<>();
+    Set<String> reachTo = new HashSet<>();
 
     @Override
     public boolean isReset() {
         return reset;
+    }
+
+    @Override
+    public Set<String> getReachTo() {
+        return reachTo;
+    }
+
+    public void setReachTo(Set<String> reachTo) {
+        this.reachTo = reachTo;
     }
     /*@Override
     public void setReset(boolean reset) {
@@ -103,9 +113,14 @@ public abstract class LinearFragment implements IAttributed{
         if (!attributes.isEmpty()) {
             Map<ProcessNode,ChangeType> newProcChange = new HashMap<>();
             Map<Map.Entry<ProcessNode,ChangeType>,Boolean> newPotProcChange = new HashMap<>();
+            Set<String> newReachTo = new HashSet<>();
             for(IAttributed attr: attributes){
                 if(attr.isReset()) this.reset = true;
                 if(attr.isStateChanging()) this.stateChanging = true;
+                // reachTo is where the sequence ends: a construct that always moves the
+                // process decides it, any other may leave the earlier targets in force.
+                if(attr.isStateChanging()) newReachTo = new HashSet<>(attr.getReachTo());
+                else newReachTo.addAll(attr.getReachTo());
                 Set<ProcessNode> aimedProcesses = new HashSet<>(newProcChange.keySet());
                 aimedProcesses.retainAll(getDefinedProcesses(attr.getPotProcChange()));
                 aimedProcesses.removeAll(attr.getProcChange().keySet());
@@ -128,6 +143,7 @@ public abstract class LinearFragment implements IAttributed{
             }
             this.procChange = newProcChange;
             this.potProcChange = newPotProcChange;
+            this.reachTo = newReachTo;
         }
     }
 

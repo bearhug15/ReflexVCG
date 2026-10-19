@@ -177,14 +177,17 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         if (ctx.timeAmountOrRef()==null)
             throw new RuntimeException("Empty timeout reference");
         boolean isVariable = false;
+        boolean isPositive = false;
         SymbolicExpression exp;
         Token time = ctx.timeAmountOrRef().time;
         Token intTime = ctx.timeAmountOrRef().intTime;
         Token var = ctx.timeAmountOrRef().ref;
         if(time!=null){
             exp = new ConstantExpression(time.getText(),new TimeType());
+            isPositive = Long.parseLong(ValueParser.parseTime(time.getText())) > 0;
         } else if (intTime!=null){
             exp = new ConstantExpression(intTime.getText(),new IntType());
+            isPositive = isPositiveNumber(ValueParser.parseInteger(intTime.getText()));
         } else if (var!=null){
             if(mapper.is_variable(currentProcess.getProcessName(),var.getText())){
                 ExprType t= mapper.variableType(currentProcess.getProcessName(),var.getText());
@@ -195,6 +198,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             } else if (mapper.is_const(var.getText())){
                 ExprType t= mapper.constantType(var.getText());
                 exp = new ConstantExpression(mapper.constantValue(var.getText()),t);
+                isPositive = isPositiveNumber(mapper.constantValue(var.getText()));
             } else{
                 throw new RuntimeException("In timeout appeared unknown variable or constant: " + var.getText());
             }
@@ -204,6 +208,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         String condition = exp.toString(creator);
         Map.Entry<TimeoutNode,TimeoutNode> nodes = TimeoutNode.TimeoutNodes(ctx,isVariable);
         TimeoutCore attr = new TimeoutCore(nodes.getKey(),nodes.getKey().isVariable());
+        attr.setStayState(currentState.getStateName());
         collector.addAttributes(nodes.getKey(),attr);
         attributeContainers.peek().addAttributes(attr);
         attributeContainers.add(attr);
@@ -215,6 +220,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         ProgramGraph exceedGraph = new ProgramGraph(exceedCondition,exceedCondition);
         ProgramGraph exceed;
         TimeoutBranch attr1 = new TimeoutBranch(exceedCondition,true);
+        attr1.setPositive(isPositive);
         attr.addAttributes(attr1);
         attributeContainers.push(attr1);
         if(ctx.statement()!=null){
@@ -290,6 +296,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             ConditionNode cnode = new ConditionNode(ctx,res.getProcessesStatusesCondition().get());
             g.extendGraph(cnode);
             ProcessStatusAttributes statusAttributes = new ProcessStatusAttributes(cnode);
+            statusAttributes.setProcStatuses(new HashMap<>(res.getProcessesStatuses().get()));
             collector.addAttributes(cnode,statusAttributes);
         }
 
@@ -410,7 +417,8 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             attributeContainers.push(branchAttr);
             ProgramGraph pathGraph = visitSwitchOptionStatSeq(newCtx.switchOptionStatSeq());
             attributeContainers.pop();
-            collector.addAttributes(pathGraph.startNode,branchAttr);
+            // A case that begins with a statement keeps that statement on the path.
+            if(collector.getAttributes(pathGraph.startNode)==null) collector.addAttributes(pathGraph.startNode,branchAttr);
 
             pathGraphs.add(new ImmutablePair<>(cond,pathGraph));
             for(ProgramGraph path: pathGraphsToExtend){
@@ -429,7 +437,8 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
                 attributeContainers.push(branchAttr);
                 ProgramGraph defGraph = visitSwitchOptionStatSeq(ctx.defaultStat().switchOptionStatSeq());
                 attributeContainers.pop();
-                collector.addAttributes(defGraph.startNode,branchAttr);
+                // A case that begins with a statement keeps that statement on the path.
+                if(collector.getAttributes(defGraph.startNode)==null) collector.addAttributes(defGraph.startNode,branchAttr);
 
                 pathGraphs.add(new ImmutablePair<>(null,defGraph));
                 for(ProgramGraph path: pathGraphsToExtend){
@@ -550,6 +559,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             ConditionNode ccnode = new ConditionNode(ctx,res.getProcessesStatusesCondition().get());
             conPath.extendGraph(ccnode);
             ProcessStatusAttributes statusAttributes = new ProcessStatusAttributes(ccnode);
+            statusAttributes.setProcStatuses(new HashMap<>(res.getProcessesStatuses().get()));
             collector.addAttributes(ccnode,statusAttributes);
         }
 
@@ -575,11 +585,13 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             attr.setProcChange(Map.ofEntries(entry(currentProcess,ChangeType.Start)));
             attr.setPotProcChange(Map.ofEntries(entry(new AbstractMap.SimpleImmutableEntry<>(currentProcess,ChangeType.Start),Boolean.TRUE)));
             attr.setReset(true);
+            attr.setReachTo(new HashSet<>(Set.of(metaData.startState(currentProcess.getProcessName()))));
             if(!metaData.isFirstState(currentProcess.getProcessName(),currentState.getStateName())){
                 ((StateAttributes)collector.getAttributes(ctxNodeProjection.get(metaData.firstStateCtx(currentProcess.getProcessName())))).addReachFrom(currentState.getStateName());
                 attr.setStateChanging(true);
             }
             attributeContainers.peek().addAttributes(attr);
+            register(node, attr);
             //projection.put(ctx, node);
             graph = new ProgramGraph(node,node);
         }else{
@@ -589,6 +601,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             attr.setProcChange(Map.ofEntries(entry(destNode,ChangeType.Start)));
             attr.setPotProcChange(Map.ofEntries(entry(new AbstractMap.SimpleImmutableEntry<>(destNode,ChangeType.Start),Boolean.TRUE)));
             attributeContainers.peek().addAttributes(attr);
+            register(node, attr);
             //projection.put(ctx, node);
             graph = new ProgramGraph(node,node);
         }
@@ -605,7 +618,9 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             attr.setPotProcChange(Map.ofEntries(entry(new AbstractMap.SimpleImmutableEntry<>(currentProcess,ChangeType.Stop),Boolean.TRUE)));
             attr.setReset(true);
             attr.setStateChanging(true);
+            attr.setReachTo(new HashSet<>(Set.of("stop")));
             attributeContainers.peek().addAttributes(attr);
+            register(node, attr);
             ((ProcessAttributes)collector.getAttributes(currentProcess)).setReachS(true);
             //projection.put(ctx, node);
             graph = new ProgramGraph(node,node);
@@ -617,6 +632,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             attr.setProcChange(Map.ofEntries(entry(destNode,ChangeType.Stop)));
             attr.setPotProcChange(Map.ofEntries(entry(new AbstractMap.SimpleImmutableEntry<>(destNode,ChangeType.Stop),Boolean.TRUE)));
             attributeContainers.peek().addAttributes(attr);
+            register(node, attr);
             ((ProcessAttributes)collector.getAttributes(destNode)).setReachS(true);
             //projection.put(ctx, node);
             graph = new ProgramGraph(node,node);
@@ -634,7 +650,9 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             attr.setPotProcChange(Map.ofEntries(entry(new AbstractMap.SimpleImmutableEntry<>(currentProcess,ChangeType.Error),Boolean.TRUE)));
             attr.setReset(true);
             attr.setStateChanging(true);
+            attr.setReachTo(new HashSet<>(Set.of("error")));
             attributeContainers.peek().addAttributes(attr);
+            register(node, attr);
             ((ProcessAttributes)collector.getAttributes(currentProcess)).setReachE(true);
             //projection.put(ctx, node);
             graph = new ProgramGraph(node,node);
@@ -646,6 +664,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
             attr.setProcChange(Map.ofEntries(entry(destNode,ChangeType.Error)));
             attr.setPotProcChange(Map.ofEntries(entry(new AbstractMap.SimpleImmutableEntry<>(destNode,ChangeType.Error),Boolean.TRUE)));
             attributeContainers.peek().addAttributes(attr);
+            register(node, attr);
             ((ProcessAttributes)collector.getAttributes(destNode)).setReachE(true);
             //projection.put(ctx, node);
             graph = new ProgramGraph(node,node);
@@ -660,11 +679,13 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         attr.setProcChange(Map.ofEntries(entry(currentProcess,ChangeType.Start)));
         attr.setPotProcChange(Map.ofEntries(entry(new AbstractMap.SimpleImmutableEntry<>(currentProcess,ChangeType.Start),Boolean.TRUE)));
         attr.setReset(true);
+        attr.setReachTo(new HashSet<>(Set.of(metaData.startState(currentProcess.getProcessName()))));
         if(!metaData.isFirstState(currentProcess.getProcessName(),currentState.getStateName())){
             ((StateAttributes)collector.getAttributes(ctxNodeProjection.get(metaData.firstStateCtx(currentProcess.getProcessName())))).addReachFrom(currentState.getStateName());
             attr.setStateChanging(true);
         }
         attributeContainers.peek().addAttributes(attr);
+        register(node, attr);
         //projection.put(ctx, node);
         return new ProgramGraph(node,node);
     }
@@ -675,6 +696,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
         UniversalAttributes attr = new UniversalAttributes(node);
         attr.setReset(true);
         attributeContainers.peek().addAttributes(attr);
+        register(node, attr);
 
         //projection.put(ctx, node);
         return new ProgramGraph(node,node);
@@ -682,20 +704,21 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
 
     @Override
     public ProgramGraph visitSetStateStat(ReflexParser.SetStateStatContext ctx) {
-        SetStateNode node;
-        UniversalAttributes attr;
-        if (ctx.stateId!=null){
-            String id = ctx.stateId.getText();
-            node = new SetStateNode(ctx,currentProcess.getProcessName(),id);
-            attr = new UniversalAttributes(node);
-            attr.setReset(true);
-            ((StateAttributes)collector.getAttributes(ctxNodeProjection.get(metaData.getState(currentProcess.getProcessName(),currentState.getStateName())))).addReachFrom(currentState.getStateName());
-        }else{
-            node = new SetStateNode(ctx,currentProcess.getProcessName(),metaData.nextState(currentProcess.getProcessName(),currentState.getStateName()));
-            attr = new UniversalAttributes(node);
-            attr.setReset(true);
+        String target = ctx.stateId!=null
+                ? ctx.stateId.getText()
+                : metaData.nextState(currentProcess.getProcessName(),currentState.getStateName());
+        SetStateNode node = new SetStateNode(ctx,currentProcess.getProcessName(),target);
+        UniversalAttributes attr = new UniversalAttributes(node);
+        // Algorithm 1: reachTo is the target, and the state changes unless it is the current one.
+        attr.setReset(true);
+        attr.setReachTo(new HashSet<>(Set.of(target)));
+        if(!target.equals(currentState.getStateName())){
+            attr.setStateChanging(true);
         }
+        // reachFrom of the target, not of the current state.
+        ((StateAttributes)collector.getAttributes(ctxNodeProjection.get(metaData.getState(currentProcess.getProcessName(),target)))).addReachFrom(currentState.getStateName());
         attributeContainers.peek().addAttributes(attr);
+        register(node, attr);
         //projection.put(ctx, node);
         return new ProgramGraph(node,node);
     }
@@ -736,6 +759,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
                     ConditionNode cnode = new ConditionNode(e,res.getProcessesStatusesCondition().get());
                     sub.extendGraph(cnode);
                     ProcessStatusAttributes statusAttributes = new ProcessStatusAttributes(cnode);
+                    statusAttributes.setProcStatuses(new HashMap<>(res.getProcessesStatuses().get()));
                     collector.addAttributes(cnode,statusAttributes);
                 }
                 graph.insertGraph(sub);
@@ -763,6 +787,7 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
                 ConditionNode cnode = new ConditionNode(e,res.getProcessesStatusesCondition().get());
                 graph.extendGraph(cnode);
                 ProcessStatusAttributes statusAttributes = new ProcessStatusAttributes(cnode);
+                statusAttributes.setProcStatuses(new HashMap<>(res.getProcessesStatuses().get()));
                 collector.addAttributes(cnode,statusAttributes);
             }
         }
@@ -772,5 +797,19 @@ public class GraphBuilder extends ReflexBaseVisitor<ProgramGraph> {
     @Override
     public ProgramGraph visitEmptySt(ReflexParser.EmptyStContext ctx) {
         return new ProgramGraph(null,null);
+    }
+
+    // Whether a rendered constant is a number known to be greater than zero, such as "500" or
+    // "(500::nat)". Anything else is not known to be, so rule 4.2 leaves its timeout alone.
+    private static boolean isPositiveNumber(String value){
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("^\\(*\\s*([0-9]+)\\s*(::\\s*\\w+)?\\s*\\)*$").matcher(value.trim());
+        return m.matches() && new java.math.BigInteger(m.group(1)).signum() > 0;
+    }
+
+    // Puts a statement's attributes on the path the rule checker sees, so that the path lists
+    // the statements it executes, in order.
+    private void register(IReflexNode node, UniversalAttributes attr){
+        collector.addAttributes(node, attr);
     }
 }

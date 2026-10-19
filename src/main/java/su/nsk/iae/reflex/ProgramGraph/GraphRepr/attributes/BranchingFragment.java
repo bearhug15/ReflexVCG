@@ -15,10 +15,23 @@ public abstract class BranchingFragment implements IAttributed{
 
     ArrayList<IAttributed> attributes = new ArrayList<>();
     Map<String, ProcessStatus> procStatuses = new HashMap<>();
+    Set<String> reachTo = new HashSet<>();
+    // The state the alternatives are in; reachTo gets it when some branch may not move the
+    // process. Null where there is no such state (the states of a process).
+    String stayState = null;
 
     @Override
     public boolean isReset() {
         return reset;
+    }
+
+    @Override
+    public Set<String> getReachTo() {
+        return reachTo;
+    }
+
+    public void setStayState(String stayState) {
+        this.stayState = stayState;
     }
 
     public void setReset(boolean reset) {
@@ -82,16 +95,24 @@ public abstract class BranchingFragment implements IAttributed{
             this.stateChanging = true;
             Map<ProcessNode,ChangeType> newProcChange = new HashMap<>(attributes.get(0).getProcChange());
             Map<Map.Entry<ProcessNode,ChangeType>,Boolean> newPotProcChange = new HashMap<>();
+            Set<String> newReachTo = new HashSet<>();
+            boolean someMoves = false;
+            boolean someStays = false;
             for(IAttributed attr: attributes){
                 if(!attr.isReset()) this.reset = false;
                 if(!attr.isStateChanging()) this.stateChanging = false;
                 Set<ProcessNode> procs = new HashSet<>(newProcChange.keySet());
                 for (ProcessNode proc: procs){
-                    if(!attr.getProcChange().containsKey(proc) || !attr.getProcChange().get(proc).equals(attr.getProcChange().get(proc)))
+                    if(!attr.getProcChange().containsKey(proc) || !attr.getProcChange().get(proc).equals(newProcChange.get(proc)))
                         newProcChange.remove(proc);
                 }
                 newPotProcChange.putAll(attr.getPotProcChange());
+                newReachTo.addAll(attr.getReachTo());
+                if(attr.getReachTo().isEmpty()) someStays = true;
+                else someMoves = true;
             }
+            if(someMoves && someStays && stayState != null) newReachTo.add(stayState);
+            this.reachTo = newReachTo;
             newPotProcChange = newPotProcChange.entrySet().stream()
                     .filter(entry->!newProcChange.containsKey(entry.getKey().getKey()))
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (x, y) -> y, HashMap::new));

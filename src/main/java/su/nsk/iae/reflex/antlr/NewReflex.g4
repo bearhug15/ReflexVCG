@@ -14,7 +14,7 @@ program:
      | nodes+=nodeDecl)*
 
      '}' EOF;
-clockDefinition: 'clock' (intValue=UNSIGNED_INTEGER | timeValue=TIME) ';';
+clockDefinition: (comments+=comment)* 'clock' (intValue=UNSIGNED_INTEGER | timeValue=TIME) ';';
 process:
     (comments+=comment)*
     'process' name=ID '::' 'node' node=ID '{'
@@ -28,59 +28,61 @@ state:
     (func=timeoutFunction)?
     '}';
 
-importBlock: 'import' name=ID '{' (importElements+=importElement)* '}';
-importElement: iVector | iRegister | iBit;
+importBlock: (comments+=comment)* 'import' name=ID '{' (importElements+=importElement)* '}';
+importElement: (comments+=comment)* (iVector | iRegister | iBit);
 iVector: 'vector' name=ID;
 iRegister: 'register' name=ID;
 iBit: 'bit' name=ID;
 
-nodeDecl: 'node' name=ID '{'
+nodeDecl: (comments+=comment)* 'node' name=ID '{'
  clock=clockDefinition
  (consts+=const
  | nodeVars+=globalVariable)*
  '}';
 
-importedVariableList: 'shared' (variables+=ID (',' variables+=ID)*) 'from' 'process' processID=ID;
+importedVariableList: (comments+=comment)* 'shared' (variables+=ID (',' variables+=ID)*) 'from' 'process' processID=ID;
 processVariable: (physicalVariable | programVariable) shared='shared'?;
-globalVariable: (physicalVariable | programVariable) ';';
-physicalVariable: (isDirect=direction)? varType=type name=ID 'as''(' 'read' '=' readId=ID (',''write''='writeId=ID)? (',''config''='configId=ID)? (',''bit''='bitId=ID)?')';
+globalVariable: (comments+=comment)* (physicalVariable | programVariable) ';';
+physicalVariable: (comments+=comment)* (isDirect=direction)? varType=type name=ID 'as''(' 'read' '=' readId=ID (',''write''='writeId=ID)? (',''config''='configId=ID)? (',''bit''='bitId=ID)?')';
 direction: 'direct' | 'indirect';
-programVariable: varType=type name=ID ('=' expression)?;
-structDeclaration: 'struct' name=ID '{'(variables+=programVariable)+ '}';
+programVariable: (comments+=comment)* varType=type name=ID ('=' expression)?;
+structDeclaration: (comments+=comment)* 'struct' name=ID '{'(variables+=programVariable)+ '}';
 timeoutFunction:'timeout' (timeAmountOrRef | '(' timeAmountOrRef ')') body=statement;
 timeAmountOrRef: time=TIME | intTime=UNSIGNED_INTEGER | ref=ID;
-functionDecl: returnType=type '(' argTypes+=type (',' argTypes+=type)*')';
-port: varType=PORT_TYPE name=ID addr1=UNSIGNED_INTEGER addr2=UNSIGNED_INTEGER size=UNSIGNED_INTEGER ';';
+functionDecl: (comments+=comment)* returnType=type '(' argTypes+=type (',' argTypes+=type)*')';
+port: (comments+=comment)* varType=PORT_TYPE name=ID addr1=UNSIGNED_INTEGER addr2=UNSIGNED_INTEGER size=UNSIGNED_INTEGER ';';
 PORT_TYPE: 'input' | 'output';
-const: 'const' varType=type  name=ID '=' value=expression ';';
-enum: 'enum' identifier=ID '{' enumMembers+=enumMember (',' enumMembers+=enumMember) '}';
-enumMember: name=ID ('=' value=expression)?;
+const: (comments+=comment)* 'const' varType=type  name=ID '=' value=expression ';';
+enum: (comments+=comment)* 'enum' identifier=ID '{' enumMembers+=enumMember (',' enumMembers+=enumMember) '}';
+enumMember: (comments+=comment)* name=ID ('=' value=expression)?;
 
 guardingStatement:
-    'wait''('expression ')'';'          #Wait
-    | 'slice'';'                        #Slice
-    | 'wait''('cond=expression')''on''timeout' time=timeAmountOrRef body=statement';'  #WaitOnTimeout
+    waitHeader ';'                                                        #Wait
+    | 'slice' ';'                                                         #Slice
+    | waitHeader 'on' 'timeout' time=timeAmountOrRef body=statement ';'   #WaitOnTimeout
     ;
+waitHeader: 'wait' '(' cond=expression ')';
 
-statement:
-    ';' # EmptySt
-    | (comments+=comment)* compoundStatement    #CompoundSt
-    | (comments+=comment)* startProcStat       #StartProcessSt
-    | (comments+=comment)* stopProcStat        #StopProcessSt
-    | (comments+=comment)* errorProcStat       #ErrorProcessSt
-    | (comments+=comment)* restartStat          #RestartSt
-    | (comments+=comment)* resetStat            #ResetSt
-    | (comments+=comment)* setStateStat        #SetStateSt
-    | (comments+=comment)* ifElseStat          #IfElseSt
-    | (comments+=comment)* switchStat           #SwitchSt
-    | (comments+=comment)* expression ';'        #ExprSt
-    | (comments+=comment)* guardingStatement     #GuardSt
-    | (comments+=comment)* iterationStat        #IterSt
-    | (comments+=comment)* ccodeStat #CCodeSt
-    | (comments+=comment)* programVariable ';' #VariableSt
+statement: (comments+=comment)* statementKind;
+statementKind:
+    ';'                    #EmptySt
+    | compoundStatement    #CompoundSt
+    | startProcStat        #StartProcessSt
+    | stopProcStat         #StopProcessSt
+    | errorProcStat        #ErrorProcessSt
+    | restartStat          #RestartSt
+    | resetStat            #ResetSt
+    | setStateStat         #SetStateSt
+    | ifElseStat           #IfElseSt
+    | switchStat           #SwitchSt
+    | expression ';'       #ExprSt
+    | guardingStatement    #GuardSt
+    | iterationStat        #IterSt
+    | ccodeStat            #CCodeSt
+    | programVariable ';'  #VariableSt
     ;
 statementSeq: statements+=statement*;
-compoundStatement:  '{' statements+=statement* '}';
+compoundStatement: '{' body=statementSeq '}';
 
 iterationStat: 'for' '('init=initIter';' cond=expression ';' upd=expression ')' stat=statement;
 initIter: initList | expression;
@@ -91,9 +93,10 @@ CSTRING
     ;
 ifElseStat: 'if' '(' cond=expression ')' then=statement ( 'else' else=statement)?;
 switchStat: 'switch' '(' expr=expression ')' '{' options+=caseStat* defaultOption=defaultStat? '}';
-caseStat: 'case' option=expression ':' ('{' switchOptionStatSeq '}' | switchOptionStatSeq);
-defaultStat: 'default' ':' '{' switchOptionStatSeq '}';
-switchOptionStatSeq: statements+=statement* break=BREAK?;
+caseStat: 'case' option=expression ':' switchOptionBody;
+defaultStat: 'default' ':' switchOptionBody;
+switchOptionBody: '{' switchOptionStatSeq '}' | switchOptionStatSeq;
+switchOptionStatSeq: body=statementSeq break=BREAK?;
 BREAK: 'break' ';';
 startProcStat: 'start' processId=ID;
 stopProcStat: 'stop' (processId=ID)?;

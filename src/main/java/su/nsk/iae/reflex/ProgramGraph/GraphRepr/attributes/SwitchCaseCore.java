@@ -15,6 +15,7 @@ public class SwitchCaseCore extends BranchingFragment {
         rootProcess = process;
         rootState = state;
         this.attributedNode = attributedNode;
+        stayState = state.getStateName();
     }
 
     public ProcessNode getRootProcess() {
