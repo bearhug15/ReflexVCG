@@ -4,12 +4,16 @@ import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import su.nsk.iae.reflex.antlr.ReflexLexer;
 import su.nsk.iae.reflex.antlr.ReflexParser;
 
 import java.nio.file.Path;
 
 class VCGeneratorTest {
+    @TempDir
+    Path outputDirectory;
+
     @Test
     void ifTest1(){
         CharStream inputStream = CharStreams.fromString("program ifTest {\n" +
@@ -46,7 +50,7 @@ class VCGeneratorTest {
             exporter.exportGraph(gen.graph, writer);
             System.out.println(writer.toString());//*/
 
-            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            gen.generateVC(Path.of("testResult"), outputDirectory);
             System.out.println("VC conditions generated: " + gen.VCGenerated());
 
         }catch (Exception e){
@@ -89,7 +93,7 @@ class VCGeneratorTest {
             exporter.exportGraph(gen.graph, writer);
             System.out.println(writer.toString());//*/
 
-            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            gen.generateVC(Path.of("testResult"), outputDirectory);
             System.out.println("VC conditions generated: " + gen.VCGenerated());
 
         }catch (Exception e){
@@ -133,7 +137,7 @@ class VCGeneratorTest {
             exporter.exportGraph(gen.graph, writer);
             System.out.println(writer.toString());//*/
 
-            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            gen.generateVC(Path.of("testResult"), outputDirectory);
             System.out.println("VC conditions generated: " + gen.VCGenerated());
 
         }catch (Exception e){
@@ -176,7 +180,7 @@ class VCGeneratorTest {
             exporter.exportGraph(gen.graph, writer);
             System.out.println(writer.toString());//*/
 
-            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            gen.generateVC(Path.of("testResult"), outputDirectory);
             System.out.println("VC conditions generated: " + gen.VCGenerated());
 
         }catch (Exception e){
@@ -221,7 +225,7 @@ class VCGeneratorTest {
             exporter.exportGraph(gen.graph, writer);
             System.out.println(writer.toString());//*/
 
-            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            gen.generateVC(Path.of("testResult"), outputDirectory);
             System.out.println("VC conditions generated: " + gen.VCGenerated());
 
         }catch (Exception e){
@@ -260,7 +264,7 @@ class VCGeneratorTest {
             exporter.exportGraph(gen.graph, writer);
             System.out.println(writer.toString());//*/
 
-            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            gen.generateVC(Path.of("testResult"), outputDirectory);
             System.out.println("VC conditions generated: " + gen.VCGenerated());
 
         }catch (Exception e){
@@ -703,7 +707,7 @@ class VCGeneratorTest {
             exporter.exportGraph(gen.graph, writer);
             System.out.println(writer.toString());//*/
 
-            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            gen.generateVC(Path.of("testResult"), outputDirectory);
             System.out.println("VC conditions generated: " + gen.VCGenerated());
 
         }catch (Exception e){
@@ -808,7 +812,7 @@ class VCGeneratorTest {
             exporter.exportGraph(gen.graph, writer);
             System.out.println(writer.toString());*/
 
-            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            gen.generateVC(Path.of("testResult"), outputDirectory);
             System.out.println("VC conditions generated: " + gen.VCGenerated());
             /*IsabelleCreator creator = new IsabelleCreator();
             VariableMapper mapper = new VariableMapper(context,creator);
@@ -955,7 +959,7 @@ class VCGeneratorTest {
             exporter.exportGraph(gen.graph, writer);
             System.out.println(writer.toString());//*/
 
-            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            gen.generateVC(Path.of("testResult"), outputDirectory);
             System.out.println("VC conditions generated: " + gen.VCGenerated());
             /*IsabelleCreator creator = new IsabelleCreator();
             VariableMapper mapper = new VariableMapper(context,creator);
@@ -1076,7 +1080,7 @@ class VCGeneratorTest {
             exporter.exportGraph(gen.graph, writer);
             System.out.println(writer.toString());//*/
 
-            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            gen.generateVC(Path.of("testResult"), outputDirectory);
             System.out.println("VC conditions generated: " + gen.VCGenerated());
 
         }catch (Exception e){
@@ -1209,7 +1213,7 @@ class VCGeneratorTest {
             exporter.exportGraph(gen.graph, writer);
             System.out.println(writer.toString());//*/
 
-            gen.generateVC(Path.of("./src/test/testResult"),Path.of("./src/test/testResult"));
+            gen.generateVC(Path.of("testResult"), outputDirectory);
             System.out.println("VC conditions generated: " + gen.VCGenerated());
 
         }catch (Exception e){
