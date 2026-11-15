@@ -36,7 +36,7 @@ processVariable: (physicalVariable | programVariable) shared='shared'?;
 globalVariable: (physicalVariable | programVariable) ';';
 physicalVariable: varType=type name=ID '=' mapping=portMapping;
 portMapping: portId=ID '[' (bit=UNSIGNED_INTEGER)? ']';
-programVariable: simpleVarDecl | arrayVarDecl | enumVarDecl | structVarDecl;
+programVariable: varType=type name=ID ('=' expression)?;
 structDecl: 'struct' name=ID '{'(variables+=programVariable)+ '}';
 timeoutFunction:'timeout' (timeAmountOrRef | '(' timeAmountOrRef ')') body=statement;
 timeAmountOrRef: time=TIME | intTime=UNSIGNED_INTEGER | ref=ID;
@@ -87,13 +87,13 @@ restartStat: 'restart' ';';
 resetStat: 'reset' 'timer' ';';
 setStateStat: 'set' ('next' 'state' | 'state' stateId=ID);
 functionCall: functionID=ID '(' (args+=expression (',' args+=expression)*) ')';
-checkStateExpression: 'process' processId=ID 'in' 'state' stateId=STATE_QUAL;
-STATE_QUAL:'active'|'inactive'|'stop'|'error';
-infixOp: op=INFIX_POSTFIX_OP variable;
-postfixOp: variable op=INFIX_POSTFIX_OP;
+checkStateExpression: 'process' processId=ID 'in' 'state' qual=stateQual;
+stateQual:'active'|'inactive'|'stop'|'error';
+infixOp: op=INFIX_POSTFIX_OP varId=ID;
+postfixOp: varId=ID op=INFIX_POSTFIX_OP;
 primaryExpression:
-    variable                #Id
-    | integer #IntegerVal
+    ID                      #Id
+    | (INTEGER | UNSIGNED_INTEGER) #Integer
     | FLOAT                 #Float
     | BOOL_VAL              #Bool
     | TIME                  #Time
@@ -122,7 +122,7 @@ unaryExpression                            #Unary
     | expression BIT_OR_OP expression           #BitOr
     | expression AND_OP expression              #And
     | expression OR_OP  expression              #Or
-    | variable assignOp expression              #Assign
+    | ID assignOp expression              #Assign
     ;
 variable:
     (varId=ID ('['idx=expression']')?)
@@ -152,8 +152,7 @@ type:
     | 'int32' | 'uint32'
     | 'int64' | 'uint64'
     ;
-ID: [a-zA-Z]+ [a-zA-Z0-9_]*;
-integer: (sign='+' | sign='-')? UNSIGNED_INTEGER;
+INTEGER: ('+' | '-') UNSIGNED_INTEGER;
 UNSIGNED_INTEGER: (HEX | OCTAL | DECIMAL) LONG? UNSIGNED?;
 
 FLOAT: ('+' | '-')? (DEC_FLOAT | HEX_FLOAT);
@@ -180,3 +179,4 @@ MILISECOND: 'MS' | 'ms';
 BOOL_VAL: 'true' | 'false';
 STRING: '"'[a-zA-Z0-9 ]*'"';
 WS: [ \t\r\n\u000C]+ -> skip;
+ID: [a-zA-Z]+ [a-zA-Z0-9_]*;
