@@ -2,8 +2,7 @@
 
 The `isp-2026` branch is the source release of the generator for the
 experiments in A. D. Ishchenko and I. S. Anureev, “Using static analysis to
-reduce the number of verification conditions generated for Reflex programs”
-(Proceedings of ISP RAS, 2026, vol. 38, no. 6, part 2, pp. 21–40).
+reduce the number of verification conditions generated for Reflex programs”: https://www.ispras.ru/proceedings/isp_38_2026_6-2/isp_38_2026_6-2_21/.
 
 ## Quick Overview
 
@@ -19,7 +18,7 @@ from `Reflex.g4`, compile the project and build the executable JAR.
 ## Running
 
 To launch the generator from the repository root, use
-`java -jar target/ReflexVCG-1.0-jar-with-dependencies.jar -s path/to/program.rx -o path/to/output`.
+`java -jar target/ReflexVCG-1.0-jar-with-dependencies.jar -s path/to/program.rcs -o path/to/output`.
 Create the output directory before running the command.
 
 | key   | value          | meaning                                                                               |
